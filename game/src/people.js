@@ -195,6 +195,98 @@ export function makeWorker(seed = 1, scale = 1) {
   return makePerson(seed, scale, { hivis: true });
 }
 
+// A COLLAPSED NPC — shot in a gunfight, lying flat on the ground
+// (terkapar). Built lying down on purpose, never a standing figure tipped
+// over: torso flat, head at one end, legs stretched out, one arm flung
+// wide, the other bent across the chest, a dropped pistol by the open
+// hand and a small dark blood pool under the torso. The long axis is
+// local Z (head -Z, feet +Z); rotate the group to lay it broadside to
+// the camera. Static — never added to the animated crowd.
+export function makeFallenPerson(seed = 1) {
+  const rnd = seededRnd(seed);
+  const g = new THREE.Group();
+  const skin = mat(SKINS[Math.floor(rnd() * SKINS.length)], 0.7);
+  const shirt = mat(SHIRTS[Math.floor(rnd() * SHIRTS.length)], 0.8);
+  const pants = mat(PANTS[Math.floor(rnd() * PANTS.length)], 0.85);
+  const hair = mat(HAIRS[Math.floor(rnd() * HAIRS.length)], 0.9);
+  const shoe = mat(SHOES[Math.floor(rnd() * SHOES.length)], 0.6);
+  // torso: flat on the ground, chest up
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.24, 0.58), shirt);
+  torso.position.set(0, 0.14, 0.05);
+  torso.castShadow = true;
+  g.add(torso);
+  const shoulders = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.12, 0.26), shirt);
+  shoulders.position.set(0, 0.16, -0.18);
+  shoulders.castShadow = true;
+  g.add(shoulders);
+  // head: turned to one side, resting on the ground
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.135, 12, 10), skin);
+  head.scale.set(1, 1.02, 1.18);
+  head.position.set(0.06, 0.14, -0.42);
+  head.rotation.y = 0.9;
+  head.castShadow = true;
+  g.add(head);
+  const cap = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), hair);
+  cap.position.set(0.06, 0.16, -0.42);
+  cap.rotation.y = 0.9;
+  g.add(cap);
+  // legs: stretched out, one slightly bent and splayed — a body that fell,
+  // not a mannequin laid out straight
+  const legL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.14, 0.78), pants);
+  legL.position.set(-0.11, 0.09, 0.70);
+  legL.castShadow = true;
+  g.add(legL);
+  const legR = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.14, 0.72), pants);
+  legR.position.set(0.13, 0.09, 0.68);
+  legR.rotation.y = 0.16;
+  legR.castShadow = true;
+  g.add(legR);
+  for (const [fx, fz, ry] of [[-0.11, 1.10, 0], [0.22, 1.05, 0.16]]) {
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.10, 0.26), shoe);
+    foot.position.set(fx, 0.07, fz);
+    foot.rotation.y = ry;
+    foot.castShadow = true;
+    g.add(foot);
+  }
+  // left arm: flung wide, open hand on the asphalt
+  const armL = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.10, 0.52), skin);
+  armL.position.set(-0.44, 0.08, -0.05);
+  armL.rotation.y = 1.15;
+  armL.castShadow = true;
+  g.add(armL);
+  const handL = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.07, 0.12), skin);
+  handL.position.set(-0.62, 0.06, 0.18);
+  g.add(handL);
+  // right arm: bent across the chest
+  const armR = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.10, 0.42), shirt);
+  armR.position.set(0.22, 0.17, -0.08);
+  armR.rotation.y = -0.7;
+  armR.castShadow = true;
+  g.add(armR);
+  const handR = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.07, 0.10), skin);
+  handR.position.set(0.10, 0.18, -0.24);
+  g.add(handR);
+  // dropped pistol by the open left hand
+  const gun = new THREE.Group();
+  const gunMetal = new THREE.MeshStandardMaterial({ color: 0x1c1e22, roughness: 0.4, metalness: 0.8 });
+  const slide = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.22), gunMetal);
+  gun.add(slide);
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.10, 0.06), gunMetal);
+  grip.position.set(0, -0.04, 0.07);
+  gun.add(grip);
+  gun.position.set(-0.72, 0.05, 0.30);
+  gun.rotation.y = 0.7;
+  g.add(gun);
+  // small dark blood pool under the torso — the "shot" read
+  const pool = new THREE.Mesh(new THREE.CircleGeometry(0.34, 16),
+    new THREE.MeshBasicMaterial({ color: 0x5a0d0d, transparent: true, opacity: 0.75 }));
+  pool.rotation.x = -Math.PI / 2;
+  pool.scale.set(1.25, 0.8, 1);
+  pool.position.set(0.05, 0.015, 0.02);
+  g.add(pool);
+  return g;
+}
+
 // Scatter walkers along a line segment (sidewalk, beach, pier).
 // Each spot may carry y = the surface height (pier deck 0.41, sand 0.04);
 // the crowd keeps that ground height forever — animation only bobs on top.

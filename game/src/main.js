@@ -5,8 +5,8 @@ import * as THREE from 'three';
 import { buildCity } from './world.js';
 import { initPortraits, drawMinimap, updateHud, renderHud } from './hud.js';
 import { SHOTS, shotName } from './shots.js';
-import { animateCrowd, makePerson } from './people.js';
-import { skyTexture } from './textures.js';
+import { animateCrowd, makePerson, makeFallenPerson } from './people.js';
+import { skyTexture, sunGlowTexture, muzzleFlashTexture } from './textures.js';
 import { createGame } from './game.js';
 
 window.addEventListener('error', (e) => { window.__PAGEERROR__ = String(e.message || e.error); });
@@ -87,14 +87,80 @@ if (!isShot) {
 hero.position.set(...preset.hero);
 hero.rotation.y = preset.heroRot;
 heli.position.set(...preset.heli);
-// cover: the hero now faces the camera, so the pursuit police car moves to
-// the hero's left flank where the lens can see it (shot mode only — the
-// free game keeps its own traffic layout). Angled -0.55 so the camera sees
-// its rear POLICE marking AND its flank livery, not a flat white rear.
+// ---- staged shootout (cover shot only) --------------------------------
+// Fix round 3 (v12): the cover is a GUNFIGHT, like the top entries. Two
+// muzzle flashes — one from the hero's driver window, one returning fire
+// from the police car's window — plus a tracer streak each, and a
+// collapsed NPC on the road in the foreground (shot, terkapar). All three
+// are shot-mode-only staging: the free game keeps its own logic, so the
+// playtest never sees them. The flashes pulse but never switch off (min
+// opacity 0.7), so a screenshot taken at any phase shows live gunfire.
+const gunfire = [];
+function makeGunfire(from, target, phase) {
+  const g = new THREE.Group();
+  const dir = new THREE.Vector3().subVectors(target, from).normalize();
+  // starburst core + warm halo, both additive billboards
+  const core = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: muzzleFlashTexture(), transparent: true, opacity: 0.95,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  }));
+  core.scale.set(1.4, 1.4, 1);
+  g.add(core);
+  const halo = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: sunGlowTexture(), color: 0xff9d2e, transparent: true, opacity: 0.45,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  }));
+  // halo 1.9, not 2.6: a bigger halo washed out the police door's "E" in
+  // the cover shot. The core starburst is what reads as gunfire.
+  halo.scale.set(1.9, 1.9, 1);
+  g.add(halo);
+  // gun barrel stub poking out of the window toward the target, so the
+  // flash has a visible source instead of floating in the air
+  const barrel = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.035, 0.035, 0.42, 8),
+    new THREE.MeshStandardMaterial({ color: 0x1c1e22, roughness: 0.4, metalness: 0.8 }));
+  barrel.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+  barrel.position.copy(dir).multiplyScalar(0.12);
+  g.add(barrel);
+  // tracer streak: a bright line from the muzzle toward the target
+  const tracer = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.03, 0.03, 2.0, 6),
+    new THREE.MeshBasicMaterial({ color: 0xffe9a8, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }));
+  tracer.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+  tracer.position.copy(dir).multiplyScalar(1.15);
+  g.add(tracer);
+  g.position.copy(from);
+  g.userData = { core, halo, tracer, phase };
+  gunfire.push(g);
+  return g;
+}
+
 if (shot === 'cover') {
   const cop = refs.traffic[0];
-  cop.position.set(-5.0, 0, -3.5);
-  cop.rotation.y = -0.55;
+  cop.position.set(-2.4, 0, 3.5);
+  // 0.25 (not 0.40): the door is ~25% more face-on, so POLICE reads whole
+  // instead of "POLIC" with the E foreshortened away — and the E clears
+  // the hero's nose now that the hero sits at x 1.6.
+  cop.rotation.y = 0.25;
+  // drive-by fire from the hero's window (left flank, facing the lens).
+  // Hero sits at x 1.6 in the cover shot, so the window is at x 2.42.
+  scene.add(makeGunfire(
+    new THREE.Vector3(2.42, 1.05, 2.37),
+    new THREE.Vector3(-2.4, 1.0, 3.5), 0));
+  // return fire from the police car's FRONT window — the flash sits over
+  // the hood, ahead of the door, so its halo never washes out the POLICE
+  // lettering (at the side window it sat directly above the "E").
+  scene.add(makeGunfire(
+    new THREE.Vector3(-1.85, 1.1, 1.81),
+    new THREE.Vector3(1.6, 1.0, 2.0), Math.PI));
+  // collapsed NPC on the road in the foreground, broadside to the lens:
+  // head west, feet east, full 1.7 m length visible at screen ~(520-700,
+  // 560). Clear of the hero, the police, the minimap and the dialogue
+  // panel — on open asphalt, nothing behind or in front of it.
+  const fallen = makeFallenPerson(7);
+  fallen.position.set(6.5, 0, 7.0);
+  fallen.rotation.y = 2.02;
+  scene.add(fallen);
 }
 camera.position.set(...preset.cam);
 camera.lookAt(...preset.look);
@@ -219,14 +285,34 @@ function animate() {
   heli.position.y = preset.heli[1] + Math.sin(t * 0.7) * 0.5;
   heli.position.x = preset.heli[0] + Math.sin(t * 0.23) * 0.8;
 
-  // police light bars flash
+  // police light bars flash — but the "off" phase stays clearly lit
+  // (1.0, never 0.25) and the glow halos pulse with it, so a screenshot
+  // taken at any phase still shows a live light bar, never a dead roof.
   for (const car of refs.traffic) {
     const bar = car.userData.lightBar;
     if (bar) {
       const on = Math.sin(t * 9) > 0;
-      bar[0].material.emissiveIntensity = on ? 2.4 : 0.25;
-      bar[1].material.emissiveIntensity = on ? 0.25 : 2.4;
+      bar[0].material.emissiveIntensity = on ? 2.4 : 1.0;
+      bar[1].material.emissiveIntensity = on ? 1.0 : 2.4;
+      const glow = car.userData.lightGlow;
+      if (glow) {
+        glow[0].material.opacity = on ? 0.85 : 0.45;
+        glow[1].material.opacity = on ? 0.45 : 0.85;
+      }
     }
+  }
+
+  // staged shootout muzzle flashes (cover only): the two flashes pulse
+  // in opposite phases, and neither ever drops below clearly visible —
+  // a screenshot taken at any moment shows live gunfire from both cars.
+  for (const gf of gunfire) {
+    const u = gf.userData;
+    const f = (Math.sin(t * 13 + u.phase) + 1) / 2; // 0..1
+    u.core.material.opacity = 0.7 + 0.3 * f;
+    const s = 1.15 + 0.45 * f;
+    u.core.scale.set(s, s, 1);
+    u.halo.material.opacity = 0.25 + 0.25 * f;
+    u.tracer.material.opacity = 0.35 + 0.55 * f;
   }
 
   animateCrowd(refs.crowd, t);

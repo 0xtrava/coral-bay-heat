@@ -73,12 +73,20 @@
   #fixer .f-rank { font-size: 12px; margin-top: 3px; }
   #fixer .bar { height: 7px; background: rgba(255,255,255,0.18); border-radius: 4px; margin-top: 4px; overflow: hidden; }
   #fixer .bar i { display: block; height: 100%; width: 42%; background: linear-gradient(90deg,#ff9d2e,#ffd76a); }
-  #weapons { position: absolute; top: 216px; right: 12px; width: 218px; display: flex; gap: 6px; background: none; border: none; box-shadow: none; padding: 0; }
-  .wslot { flex: 1; background: rgba(12,10,28,0.78); border: 1px solid rgba(255,255,255,0.16); border-radius: 7px;
+  #weapons { position: absolute; top: 212px; right: 12px; width: 218px; display: flex; gap: 6px; background: none; border: none; box-shadow: none; padding: 0; }
+  .wslot { flex: 1; min-width: 0; background: rgba(12,10,28,0.78); border: 1px solid rgba(255,255,255,0.16); border-radius: 7px;
     padding: 6px 4px; text-align: center; }
   .wslot.sel { border-color: #ffb62e; box-shadow: 0 0 0 1px #ffb62e; }
   .wslot .wk { font-size: 10px; color: #ffb62e; font-weight: bold; }
-  .wslot .wn { font-size: 11px; font-weight: bold; margin-top: 2px; }
+  /* weapon silhouette: the HUD shows the ACTUAL WEAPON, not just a name.
+     Each slot carries its weapon's side-profile silhouette; the equipped
+     slot's icon is amber and slightly enlarged, so the player sees which
+     weapon is equipped from the graphic itself. renderHud only toggles
+     .sel / ammo text — the icons ride along. */
+  .wslot .wic { height: 24px; margin: 2px 0 1px; color: #cfe3ff; }
+  .wslot .wic svg { width: 40px; height: 24px; }
+  .wslot.sel .wic { color: #ffb62e; transform: scale(1.12); }
+  .wslot .wn { font-size: 10px; font-weight: bold; margin-top: 2px; }
   .wslot .wa { font-size: 12px; color: #7dff9a; font-weight: bold; }
   #crew { position: absolute; top: 292px; right: 12px; width: 218px; display: flex; flex-direction: column; gap: 6px; background: none; border: none; box-shadow: none; padding: 0; }
   .crew-card { display: flex; gap: 8px; align-items: center; background: rgba(12,10,28,0.78);
@@ -170,10 +178,10 @@
     <div class="bar"><i id="f-bar"></i></div>
   </div>
   <div id="weapons">
-    <div class="wslot"><div class="wk">1</div><div class="wn">FISTS</div><div class="wa">&infin;</div></div>
-    <div class="wslot sel"><div class="wk">2</div><div class="wn">PISTOL</div><div class="wa">60</div></div>
-    <div class="wslot"><div class="wk">3</div><div class="wn">SMG</div><div class="wa">30/120</div></div>
-    <div class="wslot"><div class="wk">4</div><div class="wn">SHOTGUN</div><div class="wa">18</div></div>
+    <div class="wslot"><div class="wk">1</div><div class="wic"><svg viewBox="0 0 48 28" fill="currentColor" aria-label="Fists"><rect x="9" y="13" width="30" height="11" rx="4"/><circle cx="14" cy="12" r="4"/><circle cx="21" cy="10.5" r="4"/><circle cx="28" cy="10.5" r="4"/><circle cx="35" cy="12" r="4"/></svg></div><div class="wn">FISTS</div><div class="wa">&infin;</div></div>
+    <div class="wslot sel"><div class="wk">2</div><div class="wic"><svg viewBox="0 0 48 28" fill="currentColor" aria-label="Pistol"><rect x="3" y="5" width="32" height="7" rx="1"/><rect x="35" y="7" width="5" height="3"/><polygon points="24,12 31,12 28,25 21,25"/><rect x="15" y="12" width="3" height="5"/></svg></div><div class="wn">PISTOL</div><div class="wa">60</div></div>
+    <div class="wslot"><div class="wk">3</div><div class="wic"><svg viewBox="0 0 48 28" fill="currentColor" aria-label="SMG"><rect x="3" y="7" width="30" height="7" rx="1"/><rect x="33" y="9" width="11" height="3"/><polygon points="14,14 20,14 18,26 12,26"/><polygon points="26,14 30,14 29,22 25,22"/><rect x="0" y="8" width="4" height="5"/></svg></div><div class="wn">SMG</div><div class="wa">30/120</div></div>
+    <div class="wslot"><div class="wk">4</div><div class="wic"><svg viewBox="0 0 48 28" fill="currentColor" aria-label="Shotgun"><rect x="10" y="6" width="34" height="4" rx="1"/><rect x="8" y="6" width="10" height="7"/><polygon points="0,8 8,8 10,14 6,24 0,24"/><rect x="24" y="11" width="9" height="4" rx="1"/><rect x="12" y="14" width="5" height="3"/></svg></div><div class="wn">SHOTGUN</div><div class="wa">18</div></div>
   </div>
   <div id="crew">
     <div class="crew-card"><canvas class="portrait" data-who="mira" width="68" height="68"></canvas><div><div class="cn">SWAP PLATES</div><div class="cr">Mira &middot; Driver</div></div></div>

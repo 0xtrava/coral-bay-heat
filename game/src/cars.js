@@ -3,6 +3,7 @@
 // wheel arches, real wheels with bright sidewalls and silver hubs, lights
 // and louvres. Forward is -Z, width is X, up is Y.
 import * as THREE from 'three';
+import { sunGlowTexture } from './textures.js';
 
 // ---- shared materials -------------------------------------------------
 const MAT = {
@@ -253,13 +254,15 @@ export function makeHeroCar() {
 }
 
 // ---- text decal (doors / signs) ---------------------------------------
-export function textTexture(text, fg = '#111', bg = 'rgba(0,0,0,0)', font = 'bold 64px Arial') {
+// Optional w/h: wide plates (e.g. a rear POLICE placard) need a wide
+// canvas or the text stretches. Defaults keep every existing caller exact.
+export function textTexture(text, fg = '#111', bg = 'rgba(0,0,0,0)', font = 'bold 64px Arial', w = 256, h = 96) {
   const c = document.createElement('canvas');
-  c.width = 256; c.height = 96;
+  c.width = w; c.height = h;
   const g = c.getContext('2d');
-  g.fillStyle = bg; g.fillRect(0, 0, 256, 96);
+  g.fillStyle = bg; g.fillRect(0, 0, w, h);
   g.fillStyle = fg; g.font = font; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(text, 128, 50);
+  g.fillText(text, w / 2, h / 2 + 2);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
@@ -320,49 +323,68 @@ function makeSedan({ color = 0x8899aa, taxi = false, police = false } = {}) {
   car.add(box(1.2, 0.05, 0.03, MAT.chrome, 0, 0.44, -2.40)); // grille bar
   car.add(box(1.7, 0.10, 0.10, MAT.blackTrim, 0, 0.22, -2.38)); // lower valance
   car.add(box(1.7, 0.14, 0.10, MAT.blackTrim, 0, 0.26, 2.40)); // rear bumper
+// Fix round 3 (v12): POLICE must read at 14 m in the cover shot. The
+  // door lettering is now a BIG white plate (navy text on solid white,
+  // so it reads over the navy stripe too), ~30% larger than before, and
+  // the navy stripe is taller so the livery reads as a band, not a line.
   if (police) {
     // black hood + trunk, navy side stripe, big POLICE doors, light bar
     car.add(box(1.5, 0.03, 0.95, black, 0, 0.925, -1.55)); // hood
     car.add(box(1.5, 0.03, 0.75, black, 0, 0.905, 1.85)); // trunk
     for (const side of [-1, 1]) {
       // navy stripe down the whole flank, under the POLICE lettering
-      car.add(box(0.02, 0.20, 3.6, navy, side * 0.925, 0.52, 0));
-      const doorTex = textTexture('POLICE', '#0d2b45');
-      const decal = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 0.39),
-        new THREE.MeshBasicMaterial({ map: doorTex, transparent: true }));
-      decal.position.set(side * 0.955, 0.72, 0.15);
+      car.add(box(0.02, 0.26, 3.6, navy, side * 0.925, 0.52, 0));
+      const doorTex = textTexture('POLICE', '#0d2b45', '#ffffff', 'bold 80px Arial', 320, 96);
+      const decal = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 0.41),
+        new THREE.MeshBasicMaterial({ map: doorTex }));
+      decal.position.set(side * 0.955, 0.70, 0.15);
       decal.rotation.y = side * Math.PI / 2;
       car.add(decal);
-      const cbpd = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.22),
-        new THREE.MeshBasicMaterial({ map: textTexture('CBPD', '#0d2b45'), transparent: true }));
-      cbpd.position.set(side * 0.955, 0.72, -0.85);
+      const cbpd = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.27),
+        new THREE.MeshBasicMaterial({ map: textTexture('CBPD', '#0d2b45', '#ffffff', 'bold 64px Arial') }));
+      cbpd.position.set(side * 0.955, 0.70, -0.85);
       cbpd.rotation.y = side * Math.PI / 2;
       car.add(cbpd);
-      const num = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.2),
-        new THREE.MeshBasicMaterial({ map: textTexture('43', '#0d2b45'), transparent: true }));
+      const num = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.21),
+        new THREE.MeshBasicMaterial({ map: textTexture('43', '#0d2b45', '#ffffff', 'bold 64px Arial') }));
       num.position.set(side * 0.955, 0.52, 1.35);
       num.rotation.y = side * Math.PI / 2;
       car.add(num);
     }
     // tall light bar on the roof: black base + big red/blue lenses that
-    // read from the front, the side AND the rear
-    const bar = box(1.35, 0.12, 0.36, MAT.blackTrim, 0, 1.42, 0.1);
+    // read from the front, the side AND the rear. Lenses are ~90% taller
+    // than fix 2 (0.34 vs 0.18) and each carries a soft additive glow
+    // halo, so the bar reads as flashing lights even at cover distance.
+    const bar = box(1.50, 0.14, 0.40, MAT.blackTrim, 0, 1.44, 0.1);
     car.add(bar);
-    const redL = box(0.62, 0.18, 0.38, new THREE.MeshStandardMaterial({ color: 0xcc1122, emissive: 0xff2233, emissiveIntensity: 2.2 }), -0.32, 1.46, 0.1);
-    const blueL = box(0.62, 0.18, 0.38, new THREE.MeshStandardMaterial({ color: 0x2244cc, emissive: 0x3355ff, emissiveIntensity: 2.2 }), 0.32, 1.46, 0.1);
+    const redL = box(0.68, 0.34, 0.42, new THREE.MeshStandardMaterial({ color: 0xcc1122, emissive: 0xff2233, emissiveIntensity: 2.2 }), -0.34, 1.52, 0.1);
+    const blueL = box(0.68, 0.34, 0.42, new THREE.MeshStandardMaterial({ color: 0x2244cc, emissive: 0x3355ff, emissiveIntensity: 2.2 }), 0.34, 1.52, 0.1);
     car.add(redL); car.add(blueL);
-    const clearL = box(0.10, 0.16, 0.38, new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.9 }), 0, 1.46, 0.1);
+    const clearL = box(0.10, 0.30, 0.42, new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.9 }), 0, 1.52, 0.1);
     car.add(clearL);
     car.userData.lightBar = [redL, blueL];
-    // rear POLICE marking on the trunk — big white on black, reads from behind
-    const rearMark = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 0.45),
-      new THREE.MeshBasicMaterial({ map: textTexture('POLICE', '#ffffff', '#14161c', 'bold 60px Arial') }));
-    rearMark.position.set(0, 0.72, 2.40);
+    const glowTex = sunGlowTexture();
+    const glows = [];
+    for (const [gx, col] of [[-0.34, 0xff2233], [0.34, 0x3355ff]]) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: glowTex, color: col, transparent: true, opacity: 0.5,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      }));
+      sp.scale.set(2.4, 2.4, 1);
+      sp.position.set(gx, 1.54, 0.1);
+      car.add(sp);
+      glows.push(sp);
+    }
+    car.userData.lightGlow = glows;
+    // rear POLICE placard — big white on black, reads from behind.
+    // Wide canvas (512x96) so the text is not stretched on the wide
+    // plate. It sits BELOW the tail light bar (y 0.30..0.56, clear of
+    // the bar at 0.57..0.67) with its bottom edge tucked behind the
+    // bumper, so it reads as mounted, never floating.
+    const rearMark = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 0.26),
+      new THREE.MeshBasicMaterial({ map: textTexture('POLICE', '#ffffff', '#14161c', 'bold 72px Arial', 512, 96) }));
+    rearMark.position.set(0, 0.43, 2.42);
     car.add(rearMark);
-    const rearCbpd = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.27),
-      new THREE.MeshBasicMaterial({ map: textTexture('CBPD · 43', '#ffd76a', '#14161c', 'bold 44px Arial') }));
-    rearCbpd.position.set(0, 0.42, 2.41);
-    car.add(rearCbpd);
     // push bar: horizontal + two verticals, proud of the nose
     car.add(box(1.4, 0.12, 0.08, MAT.blackTrim, 0, 0.38, -2.44));
     for (const side of [-1, 1]) car.add(box(0.08, 0.30, 0.06, MAT.blackTrim, side * 0.45, 0.30, -2.44));

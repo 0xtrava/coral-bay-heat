@@ -11,23 +11,36 @@ export const SHOTS = {
   cover: {
     cam: [9.5, 2.4, 12.5],
     look: [0.5, 0.9, -6],
-    hero: [0.6, 0, 2],
+    // Fix round 3 (v12): hero at x 1.6, not 0.6 — at 0.6 the hero's nose
+    // clipped the police door's "E" (the door read "POLIC"). A metre east
+    // puts the whole POLICE plate clear of the nose with the hero still
+    // centre-frame. (Free mode is unaffected: game.js hardcodes its own
+    // start pos; the beach preset keeps its own hero.)
+    hero: [1.6, 0, 2],
     heroRot: 3.05,
     heli: [0.5, 13.5, -38],
     wanted: 3,
     fov: 55,
   },
   pier: {
-    // low, close, down the pier: hero big mid-frame, FRONT 3/4 toward the
-    // lens (nose toward the camera, both headlights visible), boats + sea
-    // behind. Hero y = 0.41 = the plank deck top, so the wheels sit ON the
-    // pier instead of sinking into it. Foreground is flat towels only —
-    // nothing tall within 10 m of this lens (a tower/dinghy there hid the
-    // whole hero in the first attempt).
-    cam: [20, 2.4, -88],
-    look: [32, 1.0, -94],
-    hero: [28, 0.41, -93.5],
-    heroRot: 2.2,
+    // Fix round 3 (v12): CLOSE rear-3/4 proof of the rebuilt rear. The
+    // old shot was a straight rear from 13 m and still read slab-like.
+    // Camera on the sand just south of the pier root, 9.9 m out, low
+    // (y 2.4) and 30 deg off the rear axis, so the lens sees the rear
+    // LEFT flank: roofline 1.26, sloped rear window, taillight bar,
+    // bumper, diffuser, 0.40 wheels — plus the pier deck receding east,
+    // the white boat and the sea in the background. Hero rot -0.26 puts
+    // all four wheels on the planks (tail tip 0.7 m inside the deck edge)
+    // and the hero 1.5 m west of the first attempt, so the fixed angler
+    // at (36, -98.4) no longer sits dead-centre behind the roof.
+    // Foreground right is the pier's south edge: lamp post, crates,
+    // bench, rope coil (world.js) — never the empty sand of the old shot.
+    // (First attempt at 6.7 m was too close: the (27.6, -90.8) lamp post
+    // filled the right edge and the deck filled half the frame.)
+    cam: [20, 2.4, -87.5],
+    look: [27, 1.0, -94.5],
+    hero: [27, 0.41, -94.5],
+    heroRot: -0.26,
     heli: [40, 26, -120],
     wanted: 1,
     fov: 55,

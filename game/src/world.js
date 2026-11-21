@@ -622,6 +622,45 @@ export function buildCity(scene) {
     bucket.position.set(rx + 0.8, 0.66, rz + 0.4);
     pierGroup.add(bucket);
   }
+  // Fix round 3 (v12): the pier shot's foreground RIGHT was empty sand.
+  // The new pier camera sits south of the root looking east, so its right
+  // foreground is the pier's SOUTH edge (x 28..34, z -91..-93). Fill it
+  // with real pier gear — crates, a barrel, a rope coil, a spare-plank
+  // stack, a rod + bucket, a bench — all ON the planks at the edge, low
+  // (nothing above 1.1 m), clear of the hero (28.5, -94.5) and of the
+  // camera-hero corridor. The deck edge beam + plank texture do the rest.
+  const gearWood = new THREE.MeshStandardMaterial({ color: 0xb88a4a, roughness: 0.9 });
+  pierGroup.add(box(1.1, 1.1, 1.1, gearWood, 31.0, 0.96, -91.7));
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 1.0, 12),
+    new THREE.MeshStandardMaterial({ color: 0x2e7a9e, roughness: 0.7 }));
+  barrel.position.set(32.6, 0.91, -91.9);
+  barrel.castShadow = true;
+  pierGroup.add(barrel);
+  const rope = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.10, 8, 16),
+    new THREE.MeshStandardMaterial({ color: 0xc9a86a, roughness: 1 }));
+  rope.rotation.x = -Math.PI / 2;
+  rope.position.set(29.6, 0.47, -92.6);
+  rope.castShadow = true;
+  pierGroup.add(rope);
+  // spare planks stacked flat by the edge, with a rod leaning on them
+  for (let i = 0; i < 3; i++) {
+    pierGroup.add(box(2.4, 0.09, 0.5, i % 2 ? plankMat : plankMat2, 33.2, 0.46 + i * 0.10, -92.4));
+  }
+  const rod2 = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.045, 3.0, 6),
+    new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.6 }));
+  rod2.position.set(33.6, 1.8, -92.2);
+  rod2.rotation.x = 0.45;
+  rod2.rotation.z = 0.25;
+  pierGroup.add(rod2);
+  const bucket2 = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.26, 0.5, 10),
+    new THREE.MeshStandardMaterial({ color: 0xc94a2e, roughness: 0.7 }));
+  bucket2.position.set(34.3, 0.66, -92.0);
+  pierGroup.add(bucket2);
+  // south-edge bench (slabs + legs, facing the deck) at the right edge
+  pierGroup.add(box(2.2, 0.12, 0.6, plankMat2, 34.5, 0.75, -91.8));
+  pierGroup.add(box(2.2, 0.12, 0.6, plankMat2, 34.5, 0.45, -91.8));
+  pierGroup.add(box(0.12, 0.4, 0.55, plankMat2, 33.6, 0.6, -91.8));
+  pierGroup.add(box(0.12, 0.4, 0.55, plankMat2, 35.4, 0.6, -91.8));
   const pierSign = makeSign('PIER 9', 'FISHING · BOATS', '#12324a', '#ffd76a');
   pierSign.position.set(15.5, 3.4, -95);
   pierSign.rotation.y = Math.PI / 2;
@@ -890,6 +929,12 @@ export function buildCity(scene) {
   for (let i = 0; i < 12; i++) {
     spots.push({ x: 20 + R() * 44, z: -95 + (R() - 0.5) * 5, y: 0.41, rot: R() * Math.PI * 2 });
   }
+  // fix round 3 (v12): two FIXED walkers on the pier's south edge, in the
+  // new pier shot's right foreground (x 30..34, z -92..-93.5) — 6..11 m
+  // from that lens, so they read as people, never as giants. Both stand
+  // clear of the hero (28.5, -94.5) and of the camera-hero corridor.
+  spots.push({ x: 30.5, z: -92.2, y: 0.41, rot: Math.PI * 0.85 });
+  spots.push({ x: 34.0, z: -93.5, y: 0.41, rot: Math.PI * 1.1 });
   for (let i = 0; i < 2; i++) {
     spots.push({ x: 21 + i * 1.2, z: -93.5 + (R() - 0.5) * 1.5, y: 0.41, rot: Math.PI / 2 });
   }

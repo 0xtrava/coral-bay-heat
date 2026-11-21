@@ -189,6 +189,46 @@ export function sunGlowTexture() {
   return t;
 }
 
+export function muzzleFlashTexture() {
+  // gunfight starburst: a white-hot core, yellow mid-ring and orange
+  // edge, with five sharp spikes — drawn once, used as an additive
+  // billboard sprite so a muzzle flash reads at any distance.
+  const [c, g] = canvas(256, 256);
+  const cx = 128, cy = 128;
+  const grad = g.createRadialGradient(cx, cy, 0, cx, cy, 128);
+  grad.addColorStop(0, 'rgba(255,255,240,1)');
+  grad.addColorStop(0.22, 'rgba(255,226,120,0.95)');
+  grad.addColorStop(0.45, 'rgba(255,157,46,0.55)');
+  grad.addColorStop(1, 'rgba(255,110,50,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 256, 256);
+  // spikes: long thin triangles radiating from the core
+  g.fillStyle = 'rgba(255,240,180,0.95)';
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2 + 0.5;
+    const len = 118, wdt = 13;
+    g.save();
+    g.translate(cx, cy);
+    g.rotate(a);
+    g.beginPath();
+    g.moveTo(0, -wdt / 2);
+    g.lineTo(len, 0);
+    g.lineTo(0, wdt / 2);
+    g.closePath();
+    g.fill();
+    g.restore();
+  }
+  // hot white heart
+  const core = g.createRadialGradient(cx, cy, 0, cx, cy, 34);
+  core.addColorStop(0, 'rgba(255,255,255,1)');
+  core.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = core;
+  g.beginPath(); g.arc(cx, cy, 34, 0, 7); g.fill();
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 export function cloudTexture() {
   const [c, g] = canvas(256, 128);
   const rnd = mulberry32(5150);
