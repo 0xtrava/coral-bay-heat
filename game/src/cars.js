@@ -10,7 +10,7 @@ const MAT = {
   sidewall: new THREE.MeshStandardMaterial({ color: 0xc9ccd2, roughness: 0.55, metalness: 0.25 }),
   hub: new THREE.MeshStandardMaterial({ color: 0xdfe3e8, roughness: 0.22, metalness: 0.95 }),
   spoke: new THREE.MeshStandardMaterial({ color: 0x3a3f46, roughness: 0.35, metalness: 0.85 }),
-  glass: new THREE.MeshPhysicalMaterial({ color: 0x0e1420, roughness: 0.08, metalness: 0.4, clearcoat: 1, clearcoatRoughness: 0.06 }),
+  glass: new THREE.MeshPhysicalMaterial({ color: 0x182233, roughness: 0.08, metalness: 0.4, clearcoat: 1, clearcoatRoughness: 0.06 }),
   chrome: new THREE.MeshStandardMaterial({ color: 0xe8ecf0, roughness: 0.15, metalness: 1.0 }),
   blackTrim: new THREE.MeshStandardMaterial({ color: 0x111216, roughness: 0.6, metalness: 0.3 }),
   tailRed: new THREE.MeshStandardMaterial({ color: 0xaa0a12, emissive: 0xcc1122, emissiveIntensity: 0.9, roughness: 0.3 }),
@@ -81,34 +81,36 @@ function makeWheel(radius = 0.36, width = 0.30) {
 }
 
 // ---- HERO CAR: CORAL GT VELOCE ----------------------------------------
-// Low, wide, sleek: 5.1 long, 1.98 wide, roofline crest ~0.80.
+// Low, wide, sleek: 5.1 long, 1.98 wide, roofline crest ~0.88 — a real
+// cabin with height, not a flat wedge: taller deck, taller glasshouse,
+// bigger wheels tucked under flared arches.
 export function makeHeroCar() {
   const car = new THREE.Group();
   const red = new THREE.MeshPhysicalMaterial({
-    color: 0xd21f26, metalness: 0.55, roughness: 0.26,
-    clearcoat: 1, clearcoatRoughness: 0.12,
+    color: 0xd21f26, metalness: 0.45, roughness: 0.22,
+    clearcoat: 1, clearcoatRoughness: 0.10,
   });
   const redDark = new THREE.MeshPhysicalMaterial({
-    color: 0x9e141b, metalness: 0.5, roughness: 0.32, clearcoat: 0.8,
+    color: 0x9e141b, metalness: 0.5, roughness: 0.30, clearcoat: 0.8,
   });
   // lower body — curved profile, bevelled edges read as shaped metal.
   // NOTE: the extrude bevel expands the outline by ~bevelSize, so every
   // surface-mounted detail (lights, decals, louvres) must sit OUTSIDE
   // shape + bevel, or it is buried inside the body.
   const bodyPts = [
-    [-2.55, 0.20], [-2.57, 0.50], [-2.46, 0.70], [-1.95, 0.70], [-1.05, 0.70],
-    [0.30, 0.68], [1.45, 0.60], [2.30, 0.44], [2.55, 0.30], [2.56, 0.18],
+    [-2.55, 0.20], [-2.57, 0.52], [-2.46, 0.74], [-1.95, 0.74], [-1.05, 0.74],
+    [0.30, 0.72], [1.45, 0.64], [2.30, 0.46], [2.55, 0.30], [2.56, 0.18],
     [-2.50, 0.16],
   ];
   car.add(extrudedBody(bodyPts, 1.82, red, 0.08));
   // glasshouse — glossy dark glass, narrower and shorter so the body reads first
   const glassPts = [
-    [-1.25, 0.60], [-0.95, 0.78], [-0.15, 0.79], [0.40, 0.76], [0.65, 0.62],
-    [-1.12, 0.58],
+    [-1.25, 0.62], [-0.95, 0.86], [-0.15, 0.88], [0.40, 0.84], [0.65, 0.66],
+    [-1.12, 0.60],
   ];
-  car.add(extrudedBody(glassPts, 1.16, MAT.glass, 0.05));
+  car.add(extrudedBody(glassPts, 1.30, MAT.glass, 0.05));
   // roof spine highlight (thin body-colour strip over the glasshouse crown)
-  const spine = box(0.10, 0.03, 0.9, red, 0, 0.795, 0.35);
+  const spine = box(0.10, 0.03, 0.9, red, 0, 0.885, 0.35);
   car.add(spine);
   // ---- rear deck: louvres, spoiler, taillights ----
   // deck louvres: 5 bright slats per side, angled, read from 3/4 rear.
@@ -118,20 +120,20 @@ export function makeHeroCar() {
     for (let i = 0; i < 5; i++) {
       // forward on the deck (z 1.55..2.27), clear of the spoiler, tall
       // enough to read over the deck from the cover angle
-      const lv = box(0.68, 0.07, 0.22, louvreMat, side * 0.55, 0.735 + i * 0.004, 1.55 + i * 0.18);
+      const lv = box(0.68, 0.07, 0.22, louvreMat, side * 0.55, 0.775 + i * 0.004, 1.55 + i * 0.18);
       lv.rotation.x = -0.12;
       car.add(lv);
     }
   }
   // low sleek body-coloured spoiler (NOT a heavy black wing), chrome lip,
   // with a dark gap line under it so it reads as a separate wing
-  car.add(box(1.66, 0.025, 0.10, MAT.blackTrim, 0, 0.695, 2.36));
+  car.add(box(1.66, 0.025, 0.10, MAT.blackTrim, 0, 0.735, 2.36));
   const spoiler = extrudedBody(
     [[-0.32, 0.00], [0.30, 0.00], [0.32, 0.10], [-0.30, 0.11]], 1.74, red, 0.02);
-  spoiler.position.set(0, 0.70, 2.38);
+  spoiler.position.set(0, 0.74, 2.38);
   spoiler.rotation.x = -0.06;
   car.add(spoiler);
-  car.add(box(1.70, 0.03, 0.03, MAT.chrome, 0, 0.815, 2.68));
+  car.add(box(1.70, 0.03, 0.03, MAT.chrome, 0, 0.855, 2.68));
   for (const side of [-1, 1]) {
     car.add(box(0.06, 0.10, 0.10, redDark, side * 0.62, 0.66, 2.30));
   }
@@ -159,6 +161,9 @@ export function makeHeroCar() {
   }
   car.add(box(1.30, 0.14, 0.05, MAT.blackTrim, 0, 0.24, -2.65)); // intake
   car.add(box(1.70, 0.05, 0.16, MAT.blackTrim, 0, 0.15, -2.62)); // splitter
+  car.add(box(1.10, 0.04, 0.03, MAT.chrome, 0, 0.36, -2.645)); // grille bar
+  // hood centre crease: a dark line down the hood so the nose reads sculpted
+  car.add(box(0.10, 0.02, 1.0, redDark, 0, 0.70, -1.55));
   // ---- flank crease / character line + lower skirt (side must not read slab) ----
   // bright silver strip with a little self-light so it reads in any light
   const creaseMat = new THREE.MeshStandardMaterial({ color: 0xf4f6f8, roughness: 0.25, metalness: 0.9, emissive: 0x555555, emissiveIntensity: 0.5 });
@@ -178,12 +183,12 @@ export function makeHeroCar() {
   }
   // ---- flared wheel arches: flattened half-torus hugging the wheel, so the
   // top of the arch stays at the deck line and never pokes up like ears ----
-  const archGeo = new THREE.TorusGeometry(0.40, 0.06, 10, 22, Math.PI);
+  const archGeo = new THREE.TorusGeometry(0.42, 0.06, 10, 22, Math.PI);
   for (const [x, z] of [[-0.95, -1.62], [0.95, -1.62], [-0.95, 1.62], [0.95, 1.62]]) {
     const arch = new THREE.Mesh(archGeo, red);
     arch.rotation.y = Math.PI / 2;
     arch.scale.set(1, 0.82, 1);
-    arch.position.set(x, 0.34, z);
+    arch.position.set(x, 0.36, z);
     arch.castShadow = true;
     car.add(arch);
   }
@@ -191,8 +196,8 @@ export function makeHeroCar() {
   car.userData.wheels = [];
   car.userData.steer = [];
   for (const [x, z, front] of [[-0.92, -1.62, true], [0.92, -1.62, true], [-0.92, 1.62, false], [0.92, 1.62, false]]) {
-    const w = makeWheel(0.34, 0.30);
-    w.position.set(x, 0.34, z);
+    const w = makeWheel(0.36, 0.30);
+    w.position.set(x, 0.36, z);
     car.add(w);
     car.userData.wheels.push(w);
     if (front) car.userData.steer.push(w);

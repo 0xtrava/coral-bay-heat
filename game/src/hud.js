@@ -1,5 +1,6 @@
 // Coral Bay Heat — HUD wiring: the big circular minimap (canvas, drawn
 // fresh each frame from the player's position) and the crew portraits.
+// Recovery round 21 (2026-11-21): unchanged behaviour, witnessed rebuild.
 import { drawPortrait } from './textures.js';
 
 // City bounds the minimap covers: x -60..80, z -170..170.

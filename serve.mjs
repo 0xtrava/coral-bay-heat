@@ -1,4 +1,5 @@
 // Coral Bay Heat — tiny static server for game/ (dev only).
+// Recovery round 21 (2026-11-21): unchanged behaviour, witnessed rebuild.
 // Usage: node serve.mjs [port]   (default 8121)
 import { createServer } from 'node:http';
 import { createReadStream, statSync } from 'node:fs';

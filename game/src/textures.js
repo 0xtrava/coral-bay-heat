@@ -174,12 +174,14 @@ export function skyTexture() {
 }
 
 export function sunGlowTexture() {
+  // tight, saturated halo: a hot core that falls off fast, so the sun disc
+  // keeps a crisp edge against the orange sky instead of washing out
   const [c, g] = canvas(256, 256);
   const grad = g.createRadialGradient(128, 128, 0, 128, 128, 128);
-  grad.addColorStop(0, 'rgba(255,246,214,1)');
-  grad.addColorStop(0.22, 'rgba(255,214,130,0.95)');
-  grad.addColorStop(0.45, 'rgba(255,158,80,0.55)');
-  grad.addColorStop(0.75, 'rgba(255,120,60,0.18)');
+  grad.addColorStop(0, 'rgba(255,248,224,1)');
+  grad.addColorStop(0.18, 'rgba(255,215,106,1)');
+  grad.addColorStop(0.35, 'rgba(255,157,46,0.85)');
+  grad.addColorStop(0.60, 'rgba(255,122,48,0.35)');
   grad.addColorStop(1, 'rgba(255,110,50,0)');
   g.fillStyle = grad; g.fillRect(0, 0, 256, 256);
   const t = new THREE.CanvasTexture(c);

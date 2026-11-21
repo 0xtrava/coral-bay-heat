@@ -1,4 +1,5 @@
 // Coral Bay Heat — headless capture via Chrome DevTools Protocol.
+// Recovery round 21 (2026-11-21): fresh 4-shot capture for the rebuilt cover.
 // Usage: node capture.mjs [shot] [outpath]
 //   shot: cover | pier | beach | docks | all   (default: cover)
 // Launches the local server if needed, loads the game in headless Chrome

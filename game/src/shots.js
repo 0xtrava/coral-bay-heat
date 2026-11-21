@@ -1,23 +1,26 @@
 // Coral Bay Heat — camera presets for the four dossier shots.
-// Cover: hero car large centre-frame, 3/4 rear, heli centre-top, police car
-// close ahead, crosswalk + palms + buildings in frame, sun ahead.
-// Pier: diagonal down the pier, boats both sides, sky in the top third.
+// Cover: hero car large centre-frame, FRONT 3/4 (nose toward the camera,
+// both nearside wheels visible, headlights lit), heli centre-top, police
+// car close ahead-left, crosswalk + palms + buildings in frame, sun disc
+// centred in the sky behind. Pier: low diagonal down the pier, hero big
+// mid-frame, boats both sides, sky in the top third.
 // Beach: from the sand looking at the boulevard, hero on the road.
-// Docks: gantry crane, containers, sun disc + heli in frame.
+// Docks: hero big in the foreground, gantry crane, containers, warehouses
+// with windows, sun disc + heli in frame.
 export const SHOTS = {
   cover: {
-    cam: [7.9, 3.2, 10.2],
-    look: [1.6, 0.8, -6],
+    cam: [9.5, 2.4, 12.5],
+    look: [0.5, 0.9, -6],
     hero: [0.6, 0, 2],
-    heroRot: 0.62,
+    heroRot: 3.05,
     heli: [0.5, 13.5, -38],
     wanted: 3,
     fov: 55,
   },
   pier: {
-    cam: [12, 3.8, -88],
-    look: [65, 1.0, -98],
-    hero: [26, 0, -93],
+    cam: [11, 3.0, -84],
+    look: [58, 1.0, -96.5],
+    hero: [28, 0, -93.5],
     heroRot: -Math.PI / 2,
     heli: [40, 26, -120],
     wanted: 1,
@@ -33,10 +36,10 @@ export const SHOTS = {
     fov: 55,
   },
   docks: {
-    cam: [16, 6, 148],
-    look: [-36, 9, 136],
-    hero: [-14, 0, 136],
-    heroRot: 0.6,
+    cam: [10, 5.5, 150],
+    look: [-28, 6, 138],
+    hero: [-2, 0, 143],
+    heroRot: 2.6,
     heli: [-24, 20, 132],
     wanted: 5,
     fov: 55,

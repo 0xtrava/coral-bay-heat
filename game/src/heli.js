@@ -1,5 +1,6 @@
 // Coral Bay Heat — police helicopter. Big, dark, silhouetted against the
 // sky, main rotor with a translucent blur disc so it reads as spinning.
+// Recovery round 21 (2026-11-21): unchanged behaviour, witnessed rebuild.
 import * as THREE from 'three';
 
 export function makeHelicopter() {

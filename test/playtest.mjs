@@ -1,4 +1,5 @@
 // Coral Bay Heat — headless playtest driver (CDP, SwiftShader).
+// Recovery round 21 (2026-11-21): re-run after the v8–v10 recovery build.
 // Usage:
 //   node test/playtest.mjs seq [n]     sequential M1->M8 autopilot runs (default 1)
 //   node test/playtest.mjs sides       side checks (taxi, package, shops, heli,

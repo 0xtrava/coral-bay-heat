@@ -18,7 +18,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.08;
+renderer.toneMappingExposure = 1.12;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
@@ -87,6 +87,14 @@ if (!isShot) {
 hero.position.set(...preset.hero);
 hero.rotation.y = preset.heroRot;
 heli.position.set(...preset.heli);
+// cover: the hero now faces the camera, so the pursuit police car moves to
+// the hero's left flank where the lens can see it (shot mode only — the
+// free game keeps its own traffic layout)
+if (shot === 'cover') {
+  const cop = refs.traffic[0];
+  cop.position.set(-4.6, 0, -4);
+  cop.rotation.y = -0.15;
+}
 camera.position.set(...preset.cam);
 camera.lookAt(...preset.look);
 camera.fov = preset.fov;

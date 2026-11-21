@@ -152,12 +152,23 @@ export function buildCity(scene) {
   const sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({
     map: sunTex, transparent: true, depthWrite: false, fog: false,
   }));
-  sunSprite.position.set(-38, 82, -400);
-  sunSprite.scale.set(260, 260, 1);
+  // low sun, centred over the road corridor: the sightline from the cover
+  // camera runs straight down the boulevard, so the disc clears every
+  // building and sits upper-right in the cover frame (the west-row roofs
+  // hide any sun placed further west — v9's (-150, 50) was invisible)
+  sunSprite.position.set(-30, 48, -400);
+  sunSprite.scale.set(150, 150, 1);
   scene.add(sunSprite);
-  const sunCore = new THREE.Mesh(new THREE.CircleGeometry(34, 32),
-    new THREE.MeshBasicMaterial({ color: 0xfff3c8, fog: false }));
-  sunCore.position.set(-38, 82, -398);
+  // the disc itself: a saturated amber ring with a bright white-gold heart,
+  // so it reads as a SUN against the orange sky instead of blending into it
+  const sunOuter = new THREE.Mesh(new THREE.CircleGeometry(30, 32),
+    new THREE.MeshBasicMaterial({ color: 0xff9d2e, fog: false }));
+  sunOuter.position.set(-30, 48, -398);
+  sunOuter.lookAt(0, 10, 60);
+  scene.add(sunOuter);
+  const sunCore = new THREE.Mesh(new THREE.CircleGeometry(19, 32),
+    new THREE.MeshBasicMaterial({ color: 0xfff6d8, fog: false }));
+  sunCore.position.set(-30, 48, -397);
   sunCore.lookAt(0, 10, 60);
   scene.add(sunCore);
   const cloudTex = cloudTexture();
@@ -169,7 +180,7 @@ export function buildCity(scene) {
   }
 
   // ---- lights ----
-  const sun = new THREE.DirectionalLight(0xffb36b, 2.6);
+  const sun = new THREE.DirectionalLight(0xffb36b, 2.9);
   sun.position.set(-60, 110, -140);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -182,6 +193,11 @@ export function buildCity(scene) {
   const fill = new THREE.DirectionalLight(0x8fb8ff, 0.35);
   fill.position.set(80, 60, 120);
   scene.add(fill);
+  // warm rim from the west, where the sun sits: edges facing the sunset
+  // pick up a hot rim so cars and buildings stop reading flat
+  const rim = new THREE.DirectionalLight(0xff9d5c, 0.55);
+  rim.position.set(-140, 36, -120);
+  scene.add(rim);
 
   // ---- ground base (lawn) ----
   const lawn = new THREE.Mesh(new THREE.PlaneGeometry(520, 420),
@@ -199,6 +215,8 @@ export function buildCity(scene) {
     const side = R() > 0.5 ? -1 : 1;
     b.position.set(side * (16 + R() * 22), 0.3, -170 + R() * 340);
     if (Math.abs(b.position.x) < 14) b.position.x = side * (14 + R() * 8);
+    // keep the pier-camera sightline clear: no bush in front of the lens
+    if (b.position.x > 13 && b.position.z > -115 && b.position.z < -75) continue;
     b.castShadow = true;
     scene.add(b);
   }
@@ -363,9 +381,11 @@ export function buildCity(scene) {
   ball.castShadow = true;
   scene.add(ball);
   // south beach cluster (fills the beach shot's bottom-right corner):
-  // umbrellas, towels and sunbathers on the sand near the boulevard
+  // umbrellas, towels and sunbathers on the sand near the boulevard —
+  // mid-ground, clear of the camera lens so they read as beach life,
+  // not a giant umbrella in the foreground
   for (let i = 0; i < 3; i++) {
-    const ux = 26 + i * 6, uz = 8 + (i % 2) * 8;
+    const ux = 22 + i * 5, uz = (i % 2) * 6;
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6),
       new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5 }));
     pole.position.set(ux, 1.2, uz);
@@ -486,6 +506,38 @@ export function buildCity(scene) {
     cr.rotation.y = R() * 1.2;
     pierGroup.add(cr);
   }
+  // benches facing the water + a bait kiosk with a striped awning, so the
+  // pier reads as a place people USE, not an empty boardwalk
+  for (const bx of [24, 44, 62]) {
+    pierGroup.add(box(2.2, 0.12, 0.6, plankMat2, bx, 0.75, -98.2));
+    pierGroup.add(box(2.2, 0.12, 0.6, plankMat2, bx, 0.45, -98.2));
+    pierGroup.add(box(0.12, 0.4, 0.55, plankMat2, bx - 0.9, 0.6, -98.2));
+    pierGroup.add(box(0.12, 0.4, 0.55, plankMat2, bx + 0.9, 0.6, -98.2));
+  }
+  // bait kiosk at the pier root: counter, striped awning, sign
+  pierGroup.add(box(3.2, 2.4, 2.4, new THREE.MeshStandardMaterial({ color: 0x2e7a9e, roughness: 0.8 }), 17.5, 1.6, -93.5));
+  const kioskAwning = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.08, 1.6),
+    new THREE.MeshStandardMaterial({ color: 0xff5d8f, roughness: 0.8, side: THREE.DoubleSide }));
+  kioskAwning.position.set(17.5, 2.9, -92.0);
+  kioskAwning.rotation.x = 0.3;
+  pierGroup.add(kioskAwning);
+  const kioskSign = makeSign('BAIT · TACKLE', 'FISHING', '#7a2d4d', '#ffd76a');
+  kioskSign.scale.set(0.5, 0.5, 0.5);
+  kioskSign.position.set(17.5, 3.6, -93.5);
+  kioskSign.rotation.y = Math.PI / 2;
+  pierGroup.add(kioskSign);
+  // fishing rods leaning on the north railing + buckets
+  for (const [rx, rz] of [[36, -99.1], [52, -99.1], [68, -99.1]]) {
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.045, 3.4, 6),
+      new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.6 }));
+    rod.position.set(rx, 1.9, rz);
+    rod.rotation.x = 0.5;
+    pierGroup.add(rod);
+    const bucket = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.26, 0.5, 10),
+      new THREE.MeshStandardMaterial({ color: [0xc94a2e, 0x2e7a9e, 0xffd76a][Math.floor(R() * 3)], roughness: 0.7 }));
+    bucket.position.set(rx + 0.8, 0.66, rz + 0.4);
+    pierGroup.add(bucket);
+  }
   const pierSign = makeSign('PIER 9', 'FISHING · BOATS', '#12324a', '#ffd76a');
   pierSign.position.set(15.5, 3.4, -95);
   pierSign.rotation.y = Math.PI / 2;
@@ -560,12 +612,43 @@ export function buildCity(scene) {
     c.rotation.y = (i % 3) * 0.02;
     scene.add(c);
   });
-  // warehouses
+  // warehouses: real buildings with windows, rooflines and awnings on the
+  // camera-facing (+X) side — never flat slabs — plus a dock office sign
   for (let i = 0; i < 2; i++) {
-    const wh = box(18, 8, 14, new THREE.MeshStandardMaterial({ color: [0x9a8a72, 0x7a8a9a][i], roughness: 0.85 }), -58 + i * 46, 4, 158);
+    const wh = makeBuilding(1200 + i * 53, 18, 9, 14, [0x9a8a72, 0x7a8a9a][i]);
+    wh.position.set(-58 + i * 46, 0, 158);
     scene.add(wh);
-    const roof = box(18.6, 0.5, 14.6, new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.7 }), -58 + i * 46, 8.2, 158);
-    scene.add(roof);
+  }
+  const dockSign = makeSign('CORAL BAY DOCKS', 'CONTAINERS · FREIGHT', '#12324a', '#ffd76a');
+  dockSign.position.set(-48.6, 7.5, 158);
+  dockSign.rotation.y = Math.PI / 2;
+  scene.add(dockSign);
+  // forklift parked by the containers near the hero
+  const fork = new THREE.Group();
+  fork.add(box(1.6, 1.1, 2.2, new THREE.MeshStandardMaterial({ color: 0xd9a02e, roughness: 0.6, metalness: 0.3 }), 0, 0.75, 0));
+  fork.add(box(1.4, 0.9, 1.0, new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 }), 0, 1.7, 0.3));
+  fork.add(box(0.12, 2.4, 0.12, new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5, metalness: 0.6 }), -0.6, 1.3, -1.2));
+  fork.add(box(0.12, 2.4, 0.12, new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5, metalness: 0.6 }), 0.6, 1.3, -1.2));
+  fork.add(box(1.3, 0.06, 0.9, new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.4, metalness: 0.7 }), 0, 0.25, -1.5));
+  fork.position.set(-8, 0, 146);
+  fork.rotation.y = 0.5;
+  scene.add(fork);
+  // extra container rows + crates close to the docks camera, for depth
+  // (flanking the hero, clear of the lens and the camera-hero corridor)
+  const nearCont = [
+    [-18, 144, 0, 0xc94a2e], [-24, 148, 0, 0x2e7a9e], [-26, 140, 0, 0x7a9e2e],
+    [-24, 126, 0, 0xd9a02e], [-24, 132, 0, 0x9e2e6a], [-18, 129, 1, 0x4a6a8a],
+  ];
+  nearCont.forEach(([x, z, lvl, col], i) => {
+    const c = box(6, 2.6, 2.6, new THREE.MeshStandardMaterial({ color: col, roughness: 0.7, metalness: 0.3 }), x, 1.3 + lvl * 2.6, z);
+    c.rotation.y = (i % 3) * 0.03;
+    scene.add(c);
+  });
+  for (let i = 0; i < 6; i++) {
+    const cr = box(1.1, 1.1, 1.1, new THREE.MeshStandardMaterial({ color: [0xb88a4a, 0x7a9a5a, 0x9a6a42][i % 3], roughness: 0.9 }),
+      -24 + R() * 16, 0.55, 142 + R() * 6);
+    cr.rotation.y = R() * 1.2;
+    scene.add(cr);
   }
 
   // ---- HERO + TRAFFIC ----
@@ -631,37 +714,46 @@ export function buildCity(scene) {
   refs.heli = heli;
 
   // ---- CROWD: sidewalks, crosswalks, beach, pier ----
+  // y = the surface each group stands on: sidewalk 0.03, road 0.045,
+  // sand 0.04, pier planks 0.41, docks apron 0.04. Feet stay on it.
   const spots = [];
   for (let i = 0; i < 14; i++) {
-    spots.push({ x: -9.6 + (R() - 0.5) * 1.2, z: -40 + i * 6.5, rot: R() > 0.5 ? Math.PI : 0 });
+    spots.push({ x: -9.6 + (R() - 0.5) * 1.2, z: -40 + i * 6.5, y: 0.03, rot: R() > 0.5 ? Math.PI : 0 });
     // east sidewalk: keep the cover-camera zone (z -2..26) clear so nobody
     // stands right in front of the lens
     const ez = -44 + i * 6.5;
-    if (ez < -2 || ez > 26) spots.push({ x: 9.6 + (R() - 0.5) * 1.2, z: ez, rot: R() > 0.5 ? Math.PI : 0 });
+    if (ez < -2 || ez > 26) spots.push({ x: 9.6 + (R() - 0.5) * 1.2, z: ez, y: 0.03, rot: R() > 0.5 ? Math.PI : 0 });
   }
   // crosswalk crowd at z = -8
   for (let i = 0; i < 6; i++) {
-    spots.push({ x: -5 + i * 2.1, z: -8 + (R() - 0.5) * 2, rot: Math.PI / 2 + (R() - 0.5) * 0.4 });
+    spots.push({ x: -5 + i * 2.1, z: -8 + (R() - 0.5) * 2, y: 0.045, rot: Math.PI / 2 + (R() - 0.5) * 0.4 });
   }
   // beach crowd
   for (let i = 0; i < 16; i++) {
-    spots.push({ x: 18 + R() * 36, z: -150 + R() * 300, rot: R() * Math.PI * 2, scale: 0.95 });
+    spots.push({ x: 18 + R() * 36, z: -150 + R() * 300, y: 0.04, rot: R() * Math.PI * 2, scale: 0.95 });
   }
   // sunbathers + players around the beach-life cluster (near beach camera)
   for (let i = 0; i < 7; i++) {
-    spots.push({ x: 20 + R() * 18, z: -20 + R() * 22, rot: R() * Math.PI * 2, scale: 0.95 });
+    spots.push({ x: 20 + R() * 18, z: -20 + R() * 22, y: 0.04, rot: R() * Math.PI * 2, scale: 0.95 });
   }
   // south beach sunbathers (fills the beach shot's bottom-right corner)
   for (let i = 0; i < 5; i++) {
-    spots.push({ x: 24 + R() * 14, z: 6 + R() * 16, rot: R() * Math.PI * 2, scale: 0.95 });
+    spots.push({ x: 24 + R() * 14, z: 6 + R() * 16, y: 0.04, rot: R() * Math.PI * 2, scale: 0.95 });
   }
-  // pier crowd
-  for (let i = 0; i < 8; i++) {
-    spots.push({ x: 20 + R() * 44, z: -95 + (R() - 0.5) * 5, rot: R() * Math.PI * 2 });
+  // pier crowd — ON the planks (deck top 0.41), denser now: walkers down
+  // the pier, a pair chatting by the kiosk, anglers at the north rail
+  for (let i = 0; i < 12; i++) {
+    spots.push({ x: 20 + R() * 44, z: -95 + (R() - 0.5) * 5, y: 0.41, rot: R() * Math.PI * 2 });
+  }
+  for (let i = 0; i < 2; i++) {
+    spots.push({ x: 21 + i * 1.2, z: -93.5 + (R() - 0.5) * 1.5, y: 0.41, rot: Math.PI / 2 });
+  }
+  for (const ax of [36, 52, 68]) {
+    spots.push({ x: ax + 0.6, z: -98.4, y: 0.41, rot: Math.PI });
   }
   // docks workers
   for (let i = 0; i < 5; i++) {
-    spots.push({ x: -30 + R() * 40, z: 132 + R() * 20, rot: R() * Math.PI * 2 });
+    spots.push({ x: -30 + R() * 40, z: 132 + R() * 20, y: 0.04, rot: R() * Math.PI * 2 });
   }
   refs.crowd = makeCrowd(scene, spots);
   return refs;

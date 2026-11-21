@@ -1,4 +1,5 @@
 // Focused M2 ambush probe: jump to M2, autopilot on, log the fight.
+// Recovery round 21 (2026-11-21): unchanged behaviour, witnessed rebuild.
 import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
