@@ -98,7 +98,7 @@ export function makeHelicopter() {
   const blurRing = new THREE.Mesh(
     new THREE.RingGeometry(3.9, 4.7, 40),
     new THREE.MeshBasicMaterial({
-      color: 0x30363f, transparent: true, opacity: 0.30,
+      color: 0x30363f, transparent: true, opacity: 0.22,
       side: THREE.DoubleSide, depthWrite: false,
     }),
   );

@@ -517,7 +517,7 @@ export function buildCity(scene) {
   refs.hero = hero;
 
   const police1 = makePoliceCar();
-  police1.position.set(-3.2, 0, -10);
+  police1.position.set(-2.8, 0, -8.5);
   police1.rotation.y = -0.05;
   scene.add(police1);
   refs.traffic.push(police1);

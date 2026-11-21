@@ -54,17 +54,11 @@ function makeWheel(radius = 0.36, width = 0.30) {
   tread.rotation.z = Math.PI / 2;
   g.add(tread);
   for (const side of [-1, 1]) {
-    // thin light sidewall ring — a line, not a white disc, so the tyre reads
-    const ring = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.78, radius * 0.78, 0.02, 24), MAT.sidewall);
-    ring.rotation.z = Math.PI / 2;
-    ring.position.x = side * (width / 2 + 0.005);
+    // thin light sidewall RING — a line, not a white disc, so the tyre reads
+    const ring = new THREE.Mesh(new THREE.RingGeometry(radius * 0.60, radius * 0.78, 24), MAT.sidewall);
+    ring.rotation.y = Math.PI / 2;
+    ring.position.x = side * (width / 2 + 0.016);
     g.add(ring);
-    // dark outer ring keeps the tyre face dark around the hub
-    const outer = new THREE.Mesh(new THREE.RingGeometry(radius * 0.78, radius * 0.97, 24),
-      new THREE.MeshBasicMaterial({ color: 0x1e2024, side: THREE.DoubleSide }));
-    outer.rotation.y = Math.PI / 2;
-    outer.position.x = side * (width / 2 + 0.016);
-    g.add(outer);
     const hub = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.46, radius * 0.46, 0.035, 20), MAT.hub);
     hub.rotation.z = Math.PI / 2;
     hub.position.x = side * (width / 2 + 0.012);
@@ -97,69 +91,76 @@ export function makeHeroCar() {
   const redDark = new THREE.MeshPhysicalMaterial({
     color: 0x9e141b, metalness: 0.5, roughness: 0.32, clearcoat: 0.8,
   });
-  // lower body — curved profile, bevelled edges read as shaped metal
+  // lower body — curved profile, bevelled edges read as shaped metal.
+  // NOTE: the extrude bevel expands the outline by ~bevelSize, so every
+  // surface-mounted detail (lights, decals, louvres) must sit OUTSIDE
+  // shape + bevel, or it is buried inside the body.
   const bodyPts = [
-    [-2.55, 0.20], [-2.57, 0.50], [-2.46, 0.62], [-1.95, 0.66], [-1.05, 0.68],
+    [-2.55, 0.20], [-2.57, 0.50], [-2.46, 0.70], [-1.95, 0.70], [-1.05, 0.70],
     [0.30, 0.68], [1.45, 0.60], [2.30, 0.44], [2.55, 0.30], [2.56, 0.18],
     [-2.50, 0.16],
   ];
   car.add(extrudedBody(bodyPts, 1.82, red, 0.08));
-  // glasshouse — glossy black, narrower and lower so the body reads first
+  // glasshouse — glossy dark glass, narrower and shorter so the body reads first
   const glassPts = [
-    [-1.62, 0.60], [-1.22, 0.78], [-0.15, 0.79], [0.50, 0.76], [0.88, 0.62],
-    [-1.48, 0.58],
+    [-1.45, 0.60], [-1.10, 0.78], [-0.15, 0.79], [0.45, 0.76], [0.78, 0.62],
+    [-1.32, 0.58],
   ];
-  car.add(extrudedBody(glassPts, 1.30, MAT.glass, 0.05));
+  car.add(extrudedBody(glassPts, 1.24, MAT.glass, 0.05));
   // roof spine highlight (thin body-colour strip over the glasshouse crown)
-  const spine = box(0.10, 0.03, 1.05, red, 0, 0.795, 0.5);
+  const spine = box(0.10, 0.03, 1.0, red, 0, 0.795, 0.45);
   car.add(spine);
   // ---- rear deck: louvres, spoiler, taillights ----
   // deck louvres: 5 bright slats per side, angled, read from 3/4 rear
   const louvreMat = new THREE.MeshStandardMaterial({ color: 0xf2f4f6, roughness: 0.2, metalness: 1.0 });
   for (const side of [-1, 1]) {
     for (let i = 0; i < 5; i++) {
-      const lv = box(0.42, 0.03, 0.10, louvreMat, side * 0.55, 0.67 + i * 0.004, 1.88 + i * 0.125);
+      const lv = box(0.50, 0.04, 0.13, louvreMat, side * 0.55, 0.715 + i * 0.004, 1.86 + i * 0.13);
       lv.rotation.x = -0.12;
       car.add(lv);
     }
   }
-  // low sleek body-coloured spoiler (NOT a heavy black wing), chrome lip
+  // low sleek body-coloured spoiler (NOT a heavy black wing), chrome lip,
+  // with a dark gap line under it so it reads as a separate wing
+  car.add(box(1.66, 0.025, 0.10, MAT.blackTrim, 0, 0.695, 2.36));
   const spoiler = extrudedBody(
-    [[-0.32, 0.00], [0.30, 0.00], [0.32, 0.09], [-0.30, 0.10]], 1.74, red, 0.02);
-  spoiler.position.set(0, 0.70, 2.30);
+    [[-0.32, 0.00], [0.30, 0.00], [0.32, 0.12], [-0.30, 0.13]], 1.74, red, 0.02);
+  spoiler.position.set(0, 0.71, 2.38);
   spoiler.rotation.x = -0.06;
   car.add(spoiler);
-  car.add(box(1.70, 0.025, 0.03, MAT.chrome, 0, 0.80, 2.60));
+  car.add(box(1.70, 0.03, 0.03, MAT.chrome, 0, 0.835, 2.68));
   for (const side of [-1, 1]) {
     car.add(box(0.06, 0.10, 0.10, redDark, side * 0.62, 0.66, 2.30));
   }
-  // full-width taillight bar + clusters
-  car.add(box(1.62, 0.10, 0.04, MAT.tailRed, 0, 0.52, 2.565));
+  // full-width taillight bar + clusters (proud of the bevelled rear face)
+  car.add(box(1.62, 0.10, 0.04, MAT.tailRed, 0, 0.52, 2.645));
   for (const side of [-1, 1]) {
-    car.add(box(0.34, 0.10, 0.03, MAT.tailRed, side * 0.62, 0.50, 2.57));
-    car.add(box(0.30, 0.05, 0.02, MAT.chrome, side * 0.62, 0.585, 2.56));
+    car.add(box(0.34, 0.10, 0.03, MAT.tailRed, side * 0.62, 0.50, 2.65));
+    car.add(box(0.30, 0.05, 0.02, MAT.chrome, side * 0.62, 0.585, 2.64));
   }
   // rear diffuser + twin exhausts
-  car.add(box(1.5, 0.10, 0.06, MAT.blackTrim, 0, 0.20, 2.56));
+  car.add(box(1.5, 0.10, 0.06, MAT.blackTrim, 0, 0.20, 2.64));
   for (const side of [-1, 1]) {
-    const ex = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.055, 0.10, 12), MAT.chrome);
+    const ex = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.055, 0.12, 12), MAT.chrome);
     ex.rotation.x = Math.PI / 2;
-    ex.position.set(side * 0.55, 0.24, 2.58);
+    ex.position.set(side * 0.55, 0.24, 2.66);
     car.add(ex);
   }
-  // ---- front: headlights, intake, splitter ----
+  // ---- front: headlights, intake, splitter (proud of the bevelled nose) ----
   for (const side of [-1, 1]) {
-    const hl = box(0.42, 0.06, 0.05, MAT.headWhite, side * 0.66, 0.50, -2.545);
+    const hl = box(0.42, 0.06, 0.05, MAT.headWhite, side * 0.66, 0.50, -2.645);
     hl.rotation.y = side * 0.18;
     car.add(hl);
-    car.add(box(0.46, 0.10, 0.03, MAT.chrome, side * 0.66, 0.50, -2.53));
-    car.add(box(0.16, 0.05, 0.03, MAT.amber, side * 0.88, 0.42, -2.52));
+    car.add(box(0.46, 0.10, 0.03, MAT.chrome, side * 0.66, 0.50, -2.63));
+    car.add(box(0.16, 0.05, 0.03, MAT.amber, side * 0.88, 0.42, -2.62));
   }
-  car.add(box(1.30, 0.14, 0.05, MAT.blackTrim, 0, 0.24, -2.56)); // intake
-  car.add(box(1.70, 0.05, 0.16, MAT.blackTrim, 0, 0.15, -2.52)); // splitter
+  car.add(box(1.30, 0.14, 0.05, MAT.blackTrim, 0, 0.24, -2.65)); // intake
+  car.add(box(1.70, 0.05, 0.16, MAT.blackTrim, 0, 0.15, -2.62)); // splitter
   // ---- flank crease / character line + lower skirt (side must not read slab) ----
+  // bright silver strip with a little self-light so it reads in any light
+  const creaseMat = new THREE.MeshStandardMaterial({ color: 0xf4f6f8, roughness: 0.25, metalness: 0.9, emissive: 0x555555, emissiveIntensity: 0.5 });
   for (const side of [-1, 1]) {
-    const crease = box(0.05, 0.045, 2.9, MAT.chrome, side * 1.0, 0.52, -0.1);
+    const crease = box(0.06, 0.055, 2.9, creaseMat, side * 1.005, 0.52, -0.1);
     car.add(crease);
     const crease2 = box(0.04, 0.035, 2.2, redDark, side * 0.995, 0.40, -0.2);
     car.add(crease2);
@@ -172,13 +173,14 @@ export function makeHeroCar() {
     car.add(stalk);
     car.add(box(0.06, 0.09, 0.14, red, side * 1.06, 0.68, -0.55));
   }
-  // ---- flared wheel arches (half-torus, body colour) ----
-  const archGeo = new THREE.TorusGeometry(0.47, 0.085, 10, 22, Math.PI);
+  // ---- flared wheel arches: flattened half-torus hugging the wheel, so the
+  // top of the arch stays at the deck line and never pokes up like ears ----
+  const archGeo = new THREE.TorusGeometry(0.40, 0.06, 10, 22, Math.PI);
   for (const [x, z] of [[-0.95, -1.62], [0.95, -1.62], [-0.95, 1.62], [0.95, 1.62]]) {
     const arch = new THREE.Mesh(archGeo, red);
     arch.rotation.y = Math.PI / 2;
-    arch.rotation.x = 0;
-    arch.position.set(x, 0.38, z);
+    arch.scale.set(1, 0.82, 1);
+    arch.position.set(x, 0.34, z);
     arch.castShadow = true;
     car.add(arch);
   }
@@ -186,8 +188,8 @@ export function makeHeroCar() {
   car.userData.wheels = [];
   car.userData.steer = [];
   for (const [x, z, front] of [[-0.92, -1.62, true], [0.92, -1.62, true], [-0.92, 1.62, false], [0.92, 1.62, false]]) {
-    const w = makeWheel(0.38, 0.30);
-    w.position.set(x, 0.38, z);
+    const w = makeWheel(0.34, 0.30);
+    w.position.set(x, 0.34, z);
     car.add(w);
     car.userData.wheels.push(w);
     if (front) car.userData.steer.push(w);
@@ -226,37 +228,42 @@ function makeSedan({ color = 0x8899aa, taxi = false, police = false } = {}) {
     [-1.35, 0.72], [-0.95, 0.92], [0.15, 0.93], [0.75, 0.74], [-1.15, 0.70],
   ];
   car.add(extrudedBody(glassPts, 1.55, MAT.glass, 0.04));
-  // lights
-  car.add(box(1.6, 0.08, 0.04, MAT.tailRed, 0, 0.55, 2.325));
+  // lights (proud of the bevelled faces: body rear is 2.32 + bevel 0.054)
+  car.add(box(1.6, 0.08, 0.04, MAT.tailRed, 0, 0.55, 2.39));
   for (const side of [-1, 1]) {
-    car.add(box(0.34, 0.07, 0.04, MAT.headWhite, side * 0.62, 0.52, -2.325));
+    car.add(box(0.34, 0.07, 0.04, MAT.headWhite, side * 0.62, 0.52, -2.39));
   }
-  car.add(box(1.2, 0.12, 0.05, MAT.blackTrim, 0, 0.26, -2.33));
+  car.add(box(1.2, 0.12, 0.05, MAT.blackTrim, 0, 0.26, -2.40));
   if (police) {
-    // black hood + trunk, CBPD doors, light bar
-    car.add(box(1.5, 0.03, 0.95, black, 0, 0.72, -1.55)); // hood
-    car.add(box(1.5, 0.03, 0.75, black, 0, 0.74, 1.85)); // trunk
+    // black hood + trunk, CBPD doors, light bar (panels sit above the deck)
+    car.add(box(1.5, 0.03, 0.95, black, 0, 0.795, -1.55)); // hood
+    car.add(box(1.5, 0.03, 0.75, black, 0, 0.775, 1.85)); // trunk
     const doorTex = textTexture('CBPD', '#0d2b45');
     for (const side of [-1, 1]) {
       const decal = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.32),
         new THREE.MeshBasicMaterial({ map: doorTex, transparent: true }));
-      decal.position.set(side * 0.925, 0.48, 0.15);
+      decal.position.set(side * 0.955, 0.48, 0.15);
       decal.rotation.y = side * Math.PI / 2;
       car.add(decal);
       const num = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.2),
         new THREE.MeshBasicMaterial({ map: textTexture('43', '#0d2b45'), transparent: true }));
-      num.position.set(side * 0.925, 0.48, -0.75);
+      num.position.set(side * 0.955, 0.48, -0.75);
       num.rotation.y = side * Math.PI / 2;
       car.add(num);
     }
-    const bar = box(1.1, 0.09, 0.28, MAT.blackTrim, 0, 0.99, 0.1);
+    const bar = box(1.1, 0.13, 0.30, MAT.blackTrim, 0, 1.0, 0.1);
     car.add(bar);
-    const redL = box(0.5, 0.08, 0.3, new THREE.MeshStandardMaterial({ color: 0xcc1122, emissive: 0xff2233, emissiveIntensity: 2.2 }), -0.28, 1.0, 0.1);
-    const blueL = box(0.5, 0.08, 0.3, new THREE.MeshStandardMaterial({ color: 0x2244cc, emissive: 0x3355ff, emissiveIntensity: 2.2 }), 0.28, 1.0, 0.1);
+    const redL = box(0.5, 0.11, 0.32, new THREE.MeshStandardMaterial({ color: 0xcc1122, emissive: 0xff2233, emissiveIntensity: 2.2 }), -0.28, 1.01, 0.1);
+    const blueL = box(0.5, 0.11, 0.32, new THREE.MeshStandardMaterial({ color: 0x2244cc, emissive: 0x3355ff, emissiveIntensity: 2.2 }), 0.28, 1.01, 0.1);
     car.add(redL); car.add(blueL);
     car.userData.lightBar = [redL, blueL];
+    // rear CBPD marking on the trunk — reads as police from behind
+    const rearMark = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.3),
+      new THREE.MeshBasicMaterial({ map: textTexture('CBPD', '#ffffff', '#14161c', 'bold 56px Arial') }));
+    rearMark.position.set(0, 0.62, 2.40);
+    car.add(rearMark);
     // push bar
-    car.add(box(1.4, 0.12, 0.08, MAT.blackTrim, 0, 0.32, -2.36));
+    car.add(box(1.4, 0.12, 0.08, MAT.blackTrim, 0, 0.32, -2.42));
   }
   if (taxi) {
     car.add(box(0.7, 0.16, 0.35, new THREE.MeshStandardMaterial({ color: 0x111111, emissive: 0xffc832, emissiveIntensity: 0.7 }), 0, 1.02, 0.1));

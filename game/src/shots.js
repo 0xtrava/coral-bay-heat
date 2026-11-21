@@ -6,10 +6,10 @@
 // Docks: gantry crane, containers, sun disc + heli in frame.
 export const SHOTS = {
   cover: {
-    cam: [8.4, 2.7, 10.2],
-    look: [0.8, 0.9, -8],
+    cam: [9.8, 2.8, 11.5],
+    look: [0, 0.85, -2.5],
     hero: [0.6, 0, 2],
-    heroRot: 0.28,
+    heroRot: 0.35,
     heli: [0.5, 13.5, -38],
     wanted: 3,
     fov: 55,

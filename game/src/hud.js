@@ -78,8 +78,8 @@ export function drawMinimap(ctx, px, pz, prot, opts = {}) {
   ctx.fillText('DOWNTOWN', X(-26), Z(-90));
   ctx.font = 'bold 19px Arial';
   ctx.fillText('MARINA BEACH', X(38), Z(40));
-  ctx.fillText('PIER 9', X(46), Z(-100));
-  ctx.fillText('THE DOCKS', X(-26), Z(136));
+  ctx.fillText('PIER 9', X(38), Z(-88));
+  ctx.fillText('THE DOCKS', X(-26), Z(130));
   ctx.font = 'bold 17px Arial';
   ctx.fillStyle = '#ffe9a8';
   ctx.fillText('GARAGE', X(-30), Z(96));
