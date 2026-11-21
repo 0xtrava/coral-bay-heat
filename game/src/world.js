@@ -362,6 +362,25 @@ export function buildCity(scene) {
   ball.position.set(24, 0.45, -12);
   ball.castShadow = true;
   scene.add(ball);
+  // south beach cluster (fills the beach shot's bottom-right corner):
+  // umbrellas, towels and sunbathers on the sand near the boulevard
+  for (let i = 0; i < 3; i++) {
+    const ux = 26 + i * 6, uz = 8 + (i % 2) * 8;
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6),
+      new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5 }));
+    pole.position.set(ux, 1.2, uz);
+    scene.add(pole);
+    const top = new THREE.Mesh(new THREE.ConeGeometry(2.1, 0.9, 8),
+      new THREE.MeshStandardMaterial({ color: umbColors[(i + 4) % umbColors.length], roughness: 0.8, side: THREE.DoubleSide }));
+    top.position.set(ux, 2.6, uz);
+    top.castShadow = true;
+    scene.add(top);
+    const towel = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.8),
+      new THREE.MeshStandardMaterial({ color: umbColors[(i + 1) % umbColors.length], roughness: 0.9 }));
+    towel.rotation.x = -Math.PI / 2;
+    towel.position.set(ux + 1.8, 0.07, uz + 1);
+    scene.add(towel);
+  }
 
   // ---- buildings: west row (Downtown) ----
   const signs = [
@@ -503,6 +522,9 @@ export function buildCity(scene) {
   boat3.position.set(62, 0.1, -78);
   boat3.rotation.y = 1.2;
   scene.add(boat3);
+  // boats are boardable in M6/M7: the game picks the one nearest the
+  // destination pier exit, never the one nearest the player
+  refs.boats = [boat1, boat2, boat3];
 
   // ---- The Docks (north, z = 120..165) ----
   const dockMat = new THREE.MeshStandardMaterial({ color: 0x8a8a86, roughness: 0.95 });
@@ -628,6 +650,10 @@ export function buildCity(scene) {
   // sunbathers + players around the beach-life cluster (near beach camera)
   for (let i = 0; i < 7; i++) {
     spots.push({ x: 20 + R() * 18, z: -20 + R() * 22, rot: R() * Math.PI * 2, scale: 0.95 });
+  }
+  // south beach sunbathers (fills the beach shot's bottom-right corner)
+  for (let i = 0; i < 5; i++) {
+    spots.push({ x: 24 + R() * 14, z: 6 + R() * 16, rot: R() * Math.PI * 2, scale: 0.95 });
   }
   // pier crowd
   for (let i = 0; i < 8; i++) {

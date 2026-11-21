@@ -96,27 +96,47 @@
   #radio { font-size: 12.5px; font-weight: bold; color: #ffe9a8; text-shadow: 0 1px 3px #000; margin-top: 5px; }
   #hint { position: absolute; left: 50%; transform: translateX(-50%); top: 12px; font-size: 12px; color: rgba(255,255,255,0.75);
     text-shadow: 0 1px 3px #000; background: rgba(0,0,0,0.35); padding: 4px 10px; border-radius: 12px; }
+  /* --- toast --- */
+  #toast { position: absolute; left: 50%; transform: translateX(-50%); bottom: 92px; font-size: 14px; font-weight: bold;
+    color: #ffd76a; text-shadow: 0 1px 3px #000; background: rgba(0,0,0,0.55); padding: 6px 14px; border-radius: 14px;
+    opacity: 0; transition: opacity 0.3s; white-space: nowrap; }
+  /* --- overlays: victory / fail / big map --- */
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(6, 4, 20, 0.72); z-index: 20; pointer-events: auto; }
+  .overlay .card { background: rgba(12,10,28,0.95); border: 2px solid #ffb62e; border-radius: 14px;
+    padding: 28px 36px; text-align: center; max-width: 560px; box-shadow: 0 8px 40px rgba(0,0,0,0.7); }
+  .overlay h1 { font-family: "Arial Black", Arial, sans-serif; font-size: 40px; letter-spacing: 1px; }
+  .overlay .sub { font-size: 15px; margin-top: 10px; line-height: 1.5; color: #cfe3ff; }
+  .overlay .cash-big { font-family: "Arial Black", Arial, sans-serif; font-size: 30px; color: #7dff9a; margin-top: 12px; }
+  .overlay button { margin-top: 18px; font-family: "Arial Black", Arial, sans-serif; font-size: 16px;
+    background: #ffb62e; color: #1a1200; border: none; border-radius: 8px; padding: 10px 26px; cursor: pointer; }
+  #fail .card { border-color: #ff5d5d; }
+  #fail h1 { color: #ff5d5d; }
+  #bigmap { background: rgba(6,4,20,0.85); }
+  #bigmap .card { border-color: #37e0c8; padding: 16px 20px; }
+  #bigmap canvas { width: 560px; height: 560px; border-radius: 50%; border: 4px solid rgba(55,224,200,0.9); background: #0d2b45; }
+  #bigmap .sub { margin-top: 8px; }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="hud">
   <div class="panel" id="mission">
-    <div class="m-kicker">MISSION 1 &middot; FIRST WHEELS</div>
-    <h1>STEAL THE MARINA SEDAN</h1>
-    <div><span class="stage">STAGE 1/3</span><span class="reward">$1,200</span></div>
-    <div class="obj">Lift the marked sedan from the marina lot and bring it to Mara&rsquo;s garage &mdash; quiet, no heat.</div>
-    <div class="next"><b>NEXT</b> &nbsp;Reach the marina lot</div>
+    <div class="m-kicker" id="m-kicker">MISSION M1 &middot; FIRST WHEELS</div>
+    <h1 id="m-title">STEAL THE MARINA SEDAN</h1>
+    <div><span class="stage" id="m-stage">STAGE 1/3</span><span class="reward" id="m-reward">$1,200</span></div>
+    <div class="obj" id="m-obj">Lift the marked sedan from the marina lot and bring it to Mara&rsquo;s garage &mdash; quiet, no heat.</div>
+    <div class="next"><b>NEXT</b> &nbsp;<span id="m-next">Reach the marina lot</span></div>
   </div>
   <div class="panel" id="police">
-    <h2>&#9650; CBPD RESPONSE <span>5 UNITS</span></h2>
-    <table>
+    <h2>&#9650; CBPD RESPONSE <span id="police-count">5 UNITS</span></h2>
+    <table><tbody id="police-rows">
       <tr><td>IBIS-43</td><td class="role">RAMMING</td><td class="r">12 m</td></tr>
       <tr><td>TARPON-10</td><td class="role">PURSUIT</td><td class="r">48 m</td></tr>
       <tr><td>HERON-19</td><td class="role">SEARCH</td><td class="r">96 m</td></tr>
       <tr><td>EGRET-07</td><td class="role">FLANKING</td><td class="r">23 m</td></tr>
       <tr><td>HELI-2</td><td class="role">AIR SUPPORT</td><td class="r">210 m</td></tr>
-    </table>
+    </tbody></table>
     <div class="more">+1 more unit &middot; air unit deployed over Downtown</div>
   </div>
   <div class="panel" id="district">
@@ -124,10 +144,11 @@
     <div class="d-sub">Coral Bay &middot; Strand Boulevard</div>
     <div class="bar"><i></i></div>
     <div class="d-stand">RESPECT &middot; Lv 1 &mdash; 58 / 100</div>
+    <div class="d-stand" id="pkg-line">PACKAGES 0 / 4</div>
   </div>
   <div id="vitals">
-    <div class="row"><span>HEALTH</span><div class="bar"><i id="hp-i"></i></div><b>86</b></div>
-    <div class="row"><span>ARMOUR</span><div class="bar"><i id="ar-i"></i></div><b>64</b></div>
+    <div class="row"><span>HEALTH</span><div class="bar"><i id="hp-i"></i></div><b id="hp-num">86</b></div>
+    <div class="row"><span>ARMOUR</span><div class="bar"><i id="ar-i"></i></div><b id="ar-num">64</b></div>
   </div>
   <div id="minimap-wrap"><canvas id="minimap" width="480" height="480"></canvas></div>
   <div class="panel" id="cashbox">
@@ -139,8 +160,8 @@
   <div class="panel" id="fixer">
     <h2>FIXER</h2>
     <div class="f-name">MARA VOSS</div>
-    <div class="f-rank">RANK C &nbsp;&middot;&nbsp; 2,180 / 5,200 RP</div>
-    <div class="bar"><i></i></div>
+    <div class="f-rank" id="f-rank">RANK C &nbsp;&middot;&nbsp; 2,180 / 5,200 RP</div>
+    <div class="bar"><i id="f-bar"></i></div>
   </div>
   <div id="weapons">
     <div class="wslot"><div class="wk">1</div><div class="wn">FISTS</div><div class="wa">&infin;</div></div>
@@ -156,16 +177,39 @@
   <div class="panel" id="dialogue">
     <canvas id="mara-portrait" width="92" height="92"></canvas>
     <div><div class="who">MARA VOSS &middot; FIXER</div>
-    <div class="line">The sedan&rsquo;s waiting in the marina lot. Take it quiet &mdash; and bring it back to my garage in one piece.</div></div>
+    <div class="line" id="dlg-line">The sedan&rsquo;s waiting in the marina lot. Take it quiet &mdash; and bring it back to my garage in one piece.</div></div>
   </div>
   <div id="speedo">
     <div class="sp"><span id="speed-num">87</span> <small>KM/H</small></div>
-    <div class="car">CORAL GT &middot; VELOCE</div>
-    <div class="dmg">CONDITION 88% &middot; 12% DENTED</div>
+    <div class="car" id="car-name">CORAL GT &middot; VELOCE</div>
+    <div class="dmg" id="dmg-line">CONDITION 88% &middot; 12% DENTED</div>
     <div class="dmgbar"><i></i></div>
-    <div id="radio">&#9834; CORAL FM 98.4 &mdash; Island Pop</div>
+    <div id="radio"><span id="radio-line">&#9834; CORAL FM 98.4 &mdash; Island Pop &middot; Marina Lights — The Palms</span></div>
   </div>
-  <div id="hint">W/S drive &middot; A/D steer &middot; SPACE handbrake &middot; E enter / exit &middot; 1&ndash;4 weapons</div>
+  <div id="hint">W/S drive &middot; A/D steer &middot; SPACE handbrake &middot; E enter / exit &middot; 1&ndash;4 weapons &middot; F shoot &middot; R radio &middot; M map &middot; P save</div>
+  <div id="toast"></div>
+</div>
+<div class="overlay" id="victory">
+  <div class="card">
+    <h1 class="amber">CORAL CROWN!</h1>
+    <div class="sub">You ran the whole bay and came out clean. Mara Voss owns Coral Bay tonight — and so do you.</div>
+    <div class="cash-big" id="victory-cash">$44,050</div>
+    <div class="sub" id="victory-sub">All 8 missions complete</div>
+    <button id="victory-again">PLAY AGAIN</button>
+  </div>
+</div>
+<div class="overlay" id="fail">
+  <div class="card">
+    <h1 id="fail-title">WRECKED</h1>
+    <div class="sub">The run is over — but Mara still needs the job done. Get back out there.</div>
+    <button id="fail-retry">RETRY MISSION</button>
+  </div>
+</div>
+<div class="overlay" id="bigmap">
+  <div class="card">
+    <canvas id="bigmap-canvas" width="560" height="560"></canvas>
+    <div class="sub">CORAL BAY &middot; press M to close &middot; W/S drive &middot; E enter / exit</div>
+  </div>
 </div>
 <script type="importmap">
 { "imports": { "three": "./vendor/three.module.js" } }

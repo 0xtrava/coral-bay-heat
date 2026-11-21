@@ -149,3 +149,69 @@ export function updateHud(state) {
   const tag = document.getElementById('wanted-tag');
   if (tag) tag.textContent = `WANTED · LEVEL ${state.wanted} · AIR UNIT DEPLOYED`;
 }
+
+// Full HUD render from the Phase 2 game state: mission panel, police table,
+// cash, fixer rank/RP, weapon slots, radio line, dialogue, vitals, packages.
+export function renderHud(s) {
+  updateHud(s);
+  const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  const cash = document.getElementById('cash');
+  if (cash && s.cash !== undefined) cash.textContent = '$' + Number(s.cash).toLocaleString('en-US');
+  if (s.mission) {
+    set('m-kicker', `MISSION ${s.mission.id} · ${s.mission.name}`);
+    set('m-title', s.title || s.mission.name);
+    set('m-stage', s.stage || '');
+    set('m-reward', '$' + Number(s.mission.reward).toLocaleString('en-US'));
+    set('m-obj', s.obj || '');
+    set('m-next', s.next || '');
+  }
+  const tbl = document.getElementById('police-rows');
+  if (tbl && s.police) {
+    const rows = s.police.slice(0, 5).map((u) =>
+      `<tr><td>${u.name}</td><td class="role">${u.role}</td><td class="r">${u.d} m</td></tr>`).join('');
+    tbl.innerHTML = rows || '<tr><td colspan="3">No active units</td></tr>';
+    set('police-count', `${s.police.length} UNIT${s.police.length === 1 ? '' : 'S'}`);
+  }
+  if (s.rp !== undefined) {
+    set('f-rank', `RANK ${s.rank} · ${Number(s.rp).toLocaleString('en-US')} / ${Number(s.rpMax).toLocaleString('en-US')} RP`);
+    const bar = document.getElementById('f-bar');
+    if (bar) bar.style.width = `${Math.round((s.rp / s.rpMax) * 100)}%`;
+  }
+  if (s.weapons) {
+    const slots = document.querySelectorAll('#weapons .wslot');
+    s.weapons.forEach((w, i) => {
+      const el = slots[i];
+      if (!el) return;
+      el.classList.toggle('sel', !!w.sel);
+      const ammo = el.querySelector('.wa');
+      if (ammo) ammo.textContent = w.ammo === Infinity ? '∞' : String(w.ammo);
+    });
+  }
+  if (s.radio) set('radio-line', `♫ ${s.radio.name} — ${s.radio.genre} · ${s.radio.track}`);
+  if (s.dialogue) set('dlg-line', s.dialogue);
+  if (s.health !== undefined) {
+    const hp = document.getElementById('hp-i');
+    if (hp) hp.style.width = `${Math.round((s.health / s.maxHealth) * 100)}%`;
+    set('hp-num', String(s.health));
+    const ar = document.getElementById('ar-i');
+    if (ar) ar.style.width = `${s.armour}%`;
+    set('ar-num', String(s.armour));
+  }
+  if (s.packages !== undefined) set('pkg-line', `PACKAGES ${s.packages} / 4${s.taxiEarned ? ` · TAXI +$${Math.floor(s.taxiEarned)}` : ''}`);
+  if (s.toast) {
+    const t = document.getElementById('toast');
+    if (t) { t.textContent = s.toast; t.style.opacity = '1'; clearTimeout(t._h); t._h = setTimeout(() => { t.style.opacity = '0'; }, 2600); }
+  }
+  const dmg = document.getElementById('dmg-line');
+  if (dmg && s.health !== undefined) {
+    const pct = Math.round((s.health / s.maxHealth) * 100);
+    dmg.textContent = `CONDITION ${pct}% · ${100 - pct}% DENTED`;
+  }
+  const carName = document.getElementById('car-name');
+  if (carName && s.vehicle) {
+    carName.textContent = s.vehicle === 'sedan' ? 'MARINA SEDAN · STOLEN' :
+      s.vehicle === 'taxi' ? 'CORAL CAB · TAXI' :
+      s.vehicle === 'waiting' ? 'REEF RUNNER · BORROWED' :
+      s.vehicle === 'boat' ? 'BAY SKIFF · SOUTHBOUND' : 'CORAL GT · VELOCE';
+  }
+}
