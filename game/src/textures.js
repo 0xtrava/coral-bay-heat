@@ -105,7 +105,7 @@ export function sandTexture() {
   }
   // footprints: little paired dots wandering
   g.fillStyle = 'rgba(150,115,70,0.35)';
-  for (let i = 0; i < 26; i++) {
+  for (let i = 0; i < 44; i++) {
     let x = rnd() * 512, y = rnd() * 512, a = rnd() * 6.28;
     for (let s = 0; s < 9; s++) {
       x += Math.cos(a) * 9; y += Math.sin(a) * 9;

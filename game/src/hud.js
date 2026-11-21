@@ -79,7 +79,7 @@ export function drawMinimap(ctx, px, pz, prot, opts = {}) {
   ctx.font = 'bold 19px Arial';
   ctx.fillText('MARINA BEACH', X(38), Z(40));
   ctx.fillText('PIER 9', X(38), Z(-88));
-  ctx.fillText('THE DOCKS', X(-26), Z(130));
+  ctx.fillText('THE DOCKS', X(-26), Z(112));
   ctx.font = 'bold 17px Arial';
   ctx.fillStyle = '#ffe9a8';
   ctx.fillText('GARAGE', X(-30), Z(96));
@@ -87,19 +87,19 @@ export function drawMinimap(ctx, px, pz, prot, opts = {}) {
   ctx.font = 'bold 14px Arial';
   ctx.fillStyle = '#ffe9a8';
   ctx.save();
-  ctx.translate(X(6), Z(-20)); ctx.rotate(-Math.PI / 2);
+  ctx.translate(X(6), Z(80)); ctx.rotate(-Math.PI / 2);
   ctx.fillText('STRAND BLVD', 0, 0);
   ctx.restore();
   ctx.save();
-  ctx.translate(X(-14), Z(54)); ctx.rotate(0);
+  ctx.translate(X(-30), Z(54)); ctx.rotate(0);
   ctx.fillText('CROSS ST', 0, 0);
   ctx.restore();
   // north arrow
   ctx.fillStyle = '#fff';
   ctx.font = 'bold 20px Arial';
-  ctx.fillText('N', W / 2, 30);
+  ctx.fillText('N', W / 2, 42);
   ctx.beginPath();
-  ctx.moveTo(W / 2, 34); ctx.lineTo(W / 2 - 7, 50); ctx.lineTo(W / 2 + 7, 50);
+  ctx.moveTo(W / 2, 46); ctx.lineTo(W / 2 - 7, 62); ctx.lineTo(W / 2 + 7, 62);
   ctx.closePath(); ctx.fill();
   // mission marker (marina lot)
   const mx = X(8), my = Z(-60);

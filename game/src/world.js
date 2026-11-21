@@ -325,6 +325,43 @@ export function buildCity(scene) {
     towel.position.set(ux + 1.6, 0.07, uz + 0.8);
     scene.add(towel);
   }
+  // beach-life cluster near the beach-shot camera (x 20..42, z 0..34):
+  // umbrellas, towels, a volleyball net and sunbathers so the foreground
+  // sand never reads as one flat beige plane
+  for (let i = 0; i < 5; i++) {
+    const ux = 22 + i * 4.2, uz = 4 + (i % 2) * 9;
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6),
+      new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5 }));
+    pole.position.set(ux, 1.2, uz);
+    scene.add(pole);
+    const top = new THREE.Mesh(new THREE.ConeGeometry(2.1, 0.9, 8),
+      new THREE.MeshStandardMaterial({ color: umbColors[(i + 1) % umbColors.length], roughness: 0.8, side: THREE.DoubleSide }));
+    top.position.set(ux, 2.6, uz);
+    top.castShadow = true;
+    scene.add(top);
+    const towel = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.8),
+      new THREE.MeshStandardMaterial({ color: umbColors[(i + 3) % umbColors.length], roughness: 0.9 }));
+    towel.rotation.x = -Math.PI / 2;
+    towel.position.set(ux + 1.8, 0.07, uz + 1);
+    scene.add(towel);
+  }
+  // volleyball net
+  for (const nz of [8, 16]) {
+    const np = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.4, 6),
+      new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5 }));
+    np.position.set(28, 1.2, nz);
+    scene.add(np);
+  }
+  const net = new THREE.Mesh(new THREE.PlaneGeometry(8, 1.1),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, side: THREE.DoubleSide }));
+  net.position.set(28, 1.8, 12);
+  scene.add(net);
+  // beach ball
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 10),
+    new THREE.MeshStandardMaterial({ color: 0xff5d8f, roughness: 0.4 }));
+  ball.position.set(26, 0.45, 10);
+  ball.castShadow = true;
+  scene.add(ball);
 
   // ---- buildings: west row (Downtown) ----
   const signs = [
@@ -575,7 +612,10 @@ export function buildCity(scene) {
   const spots = [];
   for (let i = 0; i < 14; i++) {
     spots.push({ x: -9.6 + (R() - 0.5) * 1.2, z: -40 + i * 6.5, rot: R() > 0.5 ? Math.PI : 0 });
-    spots.push({ x: 9.6 + (R() - 0.5) * 1.2, z: -44 + i * 6.5, rot: R() > 0.5 ? Math.PI : 0 });
+    // east sidewalk: keep the cover-camera zone (z -2..26) clear so nobody
+    // stands right in front of the lens
+    const ez = -44 + i * 6.5;
+    if (ez < -2 || ez > 26) spots.push({ x: 9.6 + (R() - 0.5) * 1.2, z: ez, rot: R() > 0.5 ? Math.PI : 0 });
   }
   // crosswalk crowd at z = -8
   for (let i = 0; i < 6; i++) {
@@ -584,6 +624,10 @@ export function buildCity(scene) {
   // beach crowd
   for (let i = 0; i < 16; i++) {
     spots.push({ x: 18 + R() * 36, z: -150 + R() * 300, rot: R() * Math.PI * 2, scale: 0.95 });
+  }
+  // sunbathers + players around the beach-life cluster (near beach camera)
+  for (let i = 0; i < 7; i++) {
+    spots.push({ x: 22 + R() * 18, z: 2 + R() * 30, rot: R() * Math.PI * 2, scale: 0.95 });
   }
   // pier crowd
   for (let i = 0; i < 8; i++) {

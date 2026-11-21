@@ -103,19 +103,22 @@ export function makeHeroCar() {
   car.add(extrudedBody(bodyPts, 1.82, red, 0.08));
   // glasshouse — glossy dark glass, narrower and shorter so the body reads first
   const glassPts = [
-    [-1.45, 0.60], [-1.10, 0.78], [-0.15, 0.79], [0.45, 0.76], [0.78, 0.62],
-    [-1.32, 0.58],
+    [-1.25, 0.60], [-0.95, 0.78], [-0.15, 0.79], [0.40, 0.76], [0.65, 0.62],
+    [-1.12, 0.58],
   ];
-  car.add(extrudedBody(glassPts, 1.24, MAT.glass, 0.05));
+  car.add(extrudedBody(glassPts, 1.16, MAT.glass, 0.05));
   // roof spine highlight (thin body-colour strip over the glasshouse crown)
-  const spine = box(0.10, 0.03, 1.0, red, 0, 0.795, 0.45);
+  const spine = box(0.10, 0.03, 0.9, red, 0, 0.795, 0.35);
   car.add(spine);
   // ---- rear deck: louvres, spoiler, taillights ----
-  // deck louvres: 5 bright slats per side, angled, read from 3/4 rear
-  const louvreMat = new THREE.MeshStandardMaterial({ color: 0xf2f4f6, roughness: 0.2, metalness: 1.0 });
+  // deck louvres: 5 bright slats per side, angled, read from 3/4 rear.
+  // Slight self-light so they read against the red deck at any angle.
+  const louvreMat = new THREE.MeshStandardMaterial({ color: 0xf2f4f6, roughness: 0.2, metalness: 0.9, emissive: 0x9a9a9a, emissiveIntensity: 0.55 });
   for (const side of [-1, 1]) {
     for (let i = 0; i < 5; i++) {
-      const lv = box(0.50, 0.04, 0.13, louvreMat, side * 0.55, 0.715 + i * 0.004, 1.86 + i * 0.13);
+      // forward on the deck (z 1.58..2.10), clear of the spoiler, tall
+      // enough to read over the deck from the cover angle
+      const lv = box(0.55, 0.06, 0.16, louvreMat, side * 0.55, 0.73 + i * 0.004, 1.58 + i * 0.13);
       lv.rotation.x = -0.12;
       car.add(lv);
     }
@@ -124,11 +127,11 @@ export function makeHeroCar() {
   // with a dark gap line under it so it reads as a separate wing
   car.add(box(1.66, 0.025, 0.10, MAT.blackTrim, 0, 0.695, 2.36));
   const spoiler = extrudedBody(
-    [[-0.32, 0.00], [0.30, 0.00], [0.32, 0.12], [-0.30, 0.13]], 1.74, red, 0.02);
-  spoiler.position.set(0, 0.71, 2.38);
+    [[-0.32, 0.00], [0.30, 0.00], [0.32, 0.10], [-0.30, 0.11]], 1.74, red, 0.02);
+  spoiler.position.set(0, 0.70, 2.38);
   spoiler.rotation.x = -0.06;
   car.add(spoiler);
-  car.add(box(1.70, 0.03, 0.03, MAT.chrome, 0, 0.835, 2.68));
+  car.add(box(1.70, 0.03, 0.03, MAT.chrome, 0, 0.815, 2.68));
   for (const side of [-1, 1]) {
     car.add(box(0.06, 0.10, 0.10, redDark, side * 0.62, 0.66, 2.30));
   }
@@ -251,16 +254,16 @@ function makeSedan({ color = 0x8899aa, taxi = false, police = false } = {}) {
       num.rotation.y = side * Math.PI / 2;
       car.add(num);
     }
-    const bar = box(1.1, 0.13, 0.30, MAT.blackTrim, 0, 1.0, 0.1);
+    const bar = box(1.3, 0.16, 0.32, MAT.blackTrim, 0, 1.0, 0.1);
     car.add(bar);
-    const redL = box(0.5, 0.11, 0.32, new THREE.MeshStandardMaterial({ color: 0xcc1122, emissive: 0xff2233, emissiveIntensity: 2.2 }), -0.28, 1.01, 0.1);
-    const blueL = box(0.5, 0.11, 0.32, new THREE.MeshStandardMaterial({ color: 0x2244cc, emissive: 0x3355ff, emissiveIntensity: 2.2 }), 0.28, 1.01, 0.1);
+    const redL = box(0.6, 0.14, 0.34, new THREE.MeshStandardMaterial({ color: 0xcc1122, emissive: 0xff2233, emissiveIntensity: 2.2 }), -0.32, 1.01, 0.1);
+    const blueL = box(0.6, 0.14, 0.34, new THREE.MeshStandardMaterial({ color: 0x2244cc, emissive: 0x3355ff, emissiveIntensity: 2.2 }), 0.32, 1.01, 0.1);
     car.add(redL); car.add(blueL);
     car.userData.lightBar = [redL, blueL];
     // rear CBPD marking on the trunk — reads as police from behind
-    const rearMark = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.3),
+    const rearMark = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.4),
       new THREE.MeshBasicMaterial({ map: textTexture('CBPD', '#ffffff', '#14161c', 'bold 56px Arial') }));
-    rearMark.position.set(0, 0.62, 2.40);
+    rearMark.position.set(0, 0.66, 2.40);
     car.add(rearMark);
     // push bar
     car.add(box(1.4, 0.12, 0.08, MAT.blackTrim, 0, 0.32, -2.42));
