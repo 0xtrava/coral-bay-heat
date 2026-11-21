@@ -569,7 +569,8 @@ export function createGame(ctx) {
       }
       case 'hide': {
         const d = dist(state.pos.x, state.pos.z, s.x, s.z);
-        if (d > s.r) { Object.assign(k, steerTo(s.x, s.z, dt, state.topSpeed)); break; }
+        // slow approach: the car must STOP inside the alley, not blow through it
+        if (d > s.r) { Object.assign(k, steerTo(s.x, s.z, dt, 8)); break; }
         if (Math.abs(state.speed) > 1.5) { k.brake = 1; break; }
         // hidden: heat fades
         state.hideT += dt;
