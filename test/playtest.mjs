@@ -132,14 +132,14 @@ async function sideChecks() {
   check('brake', sp3 < sp2 - 1, `speed ${sp2.toFixed(1)}->${sp3.toFixed(1)}`);
   await ev(`window.dispatchEvent(new KeyboardEvent('keyup',{code:'KeyS'}))`);
 
-  // taxi: near the cab, start the job, drive, fares land
+  // taxi: near the cab, start the job, drive straight up the road, fares land
   await ev('window.__GAME__.teleport(-3.4, -56, 0); window.__GAME__.startTaxi()');
   const cash0 = (await status()).cash;
-  await ev('window.__GAME__.setAutopilot(true)');
-  await sleep(6000);
-  await ev('window.__GAME__.setAutopilot(false)');
+  await ev(`window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyW'}))`);
+  await sleep(8000);
+  await ev(`window.dispatchEvent(new KeyboardEvent('keyup',{code:'KeyW'}))`);
   const st = await status();
-  check('taxi', st.taxiEarned > 2 && st.cash > cash0, `earned $${st.taxiEarned.toFixed(2)}`);
+  check('taxi', st.taxiEarned > 2 && st.cash > cash0, `earned $${st.taxiEarned.toFixed(2)} over ${Math.round(Math.abs(st.pos.z + 56))} m`);
   await ev('window.__GAME__.exitTaxi()');
 
   // package found: jump to M3, autopilot collects all four

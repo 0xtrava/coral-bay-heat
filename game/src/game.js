@@ -445,6 +445,7 @@ export function createGame(ctx) {
         state.vehicle = near[0];
         state.mode = 'car';
         if (state.vehicle === 'taxi') state.taxiMode = true;
+        else state.taxiMode = false;
         toast(state.vehicle === 'taxi' ? 'Taxi job — fares pay as you drive' : 'Back behind the wheel');
       } else toast('No car close enough');
     } else if (state.mode === 'boat') {
@@ -484,7 +485,7 @@ export function createGame(ctx) {
     const err = angDiff(want, state.heading);
     const steer = clamp(err * 1.6, -1, 1);
     let throttle = 0, brake = 0;
-    if (Math.abs(err) > 1.2) { throttle = 0.25; }
+    if (Math.abs(err) > 1.2) { throttle = 0.6; }
     else if (d < 6) { throttle = 0.35; }
     else throttle = 1;
     if (d < 3) brake = 1;
@@ -525,6 +526,7 @@ export function createGame(ctx) {
         // on foot by the sedan: take it
         if (dist(state.pos.x, state.pos.z, sedan.position.x, sedan.position.z) < 5) {
           state.vehicle = 'sedan'; state.mode = 'car'; state.speed = 0;
+          state.taxiMode = false;
           toast('Sedan taken — get it to the garage');
           advanceStep();
         } else Object.assign(k, steerTo(s.x, s.z, dt, 6));
@@ -612,6 +614,7 @@ export function createGame(ctx) {
         if (state.mode === 'car') { state.mode = 'foot'; state.speed = 0; break; }
         if (dist(state.pos.x, state.pos.z, waitingCar.position.x, waitingCar.position.z) < 5) {
           state.vehicle = 'waiting'; state.mode = 'car'; state.speed = 0;
+          state.taxiMode = false;
           toast('Waiting car taken — run north!');
           advanceStep();
         } else Object.assign(k, steerTo(s.x, s.z, dt, 6));
@@ -703,8 +706,11 @@ export function createGame(ctx) {
     if (k.brake) state.speed -= (state.mode === 'foot' ? 14 : 22) * dt;
     if (!k.throttle && !k.brake) state.speed *= Math.max(0, 1 - (state.mode === 'foot' ? 2.5 : 0.6) * dt);
     state.speed = clamp(state.speed, state.mode === 'foot' ? 0 : -8, maxSp);
-    if (Math.abs(state.speed) > 0.2) {
-      state.heading += k.steer * 0.55 * (state.speed / 12) * dt * (state.speed >= 0 ? 1 : -1);
+    if (Math.abs(state.speed) > 0.2 || k.throttle) {
+      // turn authority has a floor: the car must be able to swing around
+      // from a standstill instead of crawling in a straight line
+      const authority = Math.max(0.4, Math.min(1, Math.abs(state.speed) / 10));
+      state.heading += k.steer * 0.6 * authority * dt * (state.speed >= 0 ? 1 : -1);
     }
     state.pos.x += -Math.sin(state.heading) * state.speed * dt;
     state.pos.z += -Math.cos(state.heading) * state.speed * dt;
