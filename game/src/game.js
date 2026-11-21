@@ -403,13 +403,13 @@ export function createGame(ctx) {
     const w = state.weapons.find((x) => x.sel) || state.weapons[1];
     if (w.name !== 'FISTS' && w.ammo <= 0) { toast('Out of ammo — visit the gun store'); return { ok: false, why: 'no ammo' }; }
     if (w.name !== 'FISTS') w.ammo--;
-    // hits a rival or chaser roughly ahead within 30 m
+    // hits a rival or chaser roughly ahead within 35 m
     for (const r of rivals) {
       if (!r.active) continue;
       const d = dist(state.pos.x, state.pos.z, r.mesh.position.x, r.mesh.position.z);
-      if (d < 30) {
+      if (d < 35) {
         const want = Math.atan2(-(r.mesh.position.x - state.pos.x), -(r.mesh.position.z - state.pos.z));
-        if (Math.abs(angDiff(want, state.heading)) < 0.5) { damageRival(r, 1); break; }
+        if (Math.abs(angDiff(want, state.heading)) < 0.8) { damageRival(r, 1); break; }
       }
     }
     syncHud();
@@ -546,9 +546,13 @@ export function createGame(ctx) {
         const alive = rivals.filter((r) => r.active);
         if (alive.length === 0) { advanceStep(); break; }
         const r = alive[0];
-        Object.assign(k, steerTo(r.mesh.position.x, r.mesh.position.z, dt, 12));
+        Object.assign(k, steerTo(r.mesh.position.x, r.mesh.position.z, dt, 8));
         if (k.dist < 4.5) damageRival(r, 1);
-        else if (k.dist < 22 && Math.abs(angDiff(Math.atan2(-(r.mesh.position.x - state.pos.x), -(r.mesh.position.z - state.pos.z)), state.heading)) < 0.4) shoot();
+        // shoot whenever roughly aimed: the ambush ends by gunfire as well
+        if (k.dist < 25) {
+          const want = Math.atan2(-(r.mesh.position.x - state.pos.x), -(r.mesh.position.z - state.pos.z));
+          if (Math.abs(angDiff(want, state.heading)) < 0.8) shoot();
+        }
         break;
       }
       case 'collect': {
@@ -678,9 +682,9 @@ export function createGame(ctx) {
       if (!r.active) continue;
       r.shootT -= dt;
       const d = dist(state.pos.x, state.pos.z, r.mesh.position.x, r.mesh.position.z);
-      if (r.shootT <= 0 && d < 26) {
-        r.shootT = 2;
-        state.health -= 3;
+      if (r.shootT <= 0 && d < 22) {
+        r.shootT = 3;
+        state.health -= 2;
         if (state.health <= 0) { state.health = 0; fail('wrecked'); }
         syncHud();
       }
@@ -724,10 +728,11 @@ export function createGame(ctx) {
     if (!k.throttle && !k.brake) state.speed *= Math.max(0, 1 - (state.mode === 'foot' ? 2.5 : 0.6) * dt);
     state.speed = clamp(state.speed, state.mode === 'foot' ? 0 : -8, maxSp);
     if (Math.abs(state.speed) > 0.2 || k.throttle) {
-      // turn authority has a floor: the car must be able to swing around
-      // from a standstill instead of crawling in a straight line
-      const authority = Math.max(0.4, Math.min(1, Math.abs(state.speed) / 10));
-      state.heading += k.steer * 0.6 * authority * dt * (state.speed >= 0 ? 1 : -1);
+      // tight low-speed turning: the car must be able to swing onto a
+      // target a few metres away instead of orbiting it at 20 m
+      const spd = Math.abs(state.speed);
+      const authority = 0.9 + 0.9 * (1 - Math.min(1, spd / 20));
+      state.heading += k.steer * authority * dt * (state.speed >= 0 ? 1 : -1);
     }
     state.pos.x += -Math.sin(state.heading) * state.speed * dt;
     state.pos.z += -Math.cos(state.heading) * state.speed * dt;
