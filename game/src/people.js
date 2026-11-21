@@ -188,6 +188,67 @@ export function makePerson(seed = 1, scale = 1, opts = {}) {
   return g;
 }
 
+// A GUNMAN in a two-handed aiming stance — the beach gunfight's hero.
+// Built on the grounded pedestrian rig, then re-posed: braced legs (one
+// forward), BOTH arms extended level in front of the chest, and a chunky
+// dark pistol clamped in the hands so the WEAPON reads at 15 m, not just
+// the flash. A muzzleTip anchor rides at the barrel mouth so the staging
+// code can plant a muzzle flash exactly on the gun. Static — never added
+// to the animated crowd, so animateCrowd never fights the pose.
+export function makeShooter(seed = 7) {
+  const g = makePerson(seed, 1);
+  const u = g.userData;
+  // braced stance: left leg forward, right leg back, feet planted
+  u.legL.rotation.x = 0.30;
+  u.legR.rotation.x = -0.18;
+  u.legL.position.x = -0.11;
+  u.legR.position.x = 0.11;
+  // both arms dead level forward (rotation.x +1.45 swings a hanging arm
+  // up to horizontal, pointing -Z, the figure's facing direction) and
+  // angled INWARD (rotation.z ∓0.38) so both hands converge on the one
+  // gun instead of pointing 0.54 m apart, parallel, at nothing.
+  u.armL.rotation.x = 1.42;
+  u.armR.rotation.x = 1.42;
+  u.armL.rotation.z = 0.38;
+  u.armR.rotation.z = -0.38;
+  // chunky pistol in the right hand, slide forward, grip down: a
+  // BRIGHT STEEL slide (not dark metal) so the gun reads against sand
+  // and skin at beach distance, 0.50 long and 0.09 tall so it is a
+  // visible shape at 15 m, with a dark barrel ring at the muzzle so
+  // the eye finds it.
+  const gunMetal = new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.35, metalness: 0.85 });
+  const slideMetal = new THREE.MeshStandardMaterial({ color: 0xdfe3e8, roughness: 0.18, metalness: 1.0 });
+  const gun = new THREE.Group();
+  const slide = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.09, 0.50), slideMetal);
+  gun.add(slide);
+  const barrelRing = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 10),
+    new THREE.MeshStandardMaterial({ color: 0xdfe3e8, roughness: 0.2, metalness: 1.0 }));
+  barrelRing.rotation.x = Math.PI / 2;
+  barrelRing.position.set(0, 0, -0.26);
+  gun.add(barrelRing);
+  const grip = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.13, 0.06), gunMetal);
+  grip.position.set(0, -0.08, 0.10);
+  grip.rotation.x = 0.25;
+  gun.add(grip);
+  // the gun hangs off the right-hand pivot: the hand sits at local
+  // (0, -0.53, 0) in arm space, so the slide points forward with the arm
+  gun.position.set(0, -0.55, -0.06);
+  u.armR.add(gun);
+  // left hand meets the grip from below, closing the two-handed grip:
+  // +0.12 local x walks it from the left shoulder across to the gun,
+  // which the inward arm angle carries to figure-centre.
+  const gripHand = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.10),
+    new THREE.MeshStandardMaterial({ color: 0xe8b98a, roughness: 0.7 }));
+  gripHand.position.set(0.12, -0.55, -0.06);
+  u.armL.add(gripHand);
+  const tip = new THREE.Object3D();
+  tip.position.set(0, 0, -0.29);
+  gun.add(tip);
+  g.userData.muzzleTip = tip;
+  g.userData.gun = gun;
+  return g;
+}
+
 // A dock worker: hi-vis orange vest, reflective stripes, yellow hard hat.
 // Same grounded rig as a pedestrian (feet reach y = 0), so the docks crew
 // stands ON the apron, never on a car, and reads at a glance.

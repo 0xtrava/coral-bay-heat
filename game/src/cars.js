@@ -3,7 +3,6 @@
 // wheel arches, real wheels with bright sidewalls and silver hubs, lights
 // and louvres. Forward is -Z, width is X, up is Y.
 import * as THREE from 'three';
-import { sunGlowTexture } from './textures.js';
 
 // ---- shared materials -------------------------------------------------
 const MAT = {
@@ -323,10 +322,14 @@ function makeSedan({ color = 0x8899aa, taxi = false, police = false } = {}) {
   car.add(box(1.2, 0.05, 0.03, MAT.chrome, 0, 0.44, -2.40)); // grille bar
   car.add(box(1.7, 0.10, 0.10, MAT.blackTrim, 0, 0.22, -2.38)); // lower valance
   car.add(box(1.7, 0.14, 0.10, MAT.blackTrim, 0, 0.26, 2.40)); // rear bumper
-// Fix round 3 (v12): POLICE must read at 14 m in the cover shot. The
-  // door lettering is now a BIG white plate (navy text on solid white,
-  // so it reads over the navy stripe too), ~30% larger than before, and
-  // the navy stripe is taller so the livery reads as a band, not a line.
+// Fix round 4 (v13): the bar was still only a pale sliver at cover
+  // distance. A real patrol car reads RED + BLUE at a glance, so the bar
+  // is now a TALL beacon: 0.46 m lenses, unlit flat red/blue (a lit
+  // material washed them to white under the low sun), each sitting
+  // inside TWO additive mesh glow shells — a tight hot shell and a wide
+  // wash shell — so the red/blue glow is unmistakable from the cover
+  // lens AND from the beach road 35 m out. The "off" phase of the flash
+  // cycle stays bright (see main.js), never a dead roof.
   if (police) {
     // black hood + trunk, navy side stripe, big POLICE doors, light bar
     car.add(box(1.5, 0.03, 0.95, black, 0, 0.925, -1.55)); // hood
@@ -351,30 +354,84 @@ function makeSedan({ color = 0x8899aa, taxi = false, police = false } = {}) {
       num.rotation.y = side * Math.PI / 2;
       car.add(num);
     }
+    // POLICE across the black hood, readable from the front: white on
+    // black, lying flat just above the hood plate, text running across
+    // the car so it reads head-on from the cover angle.
+    const hoodMark = new THREE.Mesh(new THREE.PlaneGeometry(1.30, 0.30),
+      new THREE.MeshBasicMaterial({ map: textTexture('POLICE', '#ffffff', 'rgba(0,0,0,0)', 'bold 64px Arial', 512, 96) }));
+    hoodMark.rotation.x = -Math.PI / 2;
+    hoodMark.rotation.z = Math.PI;
+    hoodMark.position.set(0, 0.945, -1.55);
+    car.add(hoodMark);
+    // spotlight on the driver's A-pillar: stalk + swivel head aimed
+    // forward, the last patrol-car tell the old build was missing.
+    const spotStalk = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.34, 8), MAT.blackTrim);
+    spotStalk.position.set(-0.94, 1.12, -0.62);
+    spotStalk.rotation.z = 0.25;
+    car.add(spotStalk);
+    const spotHead = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.16, 12), MAT.chrome);
+    spotHead.rotation.x = Math.PI / 2;
+    spotHead.position.set(-0.99, 1.28, -0.66);
+    car.add(spotHead);
+    const spotLens = new THREE.Mesh(new THREE.CircleGeometry(0.075, 12),
+      new THREE.MeshStandardMaterial({ color: 0xfff6d8, emissive: 0xffeeb0, emissiveIntensity: 1.2 }));
+    spotLens.position.set(-0.99, 1.28, -0.75);
+    spotLens.rotation.y = Math.PI;
+    car.add(spotLens);
     // tall light bar on the roof: black base + big red/blue lenses that
-    // read from the front, the side AND the rear. Lenses are ~90% taller
-    // than fix 2 (0.34 vs 0.18) and each carries a soft additive glow
-    // halo, so the bar reads as flashing lights even at cover distance.
-    const bar = box(1.50, 0.14, 0.40, MAT.blackTrim, 0, 1.44, 0.1);
+    // read from the front, the side AND the rear. Lenses are 0.46 tall
+    // (fix 3's 0.34 still washed out at 14 m), unlit flat colours. The
+    // glow is MESH, not sprites: additive glow SHELLS (spheres) around
+    // each lens — a hot shell hugging the lens and a wide wash shell —
+    // because the sprite halos never drew in this build (verified with
+    // six headless probes: sprite objects parented to the car render
+    // nothing, while clones of the same sprites parented to the scene
+    // draw fine; meshes are immune, so the bar's halo is geometry). The
+    // shells pulse with the lenses (see main.js) and read as red/blue
+    // beacons from any angle, including the beach road 35 m out.
+    const bar = box(1.78, 0.18, 0.48, MAT.blackTrim, 0, 1.45, 0.1);
     car.add(bar);
-    const redL = box(0.68, 0.34, 0.42, new THREE.MeshStandardMaterial({ color: 0xcc1122, emissive: 0xff2233, emissiveIntensity: 2.2 }), -0.34, 1.52, 0.1);
-    const blueL = box(0.68, 0.34, 0.42, new THREE.MeshStandardMaterial({ color: 0x2244cc, emissive: 0x3355ff, emissiveIntensity: 2.2 }), 0.34, 1.52, 0.1);
+    // Lenses are 0.46 tall, MeshBasicMaterial (UNLIT): the standard
+    // material washed the lenses to near-white in the cover shot — the
+    // low sun's specular plus tone mapping clipped even pure green /
+    // yellow diagnostic paints to white. A basic material renders the
+    // exact colour set, so red reads red and blue reads blue at a
+    // glance. The flash pulse scales the colour (see main.js) instead
+    // of emissiveIntensity, which a basic material has no use for.
+    // Lens centres at ±0.45 (not ±0.36): at the cover angle the bar is
+    // 51° off end-on, so 0.74-wide lenses on 0.72 centres foreshorten
+    // onto each other and the near (blue) lens hides the far (red) one.
+    // On 0.90 centres there is a real gap between them, so red and blue
+    // read side by side even foreshortened.
+    const redL = box(0.74, 0.46, 0.50, new THREE.MeshBasicMaterial({ color: 0xff1020 }), -0.45, 1.58, 0.1);
+    const blueL = box(0.74, 0.46, 0.50, new THREE.MeshBasicMaterial({ color: 0x1030ff }), 0.45, 1.58, 0.1);
     car.add(redL); car.add(blueL);
-    const clearL = box(0.10, 0.30, 0.42, new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.9 }), 0, 1.52, 0.1);
+    const clearL = box(0.12, 0.40, 0.50, new THREE.MeshBasicMaterial({ color: 0xffffff }), 0, 1.58, 0.1);
     car.add(clearL);
     car.userData.lightBar = [redL, blueL];
-    const glowTex = sunGlowTexture();
+    car.userData.lightBarBase = [0xff1020, 0x1030ff];
     const glows = [];
-    for (const [gx, col] of [[-0.34, 0xff2233], [0.34, 0x3355ff]]) {
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({
-        map: glowTex, color: col, transparent: true, opacity: 0.5,
-        blending: THREE.AdditiveBlending, depthWrite: false,
-      }));
-      sp.scale.set(2.4, 2.4, 1);
-      sp.position.set(gx, 1.54, 0.1);
-      car.add(sp);
-      glows.push(sp);
+    function glowShell(col, sx, sy, sz, op, gx) {
+      const shell = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 12),
+        new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+      shell.scale.set(sx, sy, sz);
+      shell.position.set(gx, 1.58, 0.1);
+      car.add(shell);
+      glows.push(shell);
     }
+    // The shells are NARROW in X (hot 0.55, wash 0.60) but tall and
+    // deep, and centred OUTBOARD at ±0.55 — not over the lens centres
+    // (±0.45). A ray-AABB probe proved the wide shells were the
+    // problem: all four shell surfaces lay between the camera and the
+    // red lens, and their additive light summed to pink-magenta over
+    // it, while the blue lens (reached by only its own two shells)
+    // stayed blue. At 0.55/0.60 no shell reaches the opposite lens, so
+    // each lens keeps its own colour and the glow is a vertical dome
+    // over each lens, not a single blob over the whole bar.
+    glowShell(0xff2233, 0.55, 0.85, 0.95, 0.40, -0.55); // red hot shell
+    glowShell(0x3355ff, 0.55, 0.85, 0.95, 0.40, 0.55); // blue hot shell
+    glowShell(0xff2233, 0.60, 1.45, 1.55, 0.17, -0.55); // red wash shell
+    glowShell(0x3355ff, 0.60, 1.45, 1.55, 0.17, 0.55); // blue wash shell
     car.userData.lightGlow = glows;
     // rear POLICE placard — big white on black, reads from behind.
     // Wide canvas (512x96) so the text is not stretched on the wide

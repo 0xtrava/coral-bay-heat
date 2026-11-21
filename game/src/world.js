@@ -684,6 +684,53 @@ export function buildCity(scene) {
     tw.position.set(tx, 0.07, tz);
     scene.add(tw);
   }
+  // Fix round 4 (v13): the pier shot's bottom-RIGHT foreground was STILL
+  // bare sand. Fix 3 filled the pier deck's south edge, but the sand
+  // strip the low pier camera actually looks over — x 24..36, z -88..-91,
+  // right in front of the lens — had nothing in it. Fill THAT quadrant
+  // with gear spread INTO it, not along an edge: crates, barrels, rope
+  // coils, a plank stack, a bench, a cooler. All low (nothing above
+  // 0.9 m) and at least 5 m from the lens, so they read as foreground
+  // clutter without ever hiding the hero or the deck.
+  const fillWood = new THREE.MeshStandardMaterial({ color: 0xb88a4a, roughness: 0.9 });
+  const fillWood2 = new THREE.MeshStandardMaterial({ color: 0x7a9a5a, roughness: 0.9 });
+  const fillBarrel = new THREE.MeshStandardMaterial({ color: 0x2e7a9e, roughness: 0.7 });
+  const fillBarrel2 = new THREE.MeshStandardMaterial({ color: 0xc94a2e, roughness: 0.7 });
+  for (const [cx, cz, s, ry] of [[25.5, -90.8, 0.8, 0.4], [28.0, -90.3, 0.85, 1.1], [33.0, -89.8, 1.1, 0.2]]) {
+    const cr = box(s, s, s, s > 1 ? fillWood : fillWood2, cx, 0.04 + s / 2, cz);
+    cr.rotation.y = ry;
+    scene.add(cr);
+  }
+  for (const [bx, bz, bm] of [[26.5, -90.6, fillBarrel], [35.0, -90.5, fillBarrel2]]) {
+    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.95, 12), bm);
+    bar.position.set(bx, 0.52, bz);
+    bar.castShadow = true;
+    scene.add(bar);
+  }
+  const ropeMat = new THREE.MeshStandardMaterial({ color: 0xc9a86a, roughness: 1 });
+  for (const [rx, rz] of [[25.0, -88.3], [31.0, -88.8]]) {
+    const coil = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.10, 8, 16), ropeMat);
+    coil.rotation.x = -Math.PI / 2;
+    coil.position.set(rx, 0.10, rz);
+    coil.castShadow = true;
+    scene.add(coil);
+  }
+  for (let i = 0; i < 3; i++) {
+    scene.add(box(2.2, 0.09, 0.5, i % 2 ? plankMat : plankMat2, 29.5, 0.09 + i * 0.10, -89.0));
+  }
+  // low bench on the sand, facing the pier, at the quadrant's east edge
+  // (seat + backrest slabs, same build as the pier benches)
+  scene.add(box(2.0, 0.12, 0.55, plankMat2, 34.5, 0.75, -88.5));
+  scene.add(box(2.0, 0.12, 0.55, plankMat2, 34.5, 0.45, -88.5));
+  scene.add(box(0.12, 0.4, 0.5, plankMat2, 33.6, 0.6, -88.5));
+  scene.add(box(0.12, 0.4, 0.5, plankMat2, 35.4, 0.6, -88.5));
+  // cooler + bait bucket by the crates
+  scene.add(box(0.7, 0.5, 0.45, new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.6 }), 30.5, 0.29, -90.8));
+  const baitBucket = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.24, 0.48, 10),
+    new THREE.MeshStandardMaterial({ color: 0xffd76a, roughness: 0.7 }));
+  baitBucket.position.set(27.2, 0.28, -88.6);
+  baitBucket.castShadow = true;
+  scene.add(baitBucket);
   // boats in the bay
   function makeBoat(color, big) {
     const g = new THREE.Group();
@@ -935,6 +982,12 @@ export function buildCity(scene) {
   // clear of the hero (28.5, -94.5) and of the camera-hero corridor.
   spots.push({ x: 30.5, z: -92.2, y: 0.41, rot: Math.PI * 0.85 });
   spots.push({ x: 34.0, z: -93.5, y: 0.41, rot: Math.PI * 1.1 });
+  // Fix round 4 (v13): two walkers ON THE SAND in the pier shot's
+  // bottom-right quadrant (x 26..34, z -89..-91), among the new crates
+  // and rope coils — the quadrant gets people as well as gear, and the
+  // nearer one (26, -90.2, ~7 m from the lens) anchors the foreground.
+  spots.push({ x: 26.0, z: -90.2, y: 0.04, rot: Math.PI * 0.6 });
+  spots.push({ x: 33.5, z: -89.6, y: 0.04, rot: Math.PI * 1.4 });
   for (let i = 0; i < 2; i++) {
     spots.push({ x: 21 + i * 1.2, z: -93.5 + (R() - 0.5) * 1.5, y: 0.41, rot: Math.PI / 2 });
   }
