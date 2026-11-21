@@ -13,7 +13,7 @@ const CHROME = '/home/hatch/workspace/makefun/shot-tool/chrome/chrome-linux64/ch
 const PORT = 8122;
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
-const W = 640, H = 360;
+const W = 480, H = 270;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function httpOk(url) {
@@ -71,7 +71,7 @@ async function load(url) {
 }
 // free-mode loads run the logic fast-forward (?ff=4) so game time tracks
 // real time under SwiftShader; shots/captures never use it.
-const GAME_URL = `http://127.0.0.1:${PORT}/index.html?seed=1&ff=4`;
+const GAME_URL = `http://127.0.0.1:${PORT}/index.html?seed=1&ff=6`;
 async function shutdown() {
   try { ws?.close(); } catch {}
   try { if (chrome) process.kill(-chrome.pid, 'SIGTERM'); } catch {}

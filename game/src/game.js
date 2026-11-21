@@ -228,7 +228,7 @@ export function createGame(ctx) {
   function spawnRivals() {
     rivals[0].mesh.position.set(-20, 0, -128);
     rivals[1].mesh.position.set(-28, 0, -112);
-    rivals.forEach((r) => { r.hp = 3; r.active = true; r.mesh.visible = true; r.shootT = 1 + Math.random(); });
+    rivals.forEach((r) => { r.hp = 3; r.active = true; r.mesh.visible = true; r.shootT = 1 + Math.random(); r.stun = 0; });
   }
 
   function placeBeacon() {
@@ -421,6 +421,14 @@ export function createGame(ctx) {
       r.active = false;
       r.mesh.visible = false;
       toast('Rival taken out');
+    } else {
+      // shoved back a little and stunned — the ram lands, the chase ends
+      const dx = r.mesh.position.x - state.pos.x;
+      const dz = r.mesh.position.z - state.pos.z;
+      const d = Math.hypot(dx, dz) || 1;
+      r.mesh.position.x += (dx / d) * 3;
+      r.mesh.position.z += (dz / d) * 3;
+      r.stun = 2.5;
     }
   }
 
@@ -537,7 +545,7 @@ export function createGame(ctx) {
         if (alive.length === 0) { advanceStep(); break; }
         const r = alive[0];
         Object.assign(k, steerTo(r.mesh.position.x, r.mesh.position.z, dt, state.topSpeed));
-        if (k.dist < 4.5) { damageRival(r, 1); r.mesh.position.x += Math.sin(state.heading) * 8; r.mesh.position.z += Math.cos(state.heading) * 8; }
+        if (k.dist < 4.5) damageRival(r, 1);
         else if (k.dist < 22 && Math.abs(angDiff(Math.atan2(-(r.mesh.position.x - state.pos.x), -(r.mesh.position.z - state.pos.z)), state.heading)) < 0.4) shoot();
         break;
       }
@@ -674,12 +682,19 @@ export function createGame(ctx) {
         if (state.health <= 0) { state.health = 0; fail('wrecked'); }
         syncHud();
       }
-      // rivals creep toward the player
+      // rivals creep toward the player, leashed to the meet block
+      if (r.stun > 0) { r.stun -= dt; continue; }
       if (d > 6) {
         const wantA = Math.atan2(-(state.pos.x - r.mesh.position.x), -(state.pos.z - r.mesh.position.z));
         r.mesh.rotation.y = wantA;
         r.mesh.position.x += -Math.sin(wantA) * 7 * dt;
         r.mesh.position.z += -Math.cos(wantA) * 7 * dt;
+      }
+      // leash: never drag the fight out of the downtown block
+      const ld = dist(r.mesh.position.x, r.mesh.position.z, -24, -120);
+      if (ld > 30) {
+        r.mesh.position.x += (-24 - r.mesh.position.x) / ld * 5 * dt;
+        r.mesh.position.z += (-120 - r.mesh.position.z) / ld * 5 * dt;
       }
     }
   }
