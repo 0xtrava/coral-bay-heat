@@ -146,4 +146,6 @@ export function updateHud(state) {
     for (let i = 0; i < 5; i++) html += `<span class="${i < state.wanted ? 'on' : 'off'}">&#9733;</span>`;
     stars.innerHTML = html;
   }
+  const tag = document.getElementById('wanted-tag');
+  if (tag) tag.textContent = `WANTED · LEVEL ${state.wanted} · AIR UNIT DEPLOYED`;
 }

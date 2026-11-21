@@ -112,13 +112,13 @@ export function makeHeroCar() {
   car.add(spine);
   // ---- rear deck: louvres, spoiler, taillights ----
   // deck louvres: 5 bright slats per side, angled, read from 3/4 rear.
-  // Slight self-light so they read against the red deck at any angle.
-  const louvreMat = new THREE.MeshStandardMaterial({ color: 0xf2f4f6, roughness: 0.2, metalness: 0.9, emissive: 0x9a9a9a, emissiveIntensity: 0.55 });
+  // Big and self-lit so they read as white dashes on the red deck.
+  const louvreMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25, metalness: 0.6, emissive: 0xcccccc, emissiveIntensity: 0.8 });
   for (const side of [-1, 1]) {
     for (let i = 0; i < 5; i++) {
-      // forward on the deck (z 1.58..2.10), clear of the spoiler, tall
+      // forward on the deck (z 1.55..2.27), clear of the spoiler, tall
       // enough to read over the deck from the cover angle
-      const lv = box(0.55, 0.06, 0.16, louvreMat, side * 0.55, 0.73 + i * 0.004, 1.58 + i * 0.13);
+      const lv = box(0.68, 0.07, 0.22, louvreMat, side * 0.55, 0.735 + i * 0.004, 1.55 + i * 0.18);
       lv.rotation.x = -0.12;
       car.add(lv);
     }

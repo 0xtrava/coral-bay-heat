@@ -325,11 +325,11 @@ export function buildCity(scene) {
     towel.position.set(ux + 1.6, 0.07, uz + 0.8);
     scene.add(towel);
   }
-  // beach-life cluster near the beach-shot camera (x 20..42, z 0..34):
+  // beach-life cluster near the beach-shot camera (x 20..42, z -20..-4):
   // umbrellas, towels, a volleyball net and sunbathers so the foreground
   // sand never reads as one flat beige plane
   for (let i = 0; i < 5; i++) {
-    const ux = 22 + i * 4.2, uz = 4 + (i % 2) * 9;
+    const ux = 20 + i * 4.2, uz = -18 + (i % 2) * 9;
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6),
       new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5 }));
     pole.position.set(ux, 1.2, uz);
@@ -346,7 +346,7 @@ export function buildCity(scene) {
     scene.add(towel);
   }
   // volleyball net
-  for (const nz of [8, 16]) {
+  for (const nz of [-14, -6]) {
     const np = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.4, 6),
       new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5 }));
     np.position.set(28, 1.2, nz);
@@ -354,12 +354,12 @@ export function buildCity(scene) {
   }
   const net = new THREE.Mesh(new THREE.PlaneGeometry(8, 1.1),
     new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, side: THREE.DoubleSide }));
-  net.position.set(28, 1.8, 12);
+  net.position.set(28, 1.8, -10);
   scene.add(net);
   // beach ball
   const ball = new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 10),
     new THREE.MeshStandardMaterial({ color: 0xff5d8f, roughness: 0.4 }));
-  ball.position.set(26, 0.45, 10);
+  ball.position.set(24, 0.45, -12);
   ball.castShadow = true;
   scene.add(ball);
 
@@ -627,7 +627,7 @@ export function buildCity(scene) {
   }
   // sunbathers + players around the beach-life cluster (near beach camera)
   for (let i = 0; i < 7; i++) {
-    spots.push({ x: 22 + R() * 18, z: 2 + R() * 30, rot: R() * Math.PI * 2, scale: 0.95 });
+    spots.push({ x: 20 + R() * 18, z: -20 + R() * 22, rot: R() * Math.PI * 2, scale: 0.95 });
   }
   // pier crowd
   for (let i = 0; i < 8; i++) {
