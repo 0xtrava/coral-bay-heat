@@ -45,6 +45,11 @@ window.__HERO__ = hero; // playtest hook: wheel spin + brake checks
 const shot = shotName();
 const isShot = new URLSearchParams(location.search).has('shot');
 const preset = SHOTS[shot];
+// Fast-forward for headless playtests: ?ff=N runs N extra fixed-dt logic
+// ticks per rendered frame in free mode (default 1 = the shipped game).
+// Rendering still happens every frame; only the logic rate changes, so the
+// same mission code is exercised at ~real-time game speed under SwiftShader.
+const ff = isShot ? 1 : Math.max(1, Math.min(8, Number(new URLSearchParams(location.search).get('ff') || 1)));
 
 // ---- overlay helpers (victory / fail / big map) ----
 function showOverlay(kind, data = {}) {
@@ -189,6 +194,7 @@ function animate() {
 
   if (!isShot && game) {
     game.tick(dt, drive.keys);
+    for (let i = 1; i < ff; i++) game.tick(0.05, drive.keys);
     syncGameVisuals(dt);
   } else if (isShot) {
     // staged shot: hero parked, wheels still — but the HUD reads 87 km/h

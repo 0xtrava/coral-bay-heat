@@ -69,6 +69,9 @@ async function load(url) {
   }
   throw new Error('timeout waiting for __READY__');
 }
+// free-mode loads run the logic fast-forward (?ff=4) so game time tracks
+// real time under SwiftShader; shots/captures never use it.
+const GAME_URL = `http://127.0.0.1:${PORT}/index.html?seed=1&ff=4`;
 async function shutdown() {
   try { ws?.close(); } catch {}
   try { if (chrome) process.kill(-chrome.pid, 'SIGTERM'); } catch {}
@@ -78,7 +81,7 @@ const status = () => ev('window.__GAME__ ? window.__GAME__.status() : null');
 
 async function seqRun(n) {
   console.log(`--- sequential run ${n} ---`);
-  await load(`http://127.0.0.1:${PORT}/index.html?seed=1`);
+  await load(`${GAME_URL}`);
   await ev('window.__GAME__.setAutopilot(true)');
   const t0 = Date.now();
   let lastMission = -1, lastStep = -1;
@@ -111,7 +114,8 @@ async function sideChecks() {
   };
 
   // fresh load for the side checks
-  await load(`http://127.0.0.1:${PORT}/index.html?seed=1`);
+  await load(`${GAME_URL}`);
+  await sleep(4000); // let shaders warm up before measuring motion
 
   // wheels: spin in sync + brake works (drive with synthetic keys)
   await ev(`window.dispatchEvent(new KeyboardEvent('keydown',{code:'KeyW'}))`);
@@ -204,7 +208,7 @@ async function sideChecks() {
 
   // save / reload preserves cash and progress exactly (across a page reload)
   await ev('window.__GAME__.setCash(77777); window.__GAME__.saveGame()');
-  await load(`http://127.0.0.1:${PORT}/index.html?seed=1`);
+  await load(`${GAME_URL}`);
   const loaded = await ev('window.__GAME__.loadGame()');
   const s4 = await status();
   check('save-reload', loaded === true && s4.cash === 77777, `loaded=${loaded} cash=${s4.cash} mission=${s4.missionId}`);
