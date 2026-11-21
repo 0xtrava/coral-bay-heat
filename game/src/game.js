@@ -499,6 +499,12 @@ export function createGame(ctx) {
     if (d < 3) brake = 1;
     // honour the approach cap: a slow, tight approach actually lands a ram
     if (maxSpeed && state.speed > maxSpeed) { throttle = 0; brake = 1; }
+    // slow down to turn, and slow down to close in: a car at 38 m/s cannot
+    // swing onto a target behind it or stop inside a 4 m circle
+    const turnCap = Math.abs(err) > 0.9 ? 8 : Infinity;
+    const approachCap = 6 + d * 0.6;
+    const cap = Math.min(turnCap, approachCap, maxSpeed || Infinity);
+    if (state.speed > cap) { throttle = 0; brake = 1; }
     return { throttle, steer, brake, dist: d };
   }
 
