@@ -497,6 +497,8 @@ export function createGame(ctx) {
     else if (d < 6) { throttle = 0.35; }
     else throttle = 1;
     if (d < 3) brake = 1;
+    // honour the approach cap: a slow, tight approach actually lands a ram
+    if (maxSpeed && state.speed > maxSpeed) { throttle = 0; brake = 1; }
     return { throttle, steer, brake, dist: d };
   }
 
@@ -544,7 +546,7 @@ export function createGame(ctx) {
         const alive = rivals.filter((r) => r.active);
         if (alive.length === 0) { advanceStep(); break; }
         const r = alive[0];
-        Object.assign(k, steerTo(r.mesh.position.x, r.mesh.position.z, dt, state.topSpeed));
+        Object.assign(k, steerTo(r.mesh.position.x, r.mesh.position.z, dt, 12));
         if (k.dist < 4.5) damageRival(r, 1);
         else if (k.dist < 22 && Math.abs(angDiff(Math.atan2(-(r.mesh.position.x - state.pos.x), -(r.mesh.position.z - state.pos.z)), state.heading)) < 0.4) shoot();
         break;
@@ -815,6 +817,7 @@ export function createGame(ctx) {
       victory: state.victory, failed: state.failed, failReason: state.failReason,
       autopilot: state.autopilot,
       police: chasers.filter((c) => c.mesh.visible).map((c) => c.name),
+      rivals: rivals.map((r) => ({ hp: r.hp, active: r.active, x: Math.round(r.mesh.position.x), z: Math.round(r.mesh.position.z) })),
       heliVisible: !!(refs.heli && refs.heli.visible),
     };
   }
