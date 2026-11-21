@@ -1,7 +1,10 @@
 // Coral Bay Heat — police helicopter. Big, dark, silhouetted against the
 // sky, main rotor with a translucent blur disc so it reads as spinning.
 // Recovery round 21 (2026-11-21): unchanged behaviour, witnessed rebuild.
+// Fix round 2 (v11): POLICE side lettering + tail band + belly spotlight,
+// so it reads as a CBPD air unit from any angle — never a plain dark blob.
 import * as THREE from 'three';
+import { textTexture } from './cars.js';
 
 export function makeHelicopter() {
   const heli = new THREE.Group();
@@ -27,6 +30,28 @@ export function makeHelicopter() {
   const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.62, 0.16, 0.5), accent);
   stripe.position.set(0, -0.15, -0.9);
   heli.add(stripe);
+  // POLICE lettering on both flanks + a white tail band: the air unit
+  // must read as police even when the light bar is out of frame
+  for (const side of [-1, 1]) {
+    const decal = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.45),
+      new THREE.MeshBasicMaterial({ map: textTexture('POLICE', '#ffd76a'), transparent: true }));
+    decal.position.set(side * 1.16, 0.15, 0.1);
+    decal.rotation.y = side * Math.PI / 2;
+    heli.add(decal);
+  }
+  const tailBand = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 0.5),
+    new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.5 }));
+  tailBand.position.set(0, 0.28, 3.6);
+  heli.add(tailBand);
+  // belly spotlight pod (the searchlight cone hangs from this, not from air)
+  const spotPod = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.34, 0.3, 12), darkMat);
+  spotPod.position.set(0, -1.0, -1.2);
+  heli.add(spotPod);
+  const spotLens = new THREE.Mesh(new THREE.CircleGeometry(0.24, 12),
+    new THREE.MeshStandardMaterial({ color: 0xfff6d8, emissive: 0xffeeb0, emissiveIntensity: 1.6 }));
+  spotLens.rotation.x = Math.PI / 2;
+  spotLens.position.set(0, -1.16, -1.2);
+  heli.add(spotLens);
   // tail boom + fins
   const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.42, 3.4, 10), bodyMat);
   boom.rotation.x = Math.PI / 2 - 0.10;

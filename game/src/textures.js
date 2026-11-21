@@ -204,6 +204,51 @@ export function cloudTexture() {
   return t;
 }
 
+// Shipping-container side: vertical ribs, top/bottom rails, a stencil
+// number and rust streaks, so a container reads as corrugated steel —
+// never a flat coloured slab. Base colour is passed in as a hex number.
+export function containerTexture(baseHex, label = 'CORAL BAY') {
+  const [c, g] = canvas(512, 256);
+  const rnd = mulberry32(baseHex ^ 0x51ab);
+  const base = `#${baseHex.toString(16).padStart(6, '0')}`;
+  g.fillStyle = base; g.fillRect(0, 0, 512, 256);
+  // vertical ribs: alternating light / dark bands read as corrugation
+  for (let x = 0; x < 512; x += 32) {
+    g.fillStyle = 'rgba(255,255,255,0.14)';
+    g.fillRect(x, 0, 7, 256);
+    g.fillStyle = 'rgba(0,0,0,0.28)';
+    g.fillRect(x + 16, 0, 9, 256);
+  }
+  // top + bottom rails
+  g.fillStyle = 'rgba(0,0,0,0.35)';
+  g.fillRect(0, 0, 512, 14);
+  g.fillRect(0, 242, 512, 14);
+  g.fillStyle = 'rgba(255,255,255,0.10)';
+  g.fillRect(0, 14, 512, 4);
+  // stencil label + number
+  g.fillStyle = 'rgba(255,255,255,0.85)';
+  g.font = 'bold 34px Arial'; g.textAlign = 'left'; g.textBaseline = 'middle';
+  g.fillText(label, 24, 52);
+  g.font = 'bold 26px Arial';
+  g.fillText(`CBXU ${100000 + Math.floor(rnd() * 899999)}`, 24, 96);
+  g.font = 'bold 22px Arial';
+  g.fillStyle = 'rgba(255,255,255,0.6)';
+  g.fillText('MAX 30,480 KG', 24, 200);
+  // rust streaks from the top rail
+  for (let i = 0; i < 22; i++) {
+    const x = rnd() * 512, len = 20 + rnd() * 90;
+    const grad = g.createLinearGradient(0, 14, 0, 14 + len);
+    grad.addColorStop(0, 'rgba(90,45,20,0.5)');
+    grad.addColorStop(1, 'rgba(90,45,20,0)');
+    g.fillStyle = grad;
+    g.fillRect(x, 14, 3 + rnd() * 5, len);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
 export function signTexture(lines, opts = {}) {
   const w = opts.w || 512, h = opts.h || 128;
   const [c, g] = canvas(w, h);

@@ -132,7 +132,10 @@ export function drawMinimap(ctx, px, pz, prot, opts = {}) {
   ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.arc(pxx, pzz, 26, 0, 7); ctx.stroke();
   ctx.restore();
-  // rim
+  // rim: a dark outer ring first, so the circle reads as a solid disc even
+  // when a bright 3D object (lamp globe, awning) sits right behind its edge
+  ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 12;
+  ctx.beginPath(); ctx.arc(W / 2, H / 2, W / 2 - 6, 0, 7); ctx.stroke();
   ctx.strokeStyle = 'rgba(55,224,200,0.9)'; ctx.lineWidth = 6;
   ctx.beginPath(); ctx.arc(W / 2, H / 2, W / 2 - 3, 0, 7); ctx.stroke();
 }

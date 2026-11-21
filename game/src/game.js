@@ -120,7 +120,10 @@ export function createGame(ctx) {
   waitingCar.position.set(20, 0, 140);
   waitingCar.rotation.y = -0.4;
   scene.add(waitingCar);
-  const taxiMesh = refs.traffic.find((t) => t.userData && t.position.z === -60 && t.position.x < 0) || refs.traffic[4];
+  // Fix round 2 (v11): the taxi used to be found by matching its position
+  // (z === -60 && x < 0) — brittle if the traffic layout ever moves. The
+  // city now hands it over directly as refs.taxi.
+  const taxiMesh = refs.taxi || refs.traffic[4];
 
   // objective beacon: gold ring + beam, moved to the current step target
   const beaconMat = new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.85 });

@@ -28,11 +28,13 @@ function mat(color, rough = 0.8) {
   return new THREE.MeshStandardMaterial({ color, roughness: rough });
 }
 
-export function makePerson(seed = 1, scale = 1) {
+export function makePerson(seed = 1, scale = 1, opts = {}) {
   const rnd = seededRnd(seed);
   const g = new THREE.Group();
   const skin = mat(SKINS[Math.floor(rnd() * SKINS.length)], 0.7);
-  const shirt = mat(SHIRTS[Math.floor(rnd() * SHIRTS.length)], 0.8);
+  // hi-vis dock workers: orange vest shirt, so the docks crew reads at a
+  // glance and never blends into a container wall
+  const shirt = opts.hivis ? mat(0xff7a1a, 0.8) : mat(SHIRTS[Math.floor(rnd() * SHIRTS.length)], 0.8);
   const pants = mat(PANTS[Math.floor(rnd() * PANTS.length)], 0.85);
   const hair = mat(HAIRS[Math.floor(rnd() * HAIRS.length)], 0.9);
   const shoe = mat(SHOES[Math.floor(rnd() * SHOES.length)], 0.6);
@@ -58,8 +60,24 @@ export function makePerson(seed = 1, scale = 1) {
   head.scale.set(1, 1.18, 1.02);
   head.position.y = 1.50; head.castShadow = true;
   g.add(head);
-  const style = rnd();
-  if (style < 0.42) {
+  const style = opts.hivis ? 0.95 : rnd(); // hi-vis workers wear a hard hat
+  if (opts.hivis) {
+    // hard hat: yellow dome + brim, unmistakable at docks distance
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.155, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55),
+      mat(0xffd21a, 0.5));
+    dome.position.y = 1.53;
+    g.add(dome);
+    const brimH = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.02, 12), mat(0xffd21a, 0.5));
+    brimH.position.y = 1.55;
+    g.add(brimH);
+    // reflective silver stripes across the vest
+    const stripeMat = mat(0xe8ecf0, 0.4);
+    for (const sy of [0.95, 1.18]) {
+      const st = new THREE.Mesh(new THREE.BoxGeometry(0.43, 0.05, 0.25), stripeMat);
+      st.position.y = sy;
+      g.add(st);
+    }
+  } else if (style < 0.42) {
     // short hair: cap over the crown
     const cap = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.52), hair);
     cap.position.y = 1.53;
@@ -170,13 +188,21 @@ export function makePerson(seed = 1, scale = 1) {
   return g;
 }
 
+// A dock worker: hi-vis orange vest, reflective stripes, yellow hard hat.
+// Same grounded rig as a pedestrian (feet reach y = 0), so the docks crew
+// stands ON the apron, never on a car, and reads at a glance.
+export function makeWorker(seed = 1, scale = 1) {
+  return makePerson(seed, scale, { hivis: true });
+}
+
 // Scatter walkers along a line segment (sidewalk, beach, pier).
 // Each spot may carry y = the surface height (pier deck 0.41, sand 0.04);
 // the crowd keeps that ground height forever — animation only bobs on top.
+// A spot may also carry hivis: true for a dock worker.
 export function makeCrowd(scene, spots) {
   const crowd = new THREE.Group();
   spots.forEach((sp, i) => {
-    const p = makePerson(1000 + i * 17, sp.scale || 1);
+    const p = sp.hivis ? makeWorker(1000 + i * 17, sp.scale || 1) : makePerson(1000 + i * 17, sp.scale || 1);
     p.position.set(sp.x, sp.y || 0, sp.z);
     p.userData.groundY = sp.y || 0;
     p.rotation.y = sp.rot ?? (Math.random() * Math.PI * 2);

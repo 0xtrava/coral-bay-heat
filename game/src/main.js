@@ -89,11 +89,12 @@ hero.rotation.y = preset.heroRot;
 heli.position.set(...preset.heli);
 // cover: the hero now faces the camera, so the pursuit police car moves to
 // the hero's left flank where the lens can see it (shot mode only — the
-// free game keeps its own traffic layout)
+// free game keeps its own traffic layout). Angled -0.55 so the camera sees
+// its rear POLICE marking AND its flank livery, not a flat white rear.
 if (shot === 'cover') {
   const cop = refs.traffic[0];
-  cop.position.set(-4.6, 0, -4);
-  cop.rotation.y = -0.15;
+  cop.position.set(-5.0, 0, -3.5);
+  cop.rotation.y = -0.55;
 }
 camera.position.set(...preset.cam);
 camera.lookAt(...preset.look);
@@ -145,7 +146,9 @@ let lastMap = 0;
 
 function spinWheels(car, dt, speed) {
   if (!car.userData.wheels) return;
-  const w = speed / 0.36; // angular velocity from linear speed
+  // spin rate from the car's own wheel radius (hero 0.40, sedan 0.37),
+  // so bigger wheels no longer spin at the old 0.36 rate
+  const w = speed / (car.userData.wheelRadius || 0.36); // angular velocity from linear speed
   for (const wheel of car.userData.wheels) {
     wheel.rotation.x += w * dt;
   }

@@ -1,11 +1,11 @@
 // Coral Bay Heat — headless capture via Chrome DevTools Protocol.
-// Recovery round 21 (2026-11-21): fresh 4-shot capture for the rebuilt cover.
+// Fix round 2 v11 (2026-11-21): fresh 4-shot capture for the rebuilt cars.
 // Usage: node capture.mjs [shot] [outpath]
 //   shot: cover | pier | beach | docks | all   (default: cover)
 // Launches the local server if needed, loads the game in headless Chrome
 // with SwiftShader, waits for window.__READY__, screenshots 1280x720.
 import { spawn, execSync } from 'node:child_process';
-import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { writeFileSync, mkdirSync, existsSync, copyFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -104,6 +104,12 @@ async function main() {
       const outPath = outArg && shots.length === 1 ? outArg : join(outDir, NAMES[shot]);
       writeFileSync(outPath, data);
       console.log(`OK ${shot} -> ${outPath} (${data.length} bytes)`);
+      // Fix round 2 (v11): the dossier reads screenshots/ beside this file,
+      // so a fresh capture also refreshes that dir — no stale shots survive.
+      const dossierPath = join(here, 'screenshots', NAMES[shot]);
+      mkdirSync(join(here, 'screenshots'), { recursive: true });
+      copyFileSync(outPath, dossierPath);
+      console.log(`   copied -> ${dossierPath}`);
     }
     ws.close();
   } finally {

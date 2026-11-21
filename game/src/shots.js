@@ -18,10 +18,16 @@ export const SHOTS = {
     fov: 55,
   },
   pier: {
-    cam: [11, 3.0, -84],
-    look: [58, 1.0, -96.5],
-    hero: [28, 0, -93.5],
-    heroRot: -Math.PI / 2,
+    // low, close, down the pier: hero big mid-frame, FRONT 3/4 toward the
+    // lens (nose toward the camera, both headlights visible), boats + sea
+    // behind. Hero y = 0.41 = the plank deck top, so the wheels sit ON the
+    // pier instead of sinking into it. Foreground is flat towels only —
+    // nothing tall within 10 m of this lens (a tower/dinghy there hid the
+    // whole hero in the first attempt).
+    cam: [20, 2.4, -88],
+    look: [32, 1.0, -94],
+    hero: [28, 0.41, -93.5],
+    heroRot: 2.2,
     heli: [40, 26, -120],
     wanted: 1,
     fov: 55,
@@ -36,11 +42,17 @@ export const SHOTS = {
     fov: 55,
   },
   docks: {
-    cam: [10, 5.5, 150],
-    look: [-28, 6, 138],
+    // close and low: hero big in the foreground, FRONT 3/4 toward the
+    // lens (the old rear 3/4 is what made the car read as a flat wedge),
+    // gantry crane + container stacks behind, heli up LEFT so it never
+    // sits on the WANTED text top-right, sun + warehouses in frame.
+    // Camera low (y 2.0) and 10.6 m out, hero turned -1.9 so the lens sees
+    // front + right flank, not a head-on hood.
+    cam: [5, 2.0, 150],
+    look: [-3, 1.0, 142],
     hero: [-2, 0, 143],
-    heroRot: 2.6,
-    heli: [-24, 20, 132],
+    heroRot: -1.9,
+    heli: [-24, 11, 136],
     wanted: 5,
     fov: 55,
   },

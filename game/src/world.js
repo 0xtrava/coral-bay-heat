@@ -3,7 +3,7 @@
 // palm-lined beach, turquoise ocean, wooden Pier 9 and the container docks,
 // under a warm sunset sky with a big haloed sun. Forward is -Z (north).
 import * as THREE from 'three';
-import { asphaltTexture, sidewalkTexture, sandTexture, oceanTexture, skyTexture, sunGlowTexture, cloudTexture, signTexture } from './textures.js';
+import { asphaltTexture, sidewalkTexture, sandTexture, oceanTexture, skyTexture, sunGlowTexture, cloudTexture, signTexture, containerTexture } from './textures.js';
 import { makeHeroCar, makePoliceCar, makeCivilianCar, makeTaxi, makeVan, makeScooter } from './cars.js';
 import { makeHelicopter } from './heli.js';
 import { makeCrowd } from './people.js';
@@ -25,41 +25,74 @@ function box(w, h, d, mat, x = 0, y = 0, z = 0, shadow = true) {
   return m;
 }
 
-// ---- palm tree: curved trunk + radiating fronds ------------------------
+// ---- palm tree: curved segmented trunk + layered drooping fronds ------
+// A frond is three chained tapered segments that droop progressively, so
+// it reads as a curved 3D leaf with volume — never a flat cone star.
+// Two tiers (upper + lower drooping ring) + a thick ringed trunk.
 function makePalm(seed = 1, scale = 1) {
   const r = rnd(seed);
   const g = new THREE.Group();
   const trunkMat = new THREE.MeshStandardMaterial({ color: 0x7a5a38, roughness: 0.9 });
+  const ringMat = new THREE.MeshStandardMaterial({ color: 0x5a4026, roughness: 0.95 });
   const frondMat = new THREE.MeshStandardMaterial({ color: 0x2f9e4f, roughness: 0.8, side: THREE.DoubleSide });
-  const frondMat2 = new THREE.MeshStandardMaterial({ color: 0x3fb85f, roughness: 0.8, side: THREE.DoubleSide });
+  const frondMat2 = new THREE.MeshStandardMaterial({ color: 0x45b45e, roughness: 0.8, side: THREE.DoubleSide });
+  const frondMat3 = new THREE.MeshStandardMaterial({ color: 0x1f7a38, roughness: 0.8, side: THREE.DoubleSide });
   let x = 0, y = 0;
   const lean = (r() - 0.5) * 0.5;
   for (let i = 0; i < 5; i++) {
-    const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.14 - i * 0.015, 0.17 - i * 0.015, 1.5, 7), trunkMat);
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.17 - i * 0.018, 0.21 - i * 0.018, 1.5, 8), trunkMat);
     x += lean * 0.3;
     seg.position.set(x, y + 0.75, 0);
     seg.rotation.z = -lean * 0.25;
     seg.castShadow = true;
     g.add(seg);
+    // ring band at each trunk joint
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.19 - i * 0.016, 0.025, 6, 12), ringMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(x + lean * 0.15, y + 1.45, 0);
+    g.add(ring);
     y += 1.45;
   }
   const topX = x, topY = y;
   // coconuts
   const nutMat = new THREE.MeshStandardMaterial({ color: 0x5a3a1a, roughness: 0.9 });
   for (let i = 0; i < 3; i++) {
-    const nut = new THREE.Mesh(new THREE.SphereGeometry(0.14, 8, 6), nutMat);
+    const nut = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), nutMat);
     nut.position.set(topX + (r() - 0.5) * 0.4, topY - 0.15, (r() - 0.5) * 0.4);
     g.add(nut);
   }
-  for (let i = 0; i < 9; i++) {
-    const frond = new THREE.Mesh(new THREE.ConeGeometry(0.55, 3.4, 4), i % 2 ? frondMat : frondMat2);
-    frond.scale.set(1, 1, 0.18);
-    const a = (i / 9) * Math.PI * 2 + r() * 0.3;
-    frond.position.set(topX + Math.cos(a) * 1.3, topY + 0.35, Math.sin(a) * 1.3);
-    frond.rotation.set(Math.sin(a) * 1.15, 0, -Math.cos(a) * 1.15);
-    frond.rotation.y = -a;
-    frond.castShadow = true;
-    g.add(frond);
+  // one frond = a chain of 3 tapered, flattening segments, each drooping
+  // further than the last, so the leaf arcs down under its own weight
+  function makeFrond(mat, len) {
+    const f = new THREE.Group();
+    let px = 0, py = 0, pitch = -0.15;
+    const segs = [[0.34, len * 0.42], [0.26, len * 0.36], [0.16, len * 0.30]];
+    for (const [wdt, slen] of segs) {
+      const s = new THREE.Mesh(new THREE.ConeGeometry(wdt, slen, 6), mat);
+      s.scale.set(1, 1, 0.22);
+      // cone points +Y; lay it along +X with a droop pitch
+      s.rotation.z = -Math.PI / 2 + pitch;
+      s.position.set(px + Math.cos(pitch) * slen * 0.45, py + Math.sin(pitch) * slen * 0.45, 0);
+      s.castShadow = true;
+      f.add(s);
+      px += Math.cos(pitch) * slen * 0.9;
+      py += Math.sin(pitch) * slen * 0.9;
+      pitch -= 0.55; // each segment droops further
+    }
+    return f;
+  }
+  const frondMats = [frondMat, frondMat2, frondMat3];
+  for (let tier = 0; tier < 2; tier++) {
+    const n = tier === 0 ? 8 : 7;
+    const basePitch = tier === 0 ? 0.35 : -0.15; // upper tier lifts, lower droops
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + r() * 0.3 + tier * 0.4;
+      const f = makeFrond(frondMats[i % 3], 2.6 + r() * 0.7);
+      f.position.set(topX, topY + (tier === 0 ? 0.25 : -0.05), 0);
+      f.rotation.y = -a;
+      f.rotation.x = basePitch;
+      g.add(f);
+    }
   }
   g.scale.setScalar(scale);
   return g;
@@ -92,28 +125,79 @@ function makeBuilding(seed, w, h, d, color) {
     new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.5, metalness: 0.7 }));
   ant.position.set(-w * 0.3, h1 + h2 + h3 + 1.6, -d * 0.2);
   g.add(ant);
-  // windows: varied lit/dark, on the street-facing side (+X for the west row)
+  // windows: framed + recessed, on EVERY face — never a flat wall with
+  // squares pasted on. Each window gets a dark frame box (proud of the
+  // wall), a glass pane set inside it, and a sill below; balconies hang
+  // off some of them. Faces: +X (street), -X, +Z and -Z.
   const floors = Math.max(3, Math.floor(h1 / 3.2));
   const cols = Math.max(3, Math.floor(d / 2.6));
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x2a2f38, roughness: 0.6, metalness: 0.3 });
+  const sillMat = new THREE.MeshStandardMaterial({ color: 0xf5efe0, roughness: 0.8 });
+  function addWindow(px, py, pz, ry, wx) {
+    // frame box (proud), glass pane (recessed inside it), sill below.
+    // All three are built facing +Z and rotated by ry, so the thin axis
+    // always lines up with the wall normal — never buried sideways.
+    const frame = box(1.5, 1.9, 0.10, frameMat, px, py, pz);
+    frame.rotation.y = ry;
+    g.add(frame);
+    const lit = r() < 0.45;
+    const wc = lit ? WINDOW_LIT[Math.floor(r() * WINDOW_LIT.length)] : WINDOW_DARK[Math.floor(r() * WINDOW_DARK.length)];
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.7),
+      new THREE.MeshStandardMaterial({ color: wc, emissive: lit ? wc : 0x000000, emissiveIntensity: lit ? 0.55 : 0, roughness: 0.2, metalness: 0.3 }));
+    win.position.set(px, py, pz);
+    win.rotation.y = ry;
+    // push the glass just proud of the frame face so it is never buried
+    win.translateZ(0.06);
+    g.add(win);
+    const sill = box(1.6, 0.10, 0.14, sillMat, px, py - 1.0, pz);
+    sill.rotation.y = ry;
+    sill.translateZ(0.04);
+    g.add(sill);
+    // balcony slab + rail under some windows
+    if (r() < 0.4) {
+      const balc = box(1.7, 0.14, 0.7, trim, px, py - 1.0, pz);
+      balc.rotation.y = ry;
+      balc.translateZ(0.35);
+      g.add(balc);
+      const rail = box(1.7, 0.5, 0.05, new THREE.MeshStandardMaterial({ color: 0x3a4a5a, roughness: 0.6, metalness: 0.4 }), px, py - 0.7, pz);
+      rail.rotation.y = ry;
+      rail.translateZ(0.68);
+      g.add(rail);
+    }
+  }
   for (let f = 0; f < floors; f++) {
     for (let cxi = 0; cxi < cols; cxi++) {
       if (r() < 0.18) continue; // some blank wall — not a uniform grid
-      const lit = r() < 0.45;
-      const wc = lit ? WINDOW_LIT[Math.floor(r() * WINDOW_LIT.length)] : WINDOW_DARK[Math.floor(r() * WINDOW_DARK.length)];
-      const win = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.7),
-        new THREE.MeshStandardMaterial({ color: wc, emissive: lit ? wc : 0x000000, emissiveIntensity: lit ? 0.55 : 0, roughness: 0.2, metalness: 0.3 }));
-      const wx = -d / 2 + (cxi + 0.5) * (d / cols);
       const wy = 2.2 + f * 3.2;
-      win.position.set(w / 2 + 0.03, wy, wx);
-      win.rotation.y = Math.PI / 2;
-      g.add(win);
-      // balcony slab under some windows
-      if (r() < 0.4) {
-        g.add(box(0.7, 0.14, 1.7, trim, w / 2 + 0.35, wy - 1.0, wx));
-        g.add(box(0.05, 0.5, 1.7, new THREE.MeshStandardMaterial({ color: 0x3a4a5a, roughness: 0.6, metalness: 0.4 }), w / 2 + 0.68, wy - 0.7, wx));
-      }
+      const wx = -d / 2 + (cxi + 0.5) * (d / cols);
+      addWindow(w / 2, wy, wx, Math.PI / 2, wx);
+    }
+    // back face (-X) and both long faces (+Z / -Z), sparser
+    for (let cxi = 0; cxi < cols; cxi++) {
+      if (r() < 0.45) continue;
+      const wy = 2.2 + f * 3.2;
+      const wx = -d / 2 + (cxi + 0.5) * (d / cols);
+      addWindow(-w / 2, wy, wx, -Math.PI / 2, wx);
+      const wz = -w / 2 + (cxi + 0.5) * (w / cols);
+      addWindow(wz, wy, d / 2, 0, wz);
+      addWindow(wz, wy, -d / 2, Math.PI, wz);
     }
   }
+  // floor-band cornices: thin trim strips wrapping the slab at every floor
+  // line, so the wall breaks into storeys instead of one flat expanse
+  for (let f = 1; f < floors; f++) {
+    const by = 0.8 + f * 3.2;
+    g.add(box(w + 0.24, 0.18, d + 0.24, trim, 0, by, 0));
+  }
+  // corner pilasters: vertical trim ribs on all four corners
+  for (const [px, pz] of [[-w / 2, -d / 2], [w / 2, -d / 2], [-w / 2, d / 2], [w / 2, d / 2]]) {
+    g.add(box(0.5, h1, 0.5, trim, px, h1 / 2, pz));
+  }
+  // parapet cap around the roof edge
+  g.add(box(w + 0.2, 0.35, 0.25, trim, 0, h1 + 0.17, d / 2));
+  g.add(box(w + 0.2, 0.35, 0.25, trim, 0, h1 + 0.17, -d / 2));
+  g.add(box(0.25, 0.35, d + 0.2, trim, w / 2, h1 + 0.17, 0));
+  g.add(box(0.25, 0.35, d + 0.2, trim, -w / 2, h1 + 0.17, 0));
   // awnings over the ground floor + shopfront (street side)
   const awnColors = [0xff5d8f, 0x37e0c8, 0xffd76a, 0xff9d2e];
   const awn = new THREE.MeshStandardMaterial({ color: awnColors[Math.floor(r() * awnColors.length)], roughness: 0.8, side: THREE.DoubleSide });
@@ -543,6 +627,24 @@ export function buildCity(scene) {
   pierSign.rotation.y = Math.PI / 2;
   pierGroup.add(pierSign);
   scene.add(pierGroup);
+  // ---- pier foreground (sand north of the pier root): the old pier shot
+  // was a void of empty sand in the foreground. A beached dinghy on the
+  // sand BEYOND the pier (24 m from the lens, never in the camera-hero
+  // corridor) and flat towels by the pier root give the low pier camera
+  // something to look over. Lesson from the first attempt: NOTHING tall
+  // within 10 m of this lens — a lifeguard tower and a dinghy that close
+  // filled the whole frame and hid the hero.
+  const dinghy = makeBoat(0xffd76a, false);
+  dinghy.position.set(40, 0.0, -102);
+  dinghy.rotation.y = 0.8;
+  scene.add(dinghy);
+  for (const [tx, tz, col] of [[19, -90.5, 0xff5d8f], [23, -91.5, 0x37e0c8]]) {
+    const tw = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.8),
+      new THREE.MeshStandardMaterial({ color: col, roughness: 0.9 }));
+    tw.rotation.x = -Math.PI / 2;
+    tw.position.set(tx, 0.07, tz);
+    scene.add(tw);
+  }
   // boats in the bay
   function makeBoat(color, big) {
     const g = new THREE.Group();
@@ -595,20 +697,21 @@ export function buildCity(scene) {
   crane.add(box(10, 2, 30, craneMat, -34, 26, 142));
   crane.add(box(10, 1.6, 4, craneMat, -34, 29, 142));
   crane.add(box(1.2, 1.2, 1.2, new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6 }), -34, 24.5, 136));
-  const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 10, 6), darkMat());
-  cable.position.set(-34, 20, 136);
-  crane.add(cable);
-  function darkMat() { return new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6 }); }
-  crane.add(box(3, 2, 3, new THREE.MeshStandardMaterial({ color: 0x4a7a9e, roughness: 0.6 }), -34, 14.5, 136));
+  // NOTE: the crane used to hang a cable + container at (-34, 14.5, 136).
+  // From the docks camera that box lined up directly under the helicopter
+  // and read as a disconnected sling load floating in the air — removed.
   scene.add(crane);
-  // containers, stacked and coloured
-  const contColors = [0xc94a2e, 0x2e7a9e, 0x7a9e2e, 0xd9a02e, 0x9e2e6a, 0x4a6a8a];
+  // containers, stacked and coloured — ribbed steel (never a flat slab),
+  // muted colours only: the old magenta stacks at x=2 sat right in the
+  // docks camera's face and ate the bottom-right corner of the shot.
+  const contColors = [0xc94a2e, 0x2e7a9e, 0x7a9e2e, 0xd9a02e, 0x3a7a8a, 0x4a6a8a];
   const contSpots = [
     [-52, 132, 0], [-52, 138, 0], [-52, 135, 1], [-58, 132, 0], [-58, 138, 0],
-    [-12, 150, 0], [-12, 156, 0], [-12, 153, 1], [-6, 150, 0], [2, 132, 0], [2, 138, 0],
+    [-12, 150, 0], [-12, 156, 0], [-12, 153, 1], [-6, 150, 0], [-46, 150, 0], [-40, 150, 0],
   ];
   contSpots.forEach(([x, z, lvl], i) => {
-    const c = box(6, 2.6, 2.6, new THREE.MeshStandardMaterial({ color: contColors[i % contColors.length], roughness: 0.7, metalness: 0.3 }), x, 1.3 + lvl * 2.6, z);
+    const col = contColors[i % contColors.length];
+    const c = box(6, 2.6, 2.6, new THREE.MeshStandardMaterial({ map: containerTexture(col), roughness: 0.7, metalness: 0.3 }), x, 1.3 + lvl * 2.6, z);
     c.rotation.y = (i % 3) * 0.02;
     scene.add(c);
   });
@@ -637,10 +740,10 @@ export function buildCity(scene) {
   // (flanking the hero, clear of the lens and the camera-hero corridor)
   const nearCont = [
     [-18, 144, 0, 0xc94a2e], [-24, 148, 0, 0x2e7a9e], [-26, 140, 0, 0x7a9e2e],
-    [-24, 126, 0, 0xd9a02e], [-24, 132, 0, 0x9e2e6a], [-18, 129, 1, 0x4a6a8a],
+    [-24, 126, 0, 0xd9a02e], [-24, 132, 0, 0x3a7a8a], [-18, 129, 1, 0x4a6a8a],
   ];
   nearCont.forEach(([x, z, lvl, col], i) => {
-    const c = box(6, 2.6, 2.6, new THREE.MeshStandardMaterial({ color: col, roughness: 0.7, metalness: 0.3 }), x, 1.3 + lvl * 2.6, z);
+    const c = box(6, 2.6, 2.6, new THREE.MeshStandardMaterial({ map: containerTexture(col), roughness: 0.7, metalness: 0.3 }), x, 1.3 + lvl * 2.6, z);
     c.rotation.y = (i % 3) * 0.03;
     scene.add(c);
   });
@@ -649,6 +752,47 @@ export function buildCity(scene) {
       -24 + R() * 16, 0.55, 142 + R() * 6);
     cr.rotation.y = R() * 1.2;
     scene.add(cr);
+  }
+  // ---- docks apron detail: the old apron was one flat grey-brown void.
+  // Painted lane lines + a zebra crossing, glossy puddles, oil stains,
+  // bollards along the yard edge and pallet stacks break it up.
+  const apronMark = new THREE.MeshBasicMaterial({ color: 0xf5c832 });
+  function apronStripe(w, l, x, z, ry = 0) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, l), apronMark);
+    m.rotation.x = -Math.PI / 2; m.rotation.z = ry;
+    m.position.set(x, 0.06, z);
+    scene.add(m);
+  }
+  for (const z of [128, 136, 144, 152, 160]) apronStripe(0.3, 90, -20, z);
+  for (let i = 0; i < 8; i++) apronStripe(0.9, 3.2, -2 + i * 1.7, 138); // zebra in front of the hero
+  const puddleMat = new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.25, metalness: 0.4 });
+  for (const [px, pz, pr] of [[-10, 138, 1.6], [-16, 150, 2.2], [0, 146, 0.9]]) {
+    const pud = new THREE.Mesh(new THREE.CircleGeometry(pr, 18), puddleMat);
+    pud.rotation.x = -Math.PI / 2;
+    pud.scale.set(1, 0.6, 1);
+    pud.position.set(px, 0.06, pz);
+    scene.add(pud);
+  }
+  const stainMat = new THREE.MeshBasicMaterial({ color: 0x141414, transparent: true, opacity: 0.45 });
+  for (const [sx, sz, sr] of [[-6, 146, 1.4], [-20, 134, 1.8], [4, 148, 1.2]]) {
+    const st = new THREE.Mesh(new THREE.CircleGeometry(sr, 14), stainMat);
+    st.rotation.x = -Math.PI / 2;
+    st.position.set(sx, 0.055, sz);
+    scene.add(st);
+  }
+  const bolMat = new THREE.MeshStandardMaterial({ color: 0xd9a02e, roughness: 0.5, metalness: 0.4 });
+  for (let i = 0; i < 10; i++) {
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.9, 10), bolMat);
+    b.position.set(-52 + i * 6.5, 0.45, 124);
+    b.castShadow = true;
+    scene.add(b);
+  }
+  for (let i = 0; i < 4; i++) {
+    const pal = box(1.4, 0.14, 1.2, new THREE.MeshStandardMaterial({ color: 0x9a6a42, roughness: 0.95 }),
+      -30 + i * 3.2, 0.11, 148);
+    scene.add(pal);
+    scene.add(box(1.0, 0.9, 1.0, new THREE.MeshStandardMaterial({ color: [0xb88a4a, 0x7a9a5a][i % 2], roughness: 0.9 }),
+      -30 + i * 3.2, 0.6, 148));
   }
 
   // ---- HERO + TRAFFIC ----
@@ -684,6 +828,7 @@ export function buildCity(scene) {
   taxi.position.set(-3.4, 0, -60);
   scene.add(taxi);
   refs.traffic.push(taxi);
+  refs.taxi = taxi; // game.js used to find the taxi by fragile position match
 
   const van = makeVan(0x4a7a9e);
   van.position.set(3.5, 0, 22);
@@ -751,9 +896,12 @@ export function buildCity(scene) {
   for (const ax of [36, 52, 68]) {
     spots.push({ x: ax + 0.6, z: -98.4, y: 0.41, rot: Math.PI });
   }
-  // docks workers
-  for (let i = 0; i < 5; i++) {
-    spots.push({ x: -30 + R() * 40, z: 132 + R() * 20, y: 0.04, rot: R() * Math.PI * 2 });
+  // docks workers — FIXED spots, hi-vis. Every one is at least 9 m from
+  // the staged hero (-2, 143) AND at least 23 m from the docks camera
+  // (5, 150): the first attempt put a worker 3 m from the lens and he
+  // filled the whole foreground with his back.
+  for (const [wx, wz] of [[-14, 136], [-20, 150], [-30, 138], [-24, 156], [-38, 148]]) {
+    spots.push({ x: wx, z: wz, y: 0.04, rot: R() * Math.PI * 2, hivis: true });
   }
   refs.crowd = makeCrowd(scene, spots);
   return refs;
