@@ -289,26 +289,97 @@ export function makeShooter(seed = 7, opts = {}) {
 // legs, a navy peaked cap with a gold band, and a gold badge on the
 // chest. The officer faces the player, so the camera sees his FRONT:
 // cap, badge and navy uniform all read as police at a glance.
+//
+// FIX ROUND 6 (v15.2) — the figure now reads AS POLICE, not as a
+// dark silhouette: he is 1.3x LIFE SIZE (a ~2.2 m hero-scale officer,
+// so at shootout distance he stands ~120 px tall, not ~60), and the
+// uniform carries every marker a real uniform has, all oversized and
+// gold-on-navy or white-on-navy so they survive a glance: a white
+// shirt V + black tie at the collar, gold shoulder boards, a wide
+// gold duty belt with gold buckle and pouches, a big gold chest
+// badge, a white POLICE chest patch (unlit canvas texture, so the
+// letters stay readable in dusk light), a taller gold cap band with
+// a big gold cap badge, and gold sleeve stripes.
+function policePatchTexture() {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 64;
+  const g = c.getContext('2d');
+  g.fillStyle = '#101c33'; g.fillRect(0, 0, 256, 64);
+  g.strokeStyle = '#ffd21a'; g.lineWidth = 4;
+  g.strokeRect(3, 3, 250, 58);
+  g.fillStyle = '#ffffff';
+  g.font = 'bold 40px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText('POLICE', 128, 34);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 export function makePoliceOfficer(seed = 21) {
   const g = makeShooter(seed, { shirt: 0x22345c, pants: 0x1e2a44, noShorts: true });
+  // hero scale: 1.3x, so the uniform reads at a glance from the
+  // over-shoulder camera. Feet stay on the ground (scale is about the
+  // group origin at y = 0); the gun and muzzleTip scale with him.
+  g.scale.multiplyScalar(1.3);
   const navy = new THREE.MeshStandardMaterial({ color: 0x1e2a44, roughness: 0.75 });
-  const gold = new THREE.MeshStandardMaterial({ color: 0xffd21a, roughness: 0.35, metalness: 0.7 });
+  // FIX ROUND 6b: the gold carries a warm emissive lift (0.5), so the
+  // badge, cap band, shoulder boards and buckle still read gold when
+  // the officer's front is in shade — the dusk sun lights his back,
+  // and unlit gold went near-black in the first fix-6 capture.
+  const gold = new THREE.MeshStandardMaterial({ color: 0xffd21a, roughness: 0.35, metalness: 0.7, emissive: 0x8a6a00, emissiveIntensity: 0.5 });
+  const white = new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.7, emissive: 0xffffff, emissiveIntensity: 0.22 });
+  const black = new THREE.MeshStandardMaterial({ color: 0x111216, roughness: 0.6 });
+  // white shirt V at the collar + black tie: the white triangle at the
+  // throat is the first thing the eye finds on a navy uniform
+  const shirtV = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.14, 0.02), white);
+  shirtV.position.set(0, 1.36, -0.135);
+  g.add(shirtV);
+  const tie = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.02), black);
+  tie.position.set(0, 1.26, -0.14);
+  g.add(tie);
+  // gold shoulder boards (epaulettes) on both shoulders
+  for (const sx of [-0.20, 0.20]) {
+    const board = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.025, 0.16), gold);
+    board.position.set(sx, 1.345, 0);
+    g.add(board);
+  }
+  // wide black duty belt with a gold buckle and side pouches — the
+  // horizontal black band breaks the navy torso in two at a glance
+  const belt = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.09, 0.27), black);
+  belt.position.set(0, 0.82, 0);
+  g.add(belt);
+  const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, 0.02), gold);
+  buckle.position.set(0, 0.82, -0.14);
+  g.add(buckle);
+  for (const px of [-0.17, 0.17]) {
+    const pouch = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.10, 0.06), black);
+    pouch.position.set(px, 0.82, -0.13);
+    g.add(pouch);
+  }
+  // gold sleeve stripes, parented to the ARM pivots (not static boxes):
+  // the arms are pitched forward into the aim, so a static stripe at
+  // the old upper-arm spot would float in empty air beside the torso.
+  // On the pivot the stripe rides the sleeve wherever the arm points.
+  for (const arm of [g.userData.armL, g.userData.armR]) {
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.04, 0.14), gold);
+    stripe.position.set(0, -0.13, 0);
+    arm.add(stripe);
+  }
   // peaked cap: navy crown over the hair, gold band around its base,
   // brim jutting forward over the face — the silhouette that says
   // "police" before the badge does. The crown sits high (y 1.62) so
   // it covers the hair cap underneath instead of letting it poke out.
-  // The band is TALL (0.05) and the crown carries a gold cap badge:
-  // at 60 px the officer is small, so the police markers have to be
-  // gold-on-navy, not navy-on-navy, and clear of his muzzle flash
-  // (which blooms across his chest, screen-right).
+  // FIX ROUND 6: the band is TALLER (0.075, was 0.05) and the cap
+  // badge BIGGER (0.055, was 0.035) — at 120 px the gold band is the
+  // officer's headline, and it has to be unmissable.
   const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.145, 0.15, 0.10, 12), navy);
   crown.position.y = 1.62;
   crown.castShadow = true;
   g.add(crown);
-  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.152, 0.152, 0.05, 12), gold);
-  band.position.y = 1.58;
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.153, 0.153, 0.075, 12), gold);
+  band.position.y = 1.575;
   g.add(band);
-  const capBadge = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.02, 10), gold);
+  const capBadge = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.02, 10), gold);
   capBadge.rotation.x = Math.PI / 2;
   capBadge.position.set(0, 1.62, -0.15);
   g.add(capBadge);
@@ -317,11 +388,20 @@ export function makePoliceOfficer(seed = 21) {
   g.add(brim);
   // gold badge on the RIGHT chest (his right, screen-left): the
   // muzzle flash blooms across his left chest, so the badge sits
-  // where it stays clear of the flash — bigger than a real badge
-  // (0.14) so the gold reads at 60 px.
-  const badge = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.16, 0.02), gold);
+  // where it stays clear of the flash — FIX ROUND 6: bigger
+  // (0.18 x 0.20, was 0.14 x 0.16) so the gold reads at a glance.
+  const badge = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.20, 0.02), gold);
   badge.position.set(-0.11, 1.18, -0.13);
   g.add(badge);
+  // white POLICE chest patch across the chest, under the badge line:
+  // an unlit canvas texture, so the letters stay bright white in dusk
+  // light instead of going dark with the navy cloth. This is the
+  // single most legible police marker at shootout distance.
+  const patch = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.085),
+    new THREE.MeshBasicMaterial({ map: policePatchTexture() }));
+  patch.position.set(0, 1.02, -0.135);
+  patch.rotation.y = Math.PI;
+  g.add(patch);
   return g;
 }
 
@@ -458,18 +538,53 @@ export function makeFallenPerson(seed = 1, opts = {}) {
     capBrim.rotation.y = 0.4;
     g.add(capBrim);
   }
-  // big dark blood pool under the torso — the "shot" read. Fix round 5
-  // (v14): radius 0.55 (was 0.34) and more opaque, so the pool is a
-  // visible dark-red shape on the sand at beach distance, not a smudge.
-  // Fix round 5 (v15.2, police): radius 0.62 and shifted toward the
-  // camera side (+X), so a dark-red crescent spills onto the open sand
-  // beside the navy torso instead of hiding under it.
-  const pool = new THREE.Mesh(new THREE.CircleGeometry(0.62, 16),
-    new THREE.MeshBasicMaterial({ color: 0x4a0808, transparent: true, opacity: 0.85 }));
+  // FIX ROUND 6 (v15.2) — BLOOD, unmistakable at a glance. Egi asked
+  // for more, and the fix-5 pool still read as a dark shadow on the
+  // sand. Now it is a system, not a disc: a BIG bright-red main pool
+  // (radius 0.95, brighter 0x7a0d0d, opacity 0.95) spilling onto the
+  // open sand beside the navy torso; a long smear trailing toward the
+  // camera side, as if he was dragged / crawled; four satellite
+  // splatter blobs around the body; a small pool under the head; and
+  // dark-red blood PATCHES ON THE UNIFORM itself (chest and side),
+  // so the blood reads on the body as well as on the sand. Stylised
+  // game blood — flat bright red, no gore detail — but it must read
+  // instantly as blood, not as a shadow.
+  const bloodMat = new THREE.MeshBasicMaterial({ color: 0x7a0d0d, transparent: true, opacity: 0.95 });
+  const bloodDark = new THREE.MeshBasicMaterial({ color: 0x5a0808, transparent: true, opacity: 0.9 });
+  const pool = new THREE.Mesh(new THREE.CircleGeometry(0.95, 20), bloodMat);
   pool.rotation.x = -Math.PI / 2;
-  pool.scale.set(1.3, 0.85, 1);
-  pool.position.set(0.15, 0.015, 0.02);
+  pool.scale.set(1.45, 0.9, 1);
+  pool.position.set(0.25, 0.015, 0.05);
   g.add(pool);
+  // smear trailing toward the camera side (+X), elongated
+  const smear = new THREE.Mesh(new THREE.CircleGeometry(0.55, 16), bloodMat);
+  smear.rotation.x = -Math.PI / 2;
+  smear.scale.set(1.9, 0.55, 1);
+  smear.rotation.z = 0.5;
+  smear.position.set(1.15, 0.016, 0.35);
+  g.add(smear);
+  // satellite splatters: drops flung around the body
+  for (const [sx, sz, sr] of [[-0.75, 0.55, 0.22], [0.85, -0.55, 0.18], [1.55, -0.15, 0.14], [-0.35, -0.75, 0.16], [0.45, 0.85, 0.12]]) {
+    const drop = new THREE.Mesh(new THREE.CircleGeometry(sr, 12), bloodMat);
+    drop.rotation.x = -Math.PI / 2;
+    drop.position.set(sx, 0.016, sz);
+    g.add(drop);
+  }
+  // small pool under the head (head end is -Z)
+  const headPool = new THREE.Mesh(new THREE.CircleGeometry(0.30, 14), bloodDark);
+  headPool.rotation.x = -Math.PI / 2;
+  headPool.scale.set(1.3, 0.9, 1);
+  headPool.position.set(0.06, 0.016, -0.55);
+  g.add(headPool);
+  // blood ON the uniform: dark-red patches on the chest and the side
+  // of the torso (thin boxes just proud of the cloth, top face y 0.26)
+  const chestBlood = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.02, 0.34), bloodDark);
+  chestBlood.position.set(-0.06, 0.265, 0.12);
+  chestBlood.rotation.y = 0.2;
+  g.add(chestBlood);
+  const sideBlood = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.16, 0.30), bloodDark);
+  sideBlood.position.set(-0.23, 0.16, 0.10);
+  g.add(sideBlood);
   return g;
 }
 
