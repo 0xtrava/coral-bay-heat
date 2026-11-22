@@ -108,11 +108,12 @@ if (shot === 'cover') {
   // cop 1 chases close behind the hero, left lane, facing north: the
   // camera sits behind and right of the hero, so it sees this
   // cruiser's REAR — its slim light bar, its POLICE rear placard and
-  // its whip antenna, all hot on the hero's tail. At z 13 (not 15)
+  // its whip antenna, all hot on the hero's tail. At z 11 (not 13)
   // the whole cruiser fits in frame with its placard clear of the
-  // dialogue panel — at 15 the rear was cut off by the frame bottom.
+  // dialogue panel — at 13, with the closer fix-6 lens, the rear
+  // bumper sat 6 m from the camera and the placard was cut off.
   const cop1 = refs.traffic[0];
-  cop1.position.set(-2.5, 0, 13);
+  cop1.position.set(-2.5, 0, 11);
   cop1.rotation.y = 0.08;
   // cop 2 comes on ahead in the left lane, facing south: the camera
   // sees its FRONT — push bar, headlights, hood POLICE and its light
@@ -121,6 +122,24 @@ if (shot === 'cover') {
   const cop2 = refs.traffic[1];
   cop2.position.set(-3, 0, -6);
   cop2.rotation.y = Math.PI + 0.1;
+  // FIX ROUND 6b: the cover is a POLICE CHASE at 111 KM/H with three
+  // stars — but the static HUD panel still says M1 "STEAL THE MARINA
+  // SEDAN / Reach the marina lot", a quiet theft, which contradicts
+  // the picture (Karimbu's cover shows its chase mission, MISSION 6).
+  // Stage the real chase mission frame instead: M4 LOSE THE HEAT is
+  // the game's own police mission (startWanted 3, $2,000), so the
+  // panel borrows it — same trick the shootout already uses. Shot-only
+  // DOM staging; the free game's MISSIONS are untouched.
+  {
+    const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+    setTxt('m-kicker', 'MISSION M4 · LOSE THE HEAT');
+    setTxt('m-title', 'BREAK LINE OF SIGHT');
+    setTxt('m-stage', 'STAGE 1/2');
+    setTxt('m-reward', '$2,000');
+    setTxt('m-obj', 'Three stars and the whole of CBPD is on your tail — outrun the cruisers, break line of sight, and vanish before the roadblock closes.');
+    setTxt('m-next', 'Outrun the cruisers · Lose the heat');
+    setTxt('dlg-line', 'The whole bay is lit up behind you — shake them off before the roadblock, then disappear.');
+  }
 }
 
 // ---- staged gunfight (shootout shot ONLY) ----------------------------
@@ -141,21 +160,22 @@ const gunfire = [];
 function makeGunfire(from, target, phase) {
   const g = new THREE.Group();
   const dir = new THREE.Vector3().subVectors(target, from).normalize();
-  // starburst core + warm halo, both additive billboards. Kept
-  // SMALL (core 0.9, halo 1.4): the old 1.5/2.2 flash was a 170 px
-  // disc at shootout distance and swallowed the pistol entirely —
-  // the gun must stay visible in the player's hands.
+  // starburst core + warm halo, both additive billboards. FIX ROUND 6
+  // (v15.2): SMALLER still (core 0.55, halo 0.9, was 0.7/1.1) — at
+  // the new closer shootout distance the old flash was a 170 px disc
+  // that swallowed the pistol; the gun must stay visible in the
+  // player's hands, with the flash as a spark at its tip, not a sun.
   const core = new THREE.Sprite(new THREE.SpriteMaterial({
     map: muzzleFlashTexture(), transparent: true, opacity: 0.95,
     blending: THREE.AdditiveBlending, depthWrite: false,
   }));
-  core.scale.set(0.7, 0.7, 1);
+  core.scale.set(0.55, 0.55, 1);
   g.add(core);
   const halo = new THREE.Sprite(new THREE.SpriteMaterial({
     map: sunGlowTexture(), color: 0xff9d2e, transparent: true, opacity: 0.5,
     blending: THREE.AdditiveBlending, depthWrite: false,
   }));
-  halo.scale.set(1.1, 1.1, 1);
+  halo.scale.set(0.9, 0.9, 1);
   g.add(halo);
   // tracer streak: a bright line from the muzzle toward the target.
   // Radius 0.05 (was 0.03): at shootout distance the old tracer was
@@ -167,13 +187,14 @@ function makeGunfire(from, target, phase) {
   tracer.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
   tracer.position.copy(dir).multiplyScalar(1.25);
   g.add(tracer);
-  // fix round 5 (v15.1): park the flash group 0.18 m PAST the muzzle
-  // tip along the aim line, so the hottest core sits just beyond the
-  // gun instead of dead-centred on the slide — the slide then reads
-  // as a dark silhouette against the glow behind it, not inside it.
-  // The pistol itself also renders over the bloom (renderOrder 10
-  // in people.js); the two together keep the flash AND the gun.
-  g.position.copy(from).addScaledVector(dir, 0.18);
+  // fix round 5 (v15.1): park the flash group 0.30 m PAST the muzzle
+  // tip along the aim line (was 0.18), so the hottest core sits just
+  // beyond the gun instead of dead-centred on the slide — the slide
+  // then reads as a dark silhouette against the glow behind it, not
+  // inside it. The pistol itself also renders over the bloom
+  // (renderOrder 10 in people.js); the two together keep the flash
+  // AND the gun.
+  g.position.copy(from).addScaledVector(dir, 0.30);
   g.userData = { core, halo, tracer, phase };
   gunfire.push(g);
   return g;
@@ -191,17 +212,17 @@ if (shot === 'shootout') {
   // so he reads as the player, not a random NPC.
   const player = makeShooter(7, { shirt: 0xd21f26 });
   player.position.set(24, 0.04, 8);
-  player.rotation.y = 0.72;
+  player.rotation.y = 0.79;
   scene.add(player);
   // POLICE OFFICER north-west of the player, returning fire at him.
-  // At (17, 0) — close enough (16 m from the lens) to read as an
-  // officer, not a dot — clear sand, well north of the fallen
-  // officer. Navy uniform, peaked cap, gold badge: he reads as
-  // police at a glance, and the camera sees his front, so the badge
-  // and cap are in frame.
+  // FIX ROUND 6 (v15.2): at (20.5, 4.5) — 5 m from the player and
+  // 11.2 m from the lens, not 16.7 m — so with his 1.3x hero scale
+  // he stands ~120 px tall centre-frame and the uniform (POLICE
+  // patch, gold badge + cap band, duty belt, white shirt V) reads at
+  // a glance. Faces the player (rot -2.36: toward (24, 8)).
   const officer = makePoliceOfficer(21);
-  officer.position.set(17, 0.04, 0);
-  officer.rotation.y = -2.42;
+  officer.position.set(20.5, 0.04, 4.5);
+  officer.rotation.y = -2.36;
   scene.add(officer);
   // muzzle tips in world space (the gun tip anchors ride on the pistols)
   scene.updateMatrixWorld(true);
@@ -209,26 +230,30 @@ if (shot === 'shootout') {
   player.userData.muzzleTip.getWorldPosition(playerMuzzle);
   const officerMuzzle = new THREE.Vector3();
   officer.userData.muzzleTip.getWorldPosition(officerMuzzle);
-  const officerChest = new THREE.Vector3(17, 1.25, 0);
+  const officerChest = new THREE.Vector3(20.5, 1.6, 4.5);
   const playerChest = new THREE.Vector3(24, 1.25, 8);
   // player's flash at his own gun, officer's flash at his — two flashes,
   // two tracers crossing the sand, a real stand-off, not a lone spark
   scene.add(makeGunfire(playerMuzzle, officerChest, 0));
   scene.add(makeGunfire(officerMuzzle, playerChest, Math.PI));
-  shootoutAim = officerChest;
+  // FIX ROUND 6b: the crosshair aims at the officer's BELT (waist),
+  // NOT his chest — the chest aim put the 46 px crosshair dead over
+  // the POLICE patch and the gold badge, hiding the two markers the
+  // whole uniform fix exists to show. The player's TRACER still runs
+  // to the chest (officerChest above); only the crosshair drops.
+  shootoutAim = new THREE.Vector3(20.5, 0.95, 4.5);
   // fallen POLICE OFFICER on the sand, broadside to the lens, OFF the
   // player–officer line: the old spot (19, 2) sat on the line from the
   // camera through the player to the officer, so the player's own body
-  // hid it. At (15, 5) it is 4 m left of the line, 37% left of
-  // centre, clear of the player, the officer and both tracer lines
-  // (the tracers run at chest height, the body lies flat). Scaled
-  // 1.25x with a raised arm, a navy uniform, a cap knocked off beside
-  // him and a big blood pool (see people.js) so it reads as a fallen
-  // officer at a glance, not a shadow.
+  // hid it. FIX ROUND 6 (v15.2): at (17.5, 6.5) — closer to the lens
+  // (10.9 m), 3.5 m left of the firing line, scaled 1.4x, with the
+  // big blood system (main pool + smear + splatters + uniform blood,
+  // see people.js) so the fallen officer AND the blood read at a
+  // glance, not as a dark log on the sand.
   const fallen = makeFallenPerson(9, { police: true });
-  fallen.scale.setScalar(1.25);
-  fallen.position.set(15, 0.04, 5);
-  fallen.rotation.y = 2.5;
+  fallen.scale.setScalar(1.4);
+  fallen.position.set(17.5, 0.04, 6.5);
+  fallen.rotation.y = 2.2;
   scene.add(fallen);
   // police car pulled up on the beach road behind the fight, rear 3/4
   // to the lens so the slim light bar + POLICE rear placard read.
@@ -474,7 +499,10 @@ function animate() {
     const u = gf.userData;
     const f = (Math.sin(t * 13 + u.phase) + 1) / 2; // 0..1
     u.core.material.opacity = 0.7 + 0.3 * f;
-    const s = 1.15 + 0.45 * f;
+    // FIX ROUND 6 (v15.2): the pulse scales RELATIVE to the small
+    // 0.55 base — the old absolute 1.15..1.6 undid the smaller flash
+    // and re-swallowed the pistol every pulse.
+    const s = 0.55 * (1.15 + 0.45 * f);
     u.core.scale.set(s, s, 1);
     u.halo.material.opacity = 0.25 + 0.25 * f;
     u.tracer.material.opacity = 0.35 + 0.55 * f;
