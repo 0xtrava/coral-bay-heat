@@ -16,15 +16,21 @@ export function initPortraits() {
 
 // Draw the circular minimap. Player arrow, mission marker, police dots,
 // streets with names, coastline and district labels — all legible at 240px.
+// opts.rect: draw the same island map as a RECTANGLE (no circular clip,
+// no rim) for the full map/stats pause screen — the canvas is bigger
+// there, so fonts and markers scale by k = W/480 (k = 1 at the HUD's
+// 480px, so the minimap itself is unchanged).
 export function drawMinimap(ctx, px, pz, prot, opts = {}) {
-  const S = 480; // canvas is 480x480, shown at 240
   const W = ctx.canvas.width, H = ctx.canvas.height;
+  const k = W / 480; // scale factor for fonts/markers on a bigger canvas
   const X = (x) => ((x - MAP.x0) / (MAP.x1 - MAP.x0)) * W;
   const Z = (z) => ((z - MAP.z0) / (MAP.z1 - MAP.z0)) * H;
   ctx.clearRect(0, 0, W, H);
   ctx.save();
-  // clip to the circle
-  ctx.beginPath(); ctx.arc(W / 2, H / 2, W / 2, 0, 7); ctx.clip();
+  if (!opts.rect) {
+    // clip to the circle
+    ctx.beginPath(); ctx.arc(W / 2, H / 2, W / 2, 0, 7); ctx.clip();
+  }
   // land
   ctx.fillStyle = '#3d5a3a'; ctx.fillRect(0, 0, W, H);
   // ocean (east)
@@ -75,17 +81,17 @@ export function drawMinimap(ctx, px, pz, prot, opts = {}) {
   // district labels — readable words, not single letters
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
-  ctx.font = 'bold 21px Arial';
+  ctx.font = `bold ${Math.round(21 * k)}px Arial`;
   ctx.fillText('DOWNTOWN', X(-26), Z(-90));
-  ctx.font = 'bold 19px Arial';
+  ctx.font = `bold ${Math.round(19 * k)}px Arial`;
   ctx.fillText('MARINA BEACH', X(38), Z(40));
   ctx.fillText('PIER 9', X(38), Z(-88));
   ctx.fillText('THE DOCKS', X(-26), Z(112));
-  ctx.font = 'bold 17px Arial';
+  ctx.font = `bold ${Math.round(17 * k)}px Arial`;
   ctx.fillStyle = '#ffe9a8';
   ctx.fillText('GARAGE', X(-30), Z(96));
   // street names
-  ctx.font = 'bold 14px Arial';
+  ctx.font = `bold ${Math.round(14 * k)}px Arial`;
   ctx.fillStyle = '#ffe9a8';
   ctx.save();
   ctx.translate(X(6), Z(80)); ctx.rotate(-Math.PI / 2);
@@ -97,24 +103,24 @@ export function drawMinimap(ctx, px, pz, prot, opts = {}) {
   ctx.restore();
   // north arrow
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 20px Arial';
-  ctx.fillText('N', W / 2, 42);
+  ctx.font = `bold ${Math.round(20 * k)}px Arial`;
+  ctx.fillText('N', W / 2, 42 * k);
   ctx.beginPath();
-  ctx.moveTo(W / 2, 46); ctx.lineTo(W / 2 - 7, 62); ctx.lineTo(W / 2 + 7, 62);
+  ctx.moveTo(W / 2, 46 * k); ctx.lineTo(W / 2 - 7 * k, 62 * k); ctx.lineTo(W / 2 + 7 * k, 62 * k);
   ctx.closePath(); ctx.fill();
   // mission marker (marina lot)
   const mx = X(8), my = Z(-60);
   ctx.fillStyle = '#ffd76a';
-  ctx.beginPath(); ctx.arc(mx, my, 13, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.arc(mx, my, 13 * k, 0, 7); ctx.fill();
   ctx.fillStyle = '#1a1200';
-  ctx.font = 'bold 16px Arial';
-  ctx.fillText('!', mx, my + 6);
+  ctx.font = `bold ${Math.round(16 * k)}px Arial`;
+  ctx.fillText('!', mx, my + 6 * k);
   // police dots
   const police = opts.police || [[-3.4, -13], [3.6, -26], [-18, 60]];
   for (const [x, z] of police) {
     ctx.fillStyle = '#ff3b30';
-    ctx.beginPath(); ctx.arc(X(x), Z(z), 7, 0, 7); ctx.fill();
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(X(x), Z(z), 7 * k, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * k;
     ctx.stroke();
   }
   // player arrow
@@ -123,15 +129,21 @@ export function drawMinimap(ctx, px, pz, prot, opts = {}) {
   ctx.translate(pxx, pzz);
   ctx.rotate(prot);
   ctx.fillStyle = '#ffffff';
-  ctx.strokeStyle = '#0d2b45'; ctx.lineWidth = 3;
+  ctx.strokeStyle = '#0d2b45'; ctx.lineWidth = 3 * k;
   ctx.beginPath();
-  ctx.moveTo(0, -16); ctx.lineTo(11, 12); ctx.lineTo(0, 6); ctx.lineTo(-11, 12);
+  ctx.moveTo(0, -16 * k); ctx.lineTo(11 * k, 12 * k); ctx.lineTo(0, 6 * k); ctx.lineTo(-11 * k, 12 * k);
   ctx.closePath(); ctx.fill(); ctx.stroke();
   ctx.restore();
   // view ring around the player
-  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(pxx, pzz, 26, 0, 7); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2 * k;
+  ctx.beginPath(); ctx.arc(pxx, pzz, 26 * k, 0, 7); ctx.stroke();
   ctx.restore();
+  if (opts.rect) {
+    // rectangular frame for the pause screen, in place of the rim
+    ctx.strokeStyle = 'rgba(55,224,200,0.9)'; ctx.lineWidth = 4;
+    ctx.strokeRect(2, 2, W - 4, H - 4);
+    return;
+  }
   // rim: a dark outer ring first, so the circle reads as a solid disc even
   // when a bright 3D object (lamp globe, awning) sits right behind its edge
   ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 12;

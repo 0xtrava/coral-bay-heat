@@ -129,10 +129,70 @@
     background: #ffb62e; color: #1a1200; border: none; border-radius: 8px; padding: 10px 26px; cursor: pointer; }
   #fail .card { border-color: #ff5d5d; }
   #fail h1 { color: #ff5d5d; }
-  #bigmap { background: rgba(6,4,20,0.85); }
-  #bigmap .card { border-color: #37e0c8; padding: 16px 20px; }
-  #bigmap canvas { width: 560px; height: 560px; border-radius: 50%; border: 4px solid rgba(55,224,200,0.9); background: #0d2b45; }
-  #bigmap .sub { margin-top: 8px; }
+  /* --- map/stats pause screen (M in free mode, ?shot=map) --- */
+  #mapscreen { position: fixed; inset: 0; display: none; z-index: 20; pointer-events: auto;
+    background: linear-gradient(180deg, #0b0f1e 0%, #121a33 100%); padding: 12px 22px; font-family: Arial, Helvetica, sans-serif; }
+  #mapscreen .ms-top { display: flex; align-items: center; justify-content: space-between; height: 40px; }
+  #mapscreen .ms-logo { font-family: "Arial Black", Arial, sans-serif; font-size: 18px; color: #ff5d8f; letter-spacing: 1px; }
+  #mapscreen .ms-logo b { color: #ffb62e; }
+  #mapscreen .ms-menu { display: flex; gap: 22px; font-size: 13px; font-weight: bold; letter-spacing: 1px; color: #9aa7c7; }
+  #mapscreen .ms-menu span.on { color: #ffb62e; border-bottom: 3px solid #ffb62e; padding-bottom: 4px; }
+  #mapscreen .ms-money { font-family: "Arial Black", Arial, sans-serif; font-size: 22px; color: #7dff9a; }
+  #mapscreen .ms-main { display: flex; gap: 20px; margin-top: 10px; }
+  #mapscreen .ms-map { flex: none; }
+  #mapscreen .ms-map canvas { width: 480px; height: 480px; display: block; background: #0d2b45; }
+  #mapscreen .ms-map .ms-cap { font-size: 12px; font-weight: bold; letter-spacing: 1px; color: #9fd8ff; margin-top: 6px; text-align: center; }
+  #mapscreen .ms-right { flex: 1; min-width: 0; }
+  #mapscreen .ms-ringrow { display: flex; gap: 18px; align-items: center; }
+  #mapscreen .ms-ring { position: relative; width: 110px; height: 110px; flex: none; }
+  #mapscreen .ms-ring svg { transform: rotate(-90deg); display: block; }
+  #mapscreen .ms-ring .ms-pct { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  #mapscreen .ms-ring .ms-pct b { font-family: "Arial Black", Arial, sans-serif; font-size: 22px; color: #ffb62e; }
+  #mapscreen .ms-ring .ms-pct span { font-size: 10px; font-weight: bold; letter-spacing: 1px; color: #cfe3ff; }
+  #mapscreen .ms-medals { font-size: 12.5px; color: #cfe3ff; line-height: 1.7; }
+  #mapscreen .ms-medals b { color: #ffd76a; }
+  #mapscreen h3 { font-size: 12px; letter-spacing: 1px; color: #37e0c8; margin: 12px 0 4px; }
+  #mapscreen .ms-bar { display: flex; align-items: center; gap: 8px; font-size: 11.5px; margin-top: 4px; }
+  #mapscreen .ms-bar label { width: 150px; color: #cfe3ff; font-weight: bold; }
+  #mapscreen .ms-bar .track { flex: 1; height: 9px; background: rgba(255,255,255,0.15); border-radius: 5px; overflow: hidden; }
+  #mapscreen .ms-bar .track i { display: block; height: 100%; background: linear-gradient(90deg,#37e0c8,#7dff9a); }
+  #mapscreen .ms-bar b { width: 52px; text-align: right; color: #ffd76a; }
+  #mapscreen .ms-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 18px; font-size: 12px; margin-top: 2px; }
+  #mapscreen .ms-stats div { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.08); padding: 2px 0; }
+  #mapscreen .ms-stats span { color: #9aa7c7; } #mapscreen .ms-stats b { color: #fff; }
+  #mapscreen .ms-slots { display: flex; gap: 14px; margin-top: 10px; }
+  #mapscreen .ms-slot { flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.16); border-radius: 8px; padding: 9px 12px; }
+  #mapscreen .ms-slot.on { border-color: #ffb62e; }
+  #mapscreen .ms-slot .s-t { font-size: 11px; font-weight: bold; letter-spacing: 1px; color: #ffb62e; }
+  #mapscreen .ms-slot .s-l { font-size: 13px; font-weight: bold; margin-top: 3px; }
+  #mapscreen .ms-slot .s-d { font-size: 11.5px; color: #9fd8ff; margin-top: 2px; }
+  #mapscreen .ms-slot.empty .s-l { color: #5a6a8a; }
+  /* --- title screen (?shot=title) --- */
+  #titlescreen { position: fixed; inset: 0; display: none; z-index: 20; pointer-events: auto;
+    background: linear-gradient(180deg, rgba(10,6,24,0.48) 0%, rgba(10,6,24,0.22) 40%, rgba(10,6,24,0.55) 75%, rgba(10,6,24,0.88) 100%);
+    font-family: "Arial Black", Arial, sans-serif; }
+  #titlescreen .ts-title { position: absolute; left: 56px; top: 58px; }
+  #titlescreen .ts-title .t1 { font-size: 96px; line-height: 0.95; letter-spacing: 2px;
+    background: linear-gradient(180deg, #ffd76a 0%, #ff5d8f 55%, #ff9d2e 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.55)); }
+  #titlescreen .ts-title .t2 { font-size: 96px; line-height: 0.95; letter-spacing: 2px; color: #fff;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.6); }
+  #titlescreen .ts-menu { position: absolute; left: 60px; top: 330px; display: flex; flex-direction: column; gap: 10px; }
+  #titlescreen .ts-menu button { background: none; border: none; text-align: left; font-family: "Arial Black", Arial, sans-serif;
+    font-size: 24px; color: #fff; letter-spacing: 1px; cursor: pointer; text-shadow: 0 2px 8px rgba(0,0,0,0.7); padding: 2px 0; }
+  #titlescreen .ts-menu button.on { color: #ffb62e; }
+  #titlescreen .ts-menu button.on::before { content: "\25B6  "; font-size: 18px; }
+  #titlescreen .ts-slots { position: absolute; right: 56px; top: 116px; width: 340px; display: flex; flex-direction: column; gap: 12px; }
+  #titlescreen .ts-slot { background: rgba(12,10,28,0.82); border: 1px solid rgba(255,255,255,0.2); border-radius: 10px; padding: 12px 16px; }
+  #titlescreen .ts-slot.on { border-color: #ffb62e; }
+  #titlescreen .ts-slot .s-t { font-size: 12px; font-weight: bold; letter-spacing: 1px; color: #ffb62e; }
+  #titlescreen .ts-slot .s-l { font-size: 16px; font-weight: bold; margin-top: 4px; }
+  #titlescreen .ts-slot .s-d { font-size: 12px; color: #9fd8ff; margin-top: 3px; font-family: Arial, Helvetica, sans-serif; }
+  #titlescreen .ts-slot.empty .s-l { color: #5a6a8a; }
+  #titlescreen .ts-tag { position: absolute; left: 0; right: 0; bottom: 26px; text-align: center; }
+  #titlescreen .ts-tag .tag { font-size: 22px; letter-spacing: 6px; color: #ffd76a; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
+  #titlescreen .ts-tag .ver { font-size: 11px; color: rgba(255,255,255,0.65); margin-top: 6px; font-family: Arial, Helvetica, sans-serif; letter-spacing: 1px; }
 </style>
 </head>
 <body>
@@ -223,11 +283,75 @@
     <button id="fail-retry">RETRY MISSION</button>
   </div>
 </div>
-<div class="overlay" id="bigmap">
-  <div class="card">
-    <canvas id="bigmap-canvas" width="560" height="560"></canvas>
-    <div class="sub">CORAL BAY &middot; press M to close &middot; W/S drive &middot; E enter / exit</div>
+<div id="mapscreen">
+  <div class="ms-top">
+    <div class="ms-logo">CORAL BAY <b>HEAT</b></div>
+    <div class="ms-menu"><span class="on">MAP</span><span>STORY</span><span>STATS</span><span>CREW</span><span>SETTINGS</span><span>CONTROLS</span><span>SAVE</span></div>
+    <div class="ms-money">$18,450</div>
   </div>
+  <div class="ms-main">
+    <div class="ms-map">
+      <canvas id="map-canvas" width="480" height="480"></canvas>
+      <div class="ms-cap">CORAL BAY &middot; ISLAND MAP &middot; PRESS M TO CLOSE</div>
+    </div>
+    <div class="ms-right">
+      <div class="ms-ringrow">
+        <div class="ms-ring">
+          <svg width="110" height="110" viewBox="0 0 110 110">
+            <circle cx="55" cy="55" r="48" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="10"/>
+            <circle cx="55" cy="55" r="48" fill="none" stroke="#ffb62e" stroke-width="10" stroke-linecap="round" stroke-dasharray="199 302"/>
+          </svg>
+          <div class="ms-pct"><b>66.1%</b><span>COMPLETE</span></div>
+        </div>
+        <div class="ms-medals"><b>MISSION RATINGS</b><br>&#9733; GOLD &middot; 5 &nbsp;&nbsp; &#9733; SILVER &middot; 2 &nbsp;&nbsp; &#9733; BRONZE &middot; 1<br>ACT 2 &middot; MARINA BEACH &middot; DAY 1 &middot; 17:42</div>
+      </div>
+      <h3>PROGRESS</h3>
+      <div class="ms-bar"><label>STORY MISSIONS</label><div class="track"><i style="width:75%"></i></div><b>6 / 8</b></div>
+      <div class="ms-bar"><label>STREET RACES</label><div class="track"><i style="width:60%"></i></div><b>3 / 5</b></div>
+      <div class="ms-bar"><label>STUNT JUMPS</label><div class="track"><i style="width:67%"></i></div><b>4 / 6</b></div>
+      <div class="ms-bar"><label>COLLECTIBLES</label><div class="track"><i style="width:60%"></i></div><b>12 / 20</b></div>
+      <div class="ms-bar"><label>EXPORT LIST</label><div class="track"><i style="width:50%"></i></div><b>2 / 4</b></div>
+      <div class="ms-bar"><label>DISTRICT JOBS</label><div class="track"><i style="width:67%"></i></div><b>8 / 12</b></div>
+      <div class="ms-bar"><label>DISTRICTS FRIENDLY</label><div class="track"><i style="width:60%"></i></div><b>3 / 5</b></div>
+      <div class="ms-bar"><label>CREW RECRUITED</label><div class="track"><i style="width:100%"></i></div><b>3 / 3</b></div>
+      <div class="ms-bar"><label>GOLD RATINGS</label><div class="track"><i style="width:63%"></i></div><b>5 / 8</b></div>
+      <h3>CAREER STATS</h3>
+      <div class="ms-stats">
+        <div><span>CARS STOLEN</span><b>12</b></div>
+        <div><span>COPS ESCAPED</span><b>34</b></div>
+        <div><span>DISTANCE DRIVEN</span><b>128 KM</b></div>
+        <div><span>PEOPLE TAKEN OUT</span><b>27</b></div>
+        <div><span>LONGEST JUMP</span><b>42 M</b></div>
+        <div><span>HIDDEN BY LOCALS</span><b>5</b></div>
+      </div>
+      <h3>CREW</h3>
+      <div class="ms-stats">
+        <div><span>MIRA &middot; DRIVER</span><b>SWAP PLATES</b></div>
+        <div><span>LIO &middot; MECHANIC</span><b>QUICK FIX</b></div>
+        <div><span>KIKI &middot; LOOKOUT</span><b>EYES OUT</b></div>
+      </div>
+    </div>
+  </div>
+  <div class="ms-slots">
+    <div class="ms-slot on"><div class="s-t">SAVE SLOT 1</div><div class="s-l">ACT 2 &middot; 66% COMPLETE</div><div class="s-d">MARINA BEACH &middot; $18,450 &middot; 12:34</div></div>
+    <div class="ms-slot empty"><div class="s-t">SAVE SLOT 2</div><div class="s-l">EMPTY</div><div class="s-d">NO SAVE YET</div></div>
+    <div class="ms-slot empty"><div class="s-t">SAVE SLOT 3</div><div class="s-l">EMPTY</div><div class="s-d">NO SAVE YET</div></div>
+  </div>
+</div>
+<div id="titlescreen">
+  <div class="ts-title"><div class="t1">CORAL BAY</div><div class="t2">HEAT</div></div>
+  <div class="ts-menu">
+    <button class="on" id="ts-continue">CONTINUE</button>
+    <button id="ts-new">NEW GAME</button>
+    <button id="ts-load">LOAD GAME</button>
+    <button id="ts-settings">SETTINGS</button>
+  </div>
+  <div class="ts-slots">
+    <div class="ts-slot on"><div class="s-t">SAVE SLOT 1</div><div class="s-l">ACT 2 &middot; 66% COMPLETE</div><div class="s-d">MARINA BEACH &middot; $18,450 &middot; 12:34</div></div>
+    <div class="ts-slot empty"><div class="s-t">SAVE SLOT 2</div><div class="s-l">EMPTY</div><div class="s-d">NO SAVE YET</div></div>
+    <div class="ts-slot empty"><div class="s-t">SAVE SLOT 3</div><div class="s-l">EMPTY</div><div class="s-d">NO SAVE YET</div></div>
+  </div>
+  <div class="ts-tag"><div class="tag">THE CITY IS YOURS</div><div class="ver">CORAL BAY HEAT &middot; 2026 &middot; PRESS ANY KEY TO PLAY</div></div>
 </div>
 <script type="importmap">
 { "imports": { "three": "./vendor/three.module.js" } }

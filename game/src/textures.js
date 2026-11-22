@@ -147,23 +147,27 @@ export function oceanTexture() {
 }
 
 export function skyTexture() {
-  // vertical sunset gradient, drawn wide so it wraps the sky dome
+  // vertical sunset gradient, drawn wide so it wraps the sky dome.
+  // Fix round 5 (v15) graphics push: a deeper, warmer sunset — the
+  // top goes darker dusk blue, the pink and orange bands run richer,
+  // the gold band is stronger, and there are more cloud bands with
+  // higher opacity, so the sky reads as a warm dusk, not a pale wash.
   const [c, g] = canvas(1024, 512);
   const grad = g.createLinearGradient(0, 0, 0, 512);
-  grad.addColorStop(0.00, '#2c3a72');
-  grad.addColorStop(0.34, '#5a5a9e');
-  grad.addColorStop(0.55, '#c65f7e');
-  grad.addColorStop(0.72, '#f07f4e');
-  grad.addColorStop(0.86, '#ffb347');
+  grad.addColorStop(0.00, '#232a5e');
+  grad.addColorStop(0.30, '#4a4a8e');
+  grad.addColorStop(0.50, '#b44a72');
+  grad.addColorStop(0.68, '#e86a3a');
+  grad.addColorStop(0.84, '#ff9d2e');
   grad.addColorStop(1.00, '#ffd98a');
   g.fillStyle = grad; g.fillRect(0, 0, 1024, 512);
   const rnd = mulberry32(31337);
   // thin warm cloud bands
-  for (let i = 0; i < 26; i++) {
+  for (let i = 0; i < 40; i++) {
     const y = 60 + rnd() * 300, x = rnd() * 1024, w = 120 + rnd() * 260;
     const cg = g.createLinearGradient(x, 0, x + w, 0);
     cg.addColorStop(0, 'rgba(255,220,190,0)');
-    cg.addColorStop(0.5, `rgba(255,225,200,${0.10 + rnd() * 0.16})`);
+    cg.addColorStop(0.5, `rgba(255,225,200,${0.12 + rnd() * 0.18})`);
     cg.addColorStop(1, 'rgba(255,220,190,0)');
     g.fillStyle = cg;
     g.fillRect(x, y, w, 5 + rnd() * 10);

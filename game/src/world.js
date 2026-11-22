@@ -517,6 +517,42 @@ export function buildCity(scene) {
     b.position.set(-20, 0, 96 + i * 26);
     scene.add(b);
   }
+  // ---- second skyline row (graphics push, fix round 5) ----
+  // A TALLER row BEHIND the west row (x ~-44), so the skyline reads
+  // dense from the road and the title screen shows a real dusk
+  // skyline, not a single row. z sits between the first row's
+  // buildings (midpoints, so the rows interleave, not collide) and
+  // stops at 105: the docks apron runs z 120..165 and the garage
+  // sits at (-30, 96), so nothing here can block a mission route.
+  // The towers are SIMPLE (slab + setback + crown, NO per-window
+  // meshes): a full makeBuilding carries 250-750 window meshes, and
+  // 8 of them tanked the headless frame rate ~29% (wheels-spin fell
+  // 29.4 -> 21.0, and the slower game time shifted the police-ram
+  // timing so the crew-quick-fix side check failed 64->112 on v15
+  // while v13 passed 56->120). At 45 m from the road a windowless
+  // dark tower reads as a distant silhouette — the density stays,
+  // the cost is 3 meshes per tower.
+  function makeSkylineTower(w, h, d, color) {
+    const g = new THREE.Group();
+    const wall = new THREE.MeshStandardMaterial({ color, roughness: 0.85 });
+    const wall2 = new THREE.MeshStandardMaterial({ color: new THREE.Color(color).multiplyScalar(0.82), roughness: 0.85 });
+    const trim = new THREE.MeshStandardMaterial({ color: 0xf5efe0, roughness: 0.8 });
+    const h1 = h * 0.62, h2 = h * 0.28, h3 = h * 0.10;
+    g.add(box(w, h1, d, wall, 0, h1 / 2, 0));
+    g.add(box(w * 0.78, h2, d * 0.8, wall2, 0, h1 + h2 / 2, 0));
+    g.add(box(w * 0.5, h3, d * 0.55, trim, 0, h1 + h2 + h3 / 2, 0));
+    return g;
+  }
+  const bz2 = [-134, -102, -70, -38, -2, 32, 68, 105];
+  bz2.forEach((z, i) => {
+    const h = 22 + R() * 26;
+    const w = 16 + R() * 8;
+    const d = 14 + R() * 6;
+    const b = makeSkylineTower(w, h, d, BUILDING_COLORS[(i + 2) % BUILDING_COLORS.length]);
+    b.position.set(-44 - R() * 4, 0, z + (R() - 0.5) * 6);
+    b.rotation.y = (R() - 0.5) * 0.06;
+    scene.add(b);
+  });
   // billboard on the west side
   const bb = makeSign('CORAL BAY HEAT', 'THE CITY IS YOURS', '#1a0f2e', '#ff5d8f');
   bb.position.set(-13.5, 9, -32);

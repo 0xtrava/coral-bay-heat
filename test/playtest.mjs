@@ -191,7 +191,14 @@ async function sideChecks() {
   check('shooting', p1 === p0 - 1, `pistol ${p0}->${p1}`);
 
   // crew: Lio repairs
-  await ev('window.__GAME__.damage(40)');
+  // NOTE: setWanted(0) first — the heli check above leaves wanted 5,
+  // and a chaser can ram (8 hp) in the CDP round-trip gap between
+  // useCrew and the hp read, flaking this check (hp 64->112) even
+  // though the repair itself is correct. Same isolation the
+  // wreck-fail check below already uses (setWanted(0) before
+  // damage). The assertion is unchanged: repair must raise hp to
+  // exactly maxHealth.
+  await ev('window.__GAME__.setWanted(0); window.__GAME__.damage(40)');
   const h0 = (await status()).health;
   await ev('window.__GAME__.useCrew("lio")');
   const h1 = (await status()).health;

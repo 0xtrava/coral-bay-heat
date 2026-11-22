@@ -1,7 +1,7 @@
 // Coral Bay Heat — headless capture via Chrome DevTools Protocol.
 // Fix round 2 v11 (2026-11-21): fresh 4-shot capture for the rebuilt cars.
 // Usage: node capture.mjs [shot] [outpath]
-//   shot: cover | pier | beach | docks | all   (default: cover)
+//   shot: cover | shootout | map | title | all   (default: cover)
 // Launches the local server if needed, loads the game in headless Chrome
 // with SwiftShader, waits for window.__READY__, screenshots 1280x720.
 import { spawn, execSync } from 'node:child_process';
@@ -14,8 +14,8 @@ const PORT = 8121;
 const here = dirname(fileURLToPath(import.meta.url));
 const shotArg = process.argv[2] || 'cover';
 const outArg = process.argv[3];
-const shots = shotArg === 'all' ? ['cover', 'pier', 'beach', 'docks'] : [shotArg];
-const NAMES = { cover: '1-cover.jpg', pier: '2-pier.jpg', beach: '3-beach.jpg', docks: '4-docks.jpg' };
+const shots = shotArg === 'all' ? ['cover', 'shootout', 'map', 'title'] : [shotArg];
+const NAMES = { cover: '1-cover.jpg', shootout: '2-shootout.jpg', map: '3-map.jpg', title: '4-title.jpg' };
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
