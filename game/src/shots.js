@@ -14,12 +14,20 @@
 // skyline + sunset, behind the title screen overlay.
 export const SHOTS = {
   cover: {
-    // Chase cam: HIGH (y 3.7) and CENTRED on the road (x 0, z 21.5),
-    // behind both cars and looking straight north down the road.
-    // The camera sits central so BOTH cars fit: the chasing cruiser
-    // (cop1, left lane, 5 m ahead of the hero) in the left foreground, the hero
-    // (right lane, 16 m ahead) right of centre, the oncoming cruiser
-    // (cop2) far ahead, the road vanishing north, the heli overhead.
+    // Chase cam: HIGH (y 4.2) and CENTRED on the road (x 0, z 23),
+    // behind the hero and looking straight north down the road.
+    // FIX ROUND 6 FOLLOW-UP (v15.3) — THE HERO IS OURS, AT A
+    // GLANCE: the old staging put the chasing cruiser (cop1, z 11)
+    // CLOSER to the lens than the hero (z 6), so the white cruiser
+    // with the POLICE placard dominated the foreground and read as
+    // the player's car, while the red hero read as the car being
+    // chased. Now the camera sits behind the HERO: the hero (z 14,
+    // 9 m from the lens, right lane) is big in the right foreground,
+    // and the cruisers are all AHEAD of him — two leading the chase
+    // in front of him (cop1 left lane, cop3 his own lane, rears to
+    // the lens) and two oncoming as a roadblock (cop2, cop4, fronts
+    // to the lens). Like Karimbu's cover: hero big mid-drive,
+    // cruisers ahead, heli overhead.
     // A right-side camera (x 8.5) pushed cop1 out of the left edge
     // of the frame — the chase read as a lone car, not a pursuit.
     // FIX ROUND 6 (v15.2): camera 2.5 m closer (z 24 -> 21.5) and
@@ -34,9 +42,10 @@ export const SHOTS = {
     look: [0, 1.0, -16],
     // hero MID-DRIVE, facing north in the northbound lane (x 3.5),
     // a touch of angle (rot 0.05) so he reads as steering, not parked.
-    // At z 6 (not 8) he keeps a 2.4 m gap to the chasing cruiser's
-    // nose (cop1 at z 13) — bumper to bumper at 8.
-    hero: [3.5, 0, 6],
+    // At z 14 he is 9 m from the lens — the big foreground car, the
+    // one the camera follows, unmistakably OURS. The cruisers all sit
+    // ahead of him (cop1 z 4, cop3 z -4, cop2 z -14, cop4 z -24).
+    hero: [3.5, 0, 14],
     heroRot: 0.05,
     heli: [-3, 14, -24],
     wanted: 3,

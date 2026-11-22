@@ -511,6 +511,78 @@ export function makeVan(color = 0x4a7a9e) {
   return g;
 }
 
+// A BURNING POLICE BOX VAN (SWAT-style) — fix round 6 follow-up
+// (v15.3): a white box van with POLICE flank decals and a slim roof
+// light bar, its cab/hood on fire: layered additive flame cones over
+// the front, a soft additive glow, a dark smoke column rising above,
+// a charred roof patch and a scorch mark on the ground. All MESH
+// geometry — sprite halos parented to a car never draw in this build
+// (verified with six headless probes: sprites parented to the scene
+// draw fine, clones parented to a car render nothing), so the fire is
+// cones and spheres, never sprites. Static — the staged van never
+// moves, so the flames hold their shape in every frame.
+export function makeBurningPoliceVan() {
+  const g = makeVan(0xf2f2ee);
+  const navy = new THREE.MeshPhysicalMaterial({ color: 0x0d2b45, metalness: 0.4, roughness: 0.35, clearcoat: 0.7 });
+  const black = new THREE.MeshPhysicalMaterial({ color: 0x14161c, metalness: 0.4, roughness: 0.4, clearcoat: 0.5 });
+  // navy side stripe + POLICE flank decals (same pattern as the sedan)
+  for (const side of [-1, 1]) {
+    g.add(box(0.02, 0.26, 3.6, navy, side * 0.96, 0.52, 0));
+    const decal = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 0.41),
+      new THREE.MeshBasicMaterial({ map: textTexture('POLICE', '#0d2b45', '#ffffff', 'bold 80px Arial', 320, 96) }));
+    decal.position.set(side * 0.965, 0.70, 0.15);
+    decal.rotation.y = side * Math.PI / 2;
+    g.add(decal);
+  }
+  // slim roof light bar: low black base + unlit red/blue lenses
+  g.add(box(1.3, 0.06, 0.3, black, 0, 1.46, -0.5));
+  const redLens = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.14, 0.24),
+    new THREE.MeshBasicMaterial({ color: 0xff1020 }));
+  redLens.position.set(-0.35, 1.55, -0.5);
+  g.add(redLens);
+  const blueLens = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.14, 0.24),
+    new THREE.MeshBasicMaterial({ color: 0x1030ff }));
+  blueLens.position.set(0.35, 1.55, -0.5);
+  g.add(blueLens);
+  // charred roof patch under the flames
+  g.add(box(1.6, 0.02, 2.0, black, 0, 1.44, -1.2));
+  // ---- fire: layered additive cones over the cab/hood (front is -Z) ----
+  const flameMat = (color, opacity) => new THREE.MeshBasicMaterial({
+    color, transparent: true, opacity, blending: THREE.AdditiveBlending,
+    depthWrite: false, side: THREE.DoubleSide,
+  });
+  // [radius, height, x, y, z, color, opacity]
+  for (const [r, h, x, y, z, c, o] of [
+    [0.55, 1.6, 0, 2.1, -1.6, 0xff6a00, 0.85],
+    [0.38, 1.2, 0.15, 2.0, -1.7, 0xff9d2e, 0.9],
+    [0.22, 0.9, -0.1, 1.95, -1.5, 0xffd21a, 0.95],
+    [0.30, 1.0, -0.5, 1.9, -1.2, 0xff7a1a, 0.85],
+  ]) {
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(r, h, 12), flameMat(c, o));
+    cone.position.set(x, y, z);
+    g.add(cone);
+  }
+  // soft additive glow around the flame cluster
+  const glow = new THREE.Mesh(new THREE.SphereGeometry(0.9, 12, 10),
+    new THREE.MeshBasicMaterial({ color: 0xff8c1a, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false }));
+  glow.position.set(0, 1.9, -1.6);
+  g.add(glow);
+  // ---- smoke: dark spheres rising and drifting +x (wind), growing ----
+  const smokeMat = new THREE.MeshBasicMaterial({ color: 0x232326, transparent: true, opacity: 0.35, depthWrite: false });
+  for (const [x, y, z, r] of [[0.2, 3.2, -1.6, 0.55], [0.6, 4.0, -1.4, 0.75], [1.1, 4.9, -1.2, 0.95], [1.7, 5.8, -1.0, 1.15], [2.4, 6.7, -0.8, 1.35]]) {
+    const s = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), smokeMat);
+    s.position.set(x, y, z);
+    g.add(s);
+  }
+  // scorch mark on the ground under the van
+  const scorch = new THREE.Mesh(new THREE.CircleGeometry(1.8, 20),
+    new THREE.MeshBasicMaterial({ color: 0x0a0a0a, transparent: true, opacity: 0.5, depthWrite: false }));
+  scorch.rotation.x = -Math.PI / 2;
+  scorch.position.set(0, 0.03, 0);
+  g.add(scorch);
+  return g;
+}
+
 // ---- scooter + rider ----------------------------------------------------
 export function makeScooter() {
   const g = new THREE.Group();

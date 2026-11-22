@@ -5,7 +5,8 @@ import * as THREE from 'three';
 import { buildCity } from './world.js';
 import { initPortraits, drawMinimap, updateHud, renderHud } from './hud.js';
 import { SHOTS, shotName } from './shots.js';
-import { animateCrowd, makePerson, makeFallenPerson, makeShooter, makePoliceOfficer } from './people.js';
+import { animateCrowd, makePerson, makeFallenPerson, makeShooter, makePoliceOfficer, makeTargetMarker } from './people.js';
+import { makePoliceCar, makeBurningPoliceVan } from './cars.js';
 import { skyTexture, sunGlowTexture, muzzleFlashTexture } from './textures.js';
 import { createGame } from './game.js';
 
@@ -105,23 +106,54 @@ heli.position.set(...preset.heli);
 // (-1.2, 3.5) rot 0.35, hero parked front-3/4) is gone — the hero
 // drives now, and the HUD reads 111 KM/H.
 if (shot === 'cover') {
-  // cop 1 chases close behind the hero, left lane, facing north: the
-  // camera sits behind and right of the hero, so it sees this
-  // cruiser's REAR — its slim light bar, its POLICE rear placard and
-  // its whip antenna, all hot on the hero's tail. At z 11 (not 13)
-  // the whole cruiser fits in frame with its placard clear of the
-  // dialogue panel — at 13, with the closer fix-6 lens, the rear
-  // bumper sat 6 m from the camera and the placard was cut off.
+  // FOUR cruisers + heli = the panel's "5 UNITS" (IBIS-43, TARPON-10,
+  // HERON-19, EGRET-07 + HELI-2) — the count on screen now matches the
+  // count in the CBPD RESPONSE panel. FIX ROUND 6 FOLLOW-UP (v15.3):
+  // the cruisers are ALL AHEAD of the hero now. The old staging put
+  // cop1 (z 11) closer to the lens than the hero (z 6), so the white
+  // cruiser dominated the foreground and read as the player's car.
+  // Now the hero (z 14) is the big foreground car and the chase reads
+  // the right way round: two cruisers lead ahead of him (cop1 left
+  // lane, cop3 his own lane — rears to the lens, POLICE placards +
+  // light bars) and two come on as a roadblock (cop2, cop4 — fronts
+  // to the lens, push bars + headlights).
   const cop1 = refs.traffic[0];
-  cop1.position.set(-2.5, 0, 11);
+  cop1.position.set(-2.5, 0, 4);
   cop1.rotation.y = 0.08;
+  // cop 3 leads in the hero's own lane, directly ahead of him: the
+  // hero is right on his tail, so the chase reads as pursuit, not as
+  // a lone car. traffic[7] (police3) is reused — its cross-street
+  // default spot is never seen in the cover frame.
+  const cop3 = refs.traffic[7];
+  cop3.position.set(3.5, 0, -4);
+  cop3.rotation.y = 0.05;
   // cop 2 comes on ahead in the left lane, facing south: the camera
   // sees its FRONT — push bar, headlights, hood POLICE and its light
-  // bar, a roadblock closing on the hero from the front. At z -6
-  // (not -12) it is big enough for its bar to read.
+  // bar, a roadblock closing on the hero from the front. At z -14
+  // (not -6) it sits deeper in the frame, behind cop1, so the four
+  // cruisers layer in depth instead of bunching.
   const cop2 = refs.traffic[1];
-  cop2.position.set(-3, 0, -6);
+  cop2.position.set(-3, 0, -14);
   cop2.rotation.y = Math.PI + 0.1;
+  // cop 4 is the second roadblock car, far ahead in the left lane,
+  // front to the lens — the roadblock line runs into the distance
+  // (civ2, taxi further on). Built fresh here, shot-only, and pushed
+  // into refs.traffic so the animate loop pulses its light bar with
+  // the other cruisers.
+  const cop4 = makePoliceCar();
+  cop4.position.set(-2.5, 0, -24);
+  cop4.rotation.y = Math.PI + 0.1;
+  scene.add(cop4);
+  refs.traffic.push(cop4);
+  // FIX ROUND 6 FOLLOW-UP (v15.3) — the heli searchlight is AIMED AT
+  // THE HERO CAR: the beam lands on the red hero, not on empty road
+  // or a cruiser, so the spotlight itself says which car is ours.
+  // The aim is recomputed every frame in animate() (the heli bobs
+  // ±0.5 m and drifts ±0.8 m, which would walk a fixed beam off the
+  // car); here we only store the target and brighten the beam a
+  // touch (0.16, was 0.10) so the long diagonal shaft reads.
+  heli.userData.spotTarget = new THREE.Vector3(3.5, 1.0, 14);
+  heli.userData.cone.material.opacity = 0.16;
   // FIX ROUND 6b: the cover is a POLICE CHASE at 111 KM/H with three
   // stars — but the static HUD panel still says M1 "STEAL THE MARINA
   // SEDAN / Reach the marina lot", a quiet theft, which contradicts
@@ -205,43 +237,77 @@ function makeGunfire(from, target, phase) {
 let shootoutAim = null;
 if (shot === 'shootout') {
   // THE PLAYER, back to the camera, two-handed aim north-west across
-  // the sand toward the officer. Faces (17, 0) from (24, 8), rot 0.72,
-  // so the over-shoulder camera south-east of him sees his BACK and
-  // the gun IN PROFILE — aiming across the frame, the pistol reads as
-  // a weapon, not a dot. Red jacket (seed 7, the player's own seed)
-  // so he reads as the player, not a random NPC.
+  // the sand toward officer 1. FIX ROUND 6 FOLLOW-UP (Egi 16:41 +
+  // 16:48 WIB): the player was losing to the officer — same size, so
+  // at a glance nobody knew which figure was ours. Now he is the
+  // UNMISTAKABLE PROTAGONIST: 1.3x hero scale like the fix-6 officer
+  // (~2.2 m), moved to (22.5, 9.5) — 5.9 m from the lens, near the
+  // CENTRE of the frame, ~280 px tall, red jacket dominant, back to
+  // the camera. And he stands IN THE MIDDLE of the formation: the
+  // officers form a HALF-CIRCLE around him (north-west, north,
+  // north-east) — we are SURROUNDED, he is the one shooting out.
+  // Faces officer 1 at (20, 4) from (22.5, 9.5), rot 0.42, so the
+  // over-shoulder camera south-east of him sees his BACK and the gun
+  // IN PROFILE — aiming across the frame, the pistol reads as a
+  // weapon, not a dot. Red jacket (seed 7, the player's own seed).
   const player = makeShooter(7, { shirt: 0xd21f26 });
-  player.position.set(24, 0.04, 8);
-  player.rotation.y = 0.79;
+  player.scale.multiplyScalar(1.3);
+  player.position.set(22.5, 0.04, 9.5);
+  player.rotation.y = 0.42;
   scene.add(player);
-  // POLICE OFFICER north-west of the player, returning fire at him.
-  // FIX ROUND 6 (v15.2): at (20.5, 4.5) — 5 m from the player and
-  // 11.2 m from the lens, not 16.7 m — so with his 1.3x hero scale
-  // he stands ~120 px tall centre-frame and the uniform (POLICE
-  // patch, gold badge + cap band, duty belt, white shirt V) reads at
-  // a glance. Faces the player (rot -2.36: toward (24, 8)).
-  const officer = makePoliceOfficer(21);
-  officer.position.set(20.5, 0.04, 4.5);
-  officer.rotation.y = -2.36;
-  scene.add(officer);
+  // THREE STANDING POLICE OFFICERS in a half-circle around the player
+  // — the surround. Each is a 1.3x hero-scale makePoliceOfficer (the
+  // uniform reads: POLICE patch, gold badge + cap band, duty belt,
+  // white shirt V) and each faces the player, returning fire at him.
+  // Officer 1 is the centre of the arc and the crosshair target.
+  const officer1 = makePoliceOfficer(21);
+  officer1.position.set(20, 0.04, 4);
+  officer1.rotation.y = -2.72;
+  scene.add(officer1);
+  const officer2 = makePoliceOfficer(22);
+  officer2.position.set(24, 0.04, 4);
+  officer2.rotation.y = 2.88;
+  scene.add(officer2);
+  const officer3 = makePoliceOfficer(23);
+  officer3.position.set(15, 0.04, 4.5);
+  officer3.rotation.y = -2.16;
+  scene.add(officer3);
+  // RED TARGET MARKERS above every officer's head, GTA-style: a red
+  // arrow/blip says "enemy / target" at a glance. Police = red
+  // marker, the player = NO marker — he is the one shooting. Markers
+  // sit ~0.55 m above the 1.3x officers' heads (y 2.72), added to the
+  // scene (the staged figures are static, so no parenting needed).
+  for (const [mx, mz] of [[20, 4], [24, 4], [15, 4.5]]) {
+    const marker = makeTargetMarker();
+    marker.position.set(mx, 2.72, mz);
+    scene.add(marker);
+  }
   // muzzle tips in world space (the gun tip anchors ride on the pistols)
   scene.updateMatrixWorld(true);
   const playerMuzzle = new THREE.Vector3();
   player.userData.muzzleTip.getWorldPosition(playerMuzzle);
-  const officerMuzzle = new THREE.Vector3();
-  officer.userData.muzzleTip.getWorldPosition(officerMuzzle);
-  const officerChest = new THREE.Vector3(20.5, 1.6, 4.5);
-  const playerChest = new THREE.Vector3(24, 1.25, 8);
-  // player's flash at his own gun, officer's flash at his — two flashes,
-  // two tracers crossing the sand, a real stand-off, not a lone spark
+  const muzzle1 = new THREE.Vector3();
+  officer1.userData.muzzleTip.getWorldPosition(muzzle1);
+  const muzzle2 = new THREE.Vector3();
+  officer2.userData.muzzleTip.getWorldPosition(muzzle2);
+  const muzzle3 = new THREE.Vector3();
+  officer3.userData.muzzleTip.getWorldPosition(muzzle3);
+  const officerChest = new THREE.Vector3(20, 1.6, 4);
+  const playerChest = new THREE.Vector3(22.5, 1.63, 9.5);
+  // player's flash at his own gun, officers' flashes at theirs — four
+  // flashes, four tracers converging on the player, a real surround,
+  // not a lone spark. Phases spread (0 / PI / PI/2 / 3PI/2) so the
+  // flashes never pulse in sync.
   scene.add(makeGunfire(playerMuzzle, officerChest, 0));
-  scene.add(makeGunfire(officerMuzzle, playerChest, Math.PI));
-  // FIX ROUND 6b: the crosshair aims at the officer's BELT (waist),
+  scene.add(makeGunfire(muzzle1, playerChest, Math.PI));
+  scene.add(makeGunfire(muzzle2, playerChest, Math.PI / 2));
+  scene.add(makeGunfire(muzzle3, playerChest, Math.PI * 1.5));
+  // FIX ROUND 6b: the crosshair aims at officer 1's BELT (waist),
   // NOT his chest — the chest aim put the 46 px crosshair dead over
   // the POLICE patch and the gold badge, hiding the two markers the
   // whole uniform fix exists to show. The player's TRACER still runs
   // to the chest (officerChest above); only the crosshair drops.
-  shootoutAim = new THREE.Vector3(20.5, 0.95, 4.5);
+  shootoutAim = new THREE.Vector3(20, 0.95, 4);
   // fallen POLICE OFFICER on the sand, broadside to the lens, OFF the
   // player–officer line: the old spot (19, 2) sat on the line from the
   // camera through the player to the officer, so the player's own body
@@ -255,11 +321,33 @@ if (shot === 'shootout') {
   fallen.position.set(17.5, 0.04, 6.5);
   fallen.rotation.y = 2.2;
   scene.add(fallen);
-  // police car pulled up on the beach road behind the fight, rear 3/4
-  // to the lens so the slim light bar + POLICE rear placard read.
+  // BEHIND the officers, the police cordon: 4 POLICE CARS + 1 BURNING
+  // POLICE BOX VAN on the beach road (Egi 16:46–16:48 WIB) — the
+  // depth order from the lens is player (front, biggest) -> officers
+  // surrounding him -> cars + burning van behind them. The van is the
+  // chaos anchor: flame cones + smoke column + scorch, mesh-only
+  // (no sprites — sprites parented to a car never draw in this build).
+  // Cars are the traffic pool's own police cars, repositioned
+  // shot-only; the van and the 4th car are new builds pushed into
+  // refs.traffic so their light bars pulse with the rest.
   const beachCop = refs.traffic[1];
   beachCop.position.set(4.5, 0, -14);
   beachCop.rotation.y = 0.3;
+  const roadCop2 = refs.traffic[0];
+  roadCop2.position.set(-2.5, 0, -20);
+  roadCop2.rotation.y = 0.1;
+  const roadCop3 = refs.traffic[7];
+  roadCop3.position.set(3.5, 0, -26);
+  roadCop3.rotation.y = 0.1;
+  const roadCop4 = makePoliceCar();
+  roadCop4.position.set(-3, 0, -32);
+  roadCop4.rotation.y = Math.PI + 0.1;
+  scene.add(roadCop4);
+  refs.traffic.push(roadCop4);
+  const burnVan = makeBurningPoliceVan();
+  burnVan.position.set(6.5, 0, -18);
+  burnVan.rotation.y = 0.4;
+  scene.add(burnVan);
   // mission panel: this is a POLICE STAND-OFF, not the M1 default the
   // static HTML carries ("STEAL THE MARINA SEDAN"). M4 LOSE THE HEAT
   // ($2,000, three stars) is the game's own police mission, so the
@@ -460,6 +548,30 @@ function animate() {
   if (heli.userData.tailRotor) heli.userData.tailRotor.rotation.x += dt * 22;
   heli.position.y = preset.heli[1] + Math.sin(t * 0.7) * 0.5;
   heli.position.x = preset.heli[0] + Math.sin(t * 0.23) * 0.8;
+
+  // FIX ROUND 6 FOLLOW-UP (v15.3): aim the heli searchlight AT the
+  // hero car. The heli bobs +/-0.5 m and drifts +/-0.8 m every frame
+  // and sits rotated (rotation.y 0.5, scale 1.35), so a static cone
+  // would sweep off the car — recompute the aim every frame: pod =
+  // the cone apex in world space, dir = pod -> spotTarget, stretch
+  // the cone to that length and rotate its local -Y axis onto dir.
+  // Only the cover sets spotTarget; other shots keep the default cone.
+  if (heli.userData.spotTarget) {
+    heli.updateMatrixWorld(true);
+    const cone = heli.userData.cone;
+    const pod = heli.localToWorld(new THREE.Vector3(0, -0.7, -1.2));
+    const target = heli.userData.spotTarget;
+    const dir = target.clone().sub(pod);
+    const len = dir.length();
+    dir.normalize();
+    const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir);
+    const heliQ = new THREE.Quaternion();
+    heli.getWorldQuaternion(heliQ);
+    cone.quaternion.copy(heliQ.invert().multiply(q));
+    cone.scale.set(1, len / (9 * heli.scale.y), 1);
+    const mid = pod.clone().addScaledVector(dir, len / 2);
+    cone.position.copy(heli.worldToLocal(mid));
+  }
 
   // police light bars flash — but the LENSES stay at full saturated
   // colour in every phase (red 1.0, blue 1.0): dimming a lens to 0.7

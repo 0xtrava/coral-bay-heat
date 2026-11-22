@@ -405,6 +405,24 @@ export function makePoliceOfficer(seed = 21) {
   return g;
 }
 
+// A GTA-style red target marker: a bright-red arrow (cone, tip down)
+// hovering above a police officer's head, so the eye finds the TARGET
+// at a glance — police wear the marker, the player does not. Unlit
+// MeshBasicMaterial, so it stays full red in dusk light. Static —
+// the staged officers never move, so the marker never needs to follow
+// anyone. Place the group ~0.6 m above the officer's cap
+// (y ≈ 2.72 for a 1.3x officer) in the staging code.
+export function makeTargetMarker() {
+  const g = new THREE.Group();
+  const arrow = new THREE.Mesh(
+    new THREE.ConeGeometry(0.22, 0.45, 12),
+    new THREE.MeshBasicMaterial({ color: 0xff2020, transparent: true, opacity: 0.95 }),
+  );
+  arrow.rotation.x = Math.PI; // tip down, like GTA's enemy arrow
+  g.add(arrow);
+  return g;
+}
+
 // A dock worker: hi-vis orange vest, reflective stripes, yellow hard hat.
 // Same grounded rig as a pedestrian (feet reach y = 0), so the docks crew
 // stands ON the apron, never on a car, and reads at a glance.
