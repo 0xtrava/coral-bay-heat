@@ -60,6 +60,28 @@ export function asphaltTexture() {
     grad.addColorStop(0, 'rgba(0,0,0,0)'); grad.addColorStop(0.5, 'rgba(8,8,10,0.20)'); grad.addColorStop(1, 'rgba(0,0,0,0)');
     g.fillStyle = grad; g.fillRect(bx - 26, 0, 52, 512);
   }
+  // FIX ROUND 6 (v15.2) photographic push: warm dusk sheen — long soft
+  // horizontal streaks of sunset orange/pink caught on damp asphalt,
+  // so the road reads as wet dusk tarmac with light lying on it, not
+  // dry grey felt. Kept faint (alpha <= 0.10) so the markings stay
+  // legible and the road never looks flooded.
+  for (let i = 0; i < 16; i++) {
+    const y = rnd() * 512, h = 6 + rnd() * 22, w = 120 + rnd() * 300;
+    const x = rnd() * 512 - w / 2;
+    const warm = rnd() > 0.45;
+    const sg = g.createLinearGradient(x, 0, x + w, 0);
+    const col = warm ? '255,157,46' : '255,120,150';
+    sg.addColorStop(0, `rgba(${col},0)`);
+    sg.addColorStop(0.5, `rgba(${col},${0.04 + rnd() * 0.06})`);
+    sg.addColorStop(1, `rgba(${col},0)`);
+    g.fillStyle = sg;
+    g.fillRect(x, y, w, h);
+  }
+  // a few brighter aggregate chips catch the light
+  for (let i = 0; i < 500; i++) {
+    g.fillStyle = `rgba(255,220,180,${0.05 + rnd() * 0.10})`;
+    g.fillRect(rnd() * 512, rnd() * 512, 1.5, 1.5);
+  }
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.colorSpace = THREE.SRGBColorSpace;
@@ -103,6 +125,21 @@ export function sandTexture() {
     g.fillStyle = rnd() > 0.5 ? 'rgba(120,90,50,0.14)' : 'rgba(255,235,190,0.14)';
     g.fillRect(rnd() * 512, rnd() * 512, 1.6, 1.6);
   }
+  // FIX ROUND 6 (v15.2) photographic push: shell flecks + damp darker
+  // patches — tiny white/pink shell chips and soft wet-looking darker
+  // sand, so the beach reads as real sand with things in it, not a
+  // uniform beige plane.
+  for (let i = 0; i < 260; i++) {
+    g.fillStyle = rnd() > 0.5 ? `rgba(255,250,240,${0.25 + rnd() * 0.35})` : `rgba(255,180,190,${0.2 + rnd() * 0.3})`;
+    g.fillRect(rnd() * 512, rnd() * 512, 2 + rnd() * 2, 1.5 + rnd() * 1.5);
+  }
+  for (let i = 0; i < 12; i++) {
+    const x = rnd() * 512, y = rnd() * 512, r = 20 + rnd() * 50;
+    const grad = g.createRadialGradient(x, y, 0, x, y, r);
+    grad.addColorStop(0, 'rgba(150,105,60,0.22)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grad; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  }
   // footprints: little paired dots wandering
   g.fillStyle = 'rgba(150,115,70,0.35)';
   for (let i = 0; i < 44; i++) {
@@ -139,6 +176,18 @@ export function oceanTexture() {
     g.fillStyle = `rgba(255,255,255,${0.05 + rnd() * 0.12})`;
     g.fillRect(rnd() * 512, rnd() * 512, 2, 1.4);
   }
+  // FIX ROUND 6 (v15.2) photographic push: sun glitter — warm gold
+  // sparkle streaks across the water, denser toward one diagonal band
+  // (the sun's path), so the sea catches the sunset instead of reading
+  // as flat turquoise paint.
+  for (let i = 0; i < 130; i++) {
+    const x = rnd() * 512, y = rnd() * 512, len = 8 + rnd() * 40;
+    g.strokeStyle = `rgba(255,200,110,${0.08 + rnd() * 0.20})`;
+    g.lineWidth = 1 + rnd() * 1.5;
+    g.beginPath(); g.moveTo(x, y);
+    g.lineTo(x + len, y + (rnd() - 0.5) * 8);
+    g.stroke();
+  }
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.colorSpace = THREE.SRGBColorSpace;
@@ -152,18 +201,34 @@ export function skyTexture() {
   // top goes darker dusk blue, the pink and orange bands run richer,
   // the gold band is stronger, and there are more cloud bands with
   // higher opacity, so the sky reads as a warm dusk, not a pale wash.
+  // FIX ROUND 6 (v15.2) photographic push: the gradient runs through
+  // MORE stops (indigo -> violet -> magenta -> rose -> orange -> gold)
+  // so the bands blend like a real dusk sky instead of flat stripes;
+  // a dusting of early stars sits in the dark top band; the cloud
+  // bands are more numerous, taller and pink-lit underneath, so the
+  // sky has depth and texture at a glance, not a smooth wash.
   const [c, g] = canvas(1024, 512);
   const grad = g.createLinearGradient(0, 0, 0, 512);
-  grad.addColorStop(0.00, '#232a5e');
-  grad.addColorStop(0.30, '#4a4a8e');
-  grad.addColorStop(0.50, '#b44a72');
-  grad.addColorStop(0.68, '#e86a3a');
-  grad.addColorStop(0.84, '#ff9d2e');
+  grad.addColorStop(0.00, '#141a4a');
+  grad.addColorStop(0.18, '#2c2a6e');
+  grad.addColorStop(0.34, '#5a3a8a');
+  grad.addColorStop(0.48, '#a83e6e');
+  grad.addColorStop(0.60, '#d84a4a');
+  grad.addColorStop(0.72, '#f06a2e');
+  grad.addColorStop(0.85, '#ff9d2e');
   grad.addColorStop(1.00, '#ffd98a');
   g.fillStyle = grad; g.fillRect(0, 0, 1024, 512);
   const rnd = mulberry32(31337);
+  // early stars in the dark top band — faint, so they read as dusk,
+  // not night
+  for (let i = 0; i < 90; i++) {
+    const x = rnd() * 1024, y = rnd() * 110;
+    g.fillStyle = `rgba(255,255,240,${0.15 + rnd() * 0.5})`;
+    const s = rnd() < 0.12 ? 2 : 1;
+    g.fillRect(x, y, s, s);
+  }
   // thin warm cloud bands
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 64; i++) {
     const y = 60 + rnd() * 300, x = rnd() * 1024, w = 120 + rnd() * 260;
     const cg = g.createLinearGradient(x, 0, x + w, 0);
     cg.addColorStop(0, 'rgba(255,220,190,0)');
@@ -171,6 +236,16 @@ export function skyTexture() {
     cg.addColorStop(1, 'rgba(255,220,190,0)');
     g.fillStyle = cg;
     g.fillRect(x, y, w, 5 + rnd() * 10);
+  }
+  // pink-lit cloud bellies low in the sky, under the warm bands
+  for (let i = 0; i < 22; i++) {
+    const y = 240 + rnd() * 180, x = rnd() * 1024, w = 90 + rnd() * 200;
+    const cg = g.createLinearGradient(x, 0, x + w, 0);
+    cg.addColorStop(0, 'rgba(255,150,170,0)');
+    cg.addColorStop(0.5, `rgba(255,150,170,${0.10 + rnd() * 0.14})`);
+    cg.addColorStop(1, 'rgba(255,150,170,0)');
+    g.fillStyle = cg;
+    g.fillRect(x, y, w, 8 + rnd() * 14);
   }
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;

@@ -234,24 +234,26 @@ export function buildCity(scene) {
   scene.add(sky);
   const sunTex = sunGlowTexture();
   const sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({
-    map: sunTex, transparent: true, depthWrite: false, fog: false,
+    map: sunTex, transparent: true, depthWrite: false, fog: false, opacity: 0.9,
   }));
   // low sun, centred over the road corridor: the sightline from the cover
   // camera runs straight down the boulevard, so the disc clears every
   // building and sits upper-right in the cover frame (the west-row roofs
   // hide any sun placed further west — v9's (-150, 50) was invisible)
   sunSprite.position.set(-30, 48, -400);
-  sunSprite.scale.set(150, 150, 1);
+  sunSprite.scale.set(175, 175, 1);
   scene.add(sunSprite);
-  // the disc itself: a saturated amber ring with a bright white-gold heart,
-  // so it reads as a SUN against the orange sky instead of blending into it
-  const sunOuter = new THREE.Mesh(new THREE.CircleGeometry(30, 32),
-    new THREE.MeshBasicMaterial({ color: 0xff9d2e, fog: false }));
+  // the disc itself: FIX ROUND 6 (v15.2) — SMALLER and hotter, so it
+  // reads as a blazing sun, not a flat white moon: a tight saturated
+  // amber ring (r 20) with a small white-gold heart (r 10), the big
+  // soft glow sprite above doing the halo work instead of a fat disc.
+  const sunOuter = new THREE.Mesh(new THREE.CircleGeometry(20, 32),
+    new THREE.MeshBasicMaterial({ color: 0xff8c1a, fog: false }));
   sunOuter.position.set(-30, 48, -398);
   sunOuter.lookAt(0, 10, 60);
   scene.add(sunOuter);
-  const sunCore = new THREE.Mesh(new THREE.CircleGeometry(19, 32),
-    new THREE.MeshBasicMaterial({ color: 0xfff6d8, fog: false }));
+  const sunCore = new THREE.Mesh(new THREE.CircleGeometry(10, 32),
+    new THREE.MeshBasicMaterial({ color: 0xfff3c8, fog: false }));
   sunCore.position.set(-30, 48, -397);
   sunCore.lookAt(0, 10, 60);
   scene.add(sunCore);
@@ -264,7 +266,10 @@ export function buildCity(scene) {
   }
 
   // ---- lights ----
-  const sun = new THREE.DirectionalLight(0xffb36b, 2.9);
+  // FIX ROUND 6 (v15.2) photographic push: sun 2.9 -> 3.1, so the warm
+  // dusk key stays hot against the richer sky; the wet road and the
+  // glossier sea below pick up the sunset instead of going grey.
+  const sun = new THREE.DirectionalLight(0xffb36b, 3.1);
   sun.position.set(-60, 110, -140);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -309,7 +314,12 @@ export function buildCity(scene) {
   const asphalt = asphaltTexture();
   asphalt.repeat.set(1, 22);
   const road = new THREE.Mesh(new THREE.PlaneGeometry(14, 340),
-    new THREE.MeshStandardMaterial({ map: asphalt, roughness: 0.94 }));
+    // FIX ROUND 6 (v15.2): wet dusk tarmac — roughness 0.94 -> 0.55
+    // with a touch of metalness, so the sunset sky (scene environment)
+    // reflects off the road as a soft sheen instead of the asphalt
+    // swallowing all the light. The canvas sheen streaks in
+    // asphaltTexture do the rest.
+    new THREE.MeshStandardMaterial({ map: asphalt, roughness: 0.55, metalness: 0.12 }));
   road.rotation.x = -Math.PI / 2;
   road.position.set(0, 0.02, 0);
   road.receiveShadow = true;
@@ -318,7 +328,7 @@ export function buildCity(scene) {
   const asphalt2 = asphaltTexture();
   asphalt2.repeat.set(4, 1);
   const cross = new THREE.Mesh(new THREE.PlaneGeometry(64, 10),
-    new THREE.MeshStandardMaterial({ map: asphalt2, roughness: 0.94 }));
+    new THREE.MeshStandardMaterial({ map: asphalt2, roughness: 0.55, metalness: 0.12 }));
   cross.rotation.x = -Math.PI / 2;
   cross.position.set(-14, 0.02, 60);
   cross.receiveShadow = true;
@@ -397,7 +407,10 @@ export function buildCity(scene) {
   const ocean = oceanTexture();
   ocean.repeat.set(10, 14);
   const sea = new THREE.Mesh(new THREE.PlaneGeometry(240, 400),
-    new THREE.MeshStandardMaterial({ map: ocean, roughness: 0.55, metalness: 0.15 }));
+    // FIX ROUND 6 (v15.2): glossier sea — roughness 0.55 -> 0.32,
+    // metalness 0.15 -> 0.35, so the sunset glints off the water and
+    // the glitter in oceanTexture has something to catch.
+    new THREE.MeshStandardMaterial({ map: ocean, roughness: 0.32, metalness: 0.35 }));
   sea.rotation.x = -Math.PI / 2;
   sea.position.set(180, 0.05, 0);
   sea.receiveShadow = true;
@@ -589,13 +602,17 @@ export function buildCity(scene) {
     }
   }
   // bus stop on the east sidewalk
+  // FIX ROUND 6b: the sign sat at z 24, 2 m from the new title camera
+  // (10, 1.7, 26) — it filled the title shot's top-right corner like
+  // a billboard. Moved south to z 40, behind the title camera and
+  // behind the cover camera, clear of every staged shot.
   const busSign = makeSign('BUS STOP', 'LINE 9 · PIER', '#12324a', '#ffffff');
   busSign.scale.set(0.45, 0.45, 0.45);
-  busSign.position.set(11.6, 2.6, 24);
+  busSign.position.set(11.6, 2.6, 40);
   busSign.rotation.y = -Math.PI / 2;
   scene.add(busSign);
   const busPole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.6, 8), lampMat);
-  busPole.position.set(11.6, 1.3, 24);
+  busPole.position.set(11.6, 1.3, 40);
   scene.add(busPole);
 
   // ---- Pier 9 (z = -95, east into the bay) ----
