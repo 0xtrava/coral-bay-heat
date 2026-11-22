@@ -6,7 +6,7 @@
 
 A complete, original 3D open-world crime game that plays in a desktop browser. You are the wheelman in Coral Bay: outrun the heat, stand your ground, and take the city.
 
-- High-speed police chase on the coastal highway — cruisers ahead, a helicopter overhead, its searchlight pinning your red car
+- High-speed police chase on the coastal highway — cruisers ahead, a helicopter overhead, its searchlight pinning your hero car
 - On-foot shootout on the sand: red-jacketed protagonist, police officers closing in, fallen officer, burning police van
 - 8 story missions with a wanted system (3 stars), weapon store, garage upgrades, and a living island map
 - Full HUD: minimap, health, wanted stars, cash, mission tracker, and a career stats screen with save slots

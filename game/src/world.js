@@ -1,7 +1,14 @@
-// Coral Bay Heat — the city. A tropical island boulevard: textured asphalt
-// road with markings and curbs, stepped buildings with balconies and signs,
-// palm-lined beach, turquoise ocean, wooden Pier 9 and the container docks,
-// under a warm sunset sky with a big haloed sun. Forward is -Z (north).
+// Coral Bay Heat — the city. A tropical island boulevard: textured
+// asphalt road with markings and kerbs, stepped buildings with balconies
+// and signs, palm-lined beach, turquoise ocean, wooden Pier 9 and the
+// container docks, under a warm sunset sky with a big haloed sun.
+// Forward is -Z (north).
+//
+// QUALITY PUSH: the skyline gains distant islands and sailboats on the
+// horizon, the streets gain hydrants, bins and benches, the road gains
+// tyre marks, and a warm bounce light lifts the shadow sides so cars and
+// buildings stop reading flat. Every gameplay coordinate (hero, traffic,
+// taxi, boats, pier, docks, crowd spots) is unchanged.
 import * as THREE from 'three';
 import { asphaltTexture, sidewalkTexture, sandTexture, oceanTexture, skyTexture, sunGlowTexture, cloudTexture, signTexture, containerTexture } from './textures.js';
 import { makeHeroCar, makePoliceCar, makeCivilianCar, makeTaxi, makeVan, makeScooter } from './cars.js';
@@ -46,7 +53,7 @@ function makePalm(seed = 1, scale = 1) {
     seg.rotation.z = -lean * 0.25;
     seg.castShadow = true;
     g.add(seg);
-    // ring band at each trunk joint
+    // Ring band at each trunk joint.
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.19 - i * 0.016, 0.025, 6, 12), ringMat);
     ring.rotation.x = Math.PI / 2;
     ring.position.set(x + lean * 0.15, y + 1.45, 0);
@@ -54,15 +61,15 @@ function makePalm(seed = 1, scale = 1) {
     y += 1.45;
   }
   const topX = x, topY = y;
-  // coconuts
+  // Coconuts.
   const nutMat = new THREE.MeshStandardMaterial({ color: 0x5a3a1a, roughness: 0.9 });
   for (let i = 0; i < 3; i++) {
     const nut = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), nutMat);
     nut.position.set(topX + (r() - 0.5) * 0.4, topY - 0.15, (r() - 0.5) * 0.4);
     g.add(nut);
   }
-  // one frond = a chain of 3 tapered, flattening segments, each drooping
-  // further than the last, so the leaf arcs down under its own weight
+  // One frond = a chain of 3 tapered, flattening segments, each drooping
+  // further than the last, so the leaf arcs down under its own weight.
   function makeFrond(mat, len) {
     const f = new THREE.Group();
     let px = 0, py = 0, pitch = -0.15;
@@ -70,7 +77,7 @@ function makePalm(seed = 1, scale = 1) {
     for (const [wdt, slen] of segs) {
       const s = new THREE.Mesh(new THREE.ConeGeometry(wdt, slen, 6), mat);
       s.scale.set(1, 1, 0.22);
-      // cone points +Y; lay it along +X with a droop pitch
+      // Cone points +Y; lay it along +X with a droop pitch.
       s.rotation.z = -Math.PI / 2 + pitch;
       s.position.set(px + Math.cos(pitch) * slen * 0.45, py + Math.sin(pitch) * slen * 0.45, 0);
       s.castShadow = true;
@@ -109,12 +116,12 @@ function makeBuilding(seed, w, h, d, color) {
   const wall = new THREE.MeshStandardMaterial({ color, roughness: 0.85 });
   const wall2 = new THREE.MeshStandardMaterial({ color: new THREE.Color(color).multiplyScalar(0.82), roughness: 0.85 });
   const trim = new THREE.MeshStandardMaterial({ color: 0xf5efe0, roughness: 0.8 });
-  // main slab + setback upper slab + crown
+  // Main slab + setback upper slab + crown.
   const h1 = h * 0.62, h2 = h * 0.28, h3 = h * 0.10;
   g.add(box(w, h1, d, wall, 0, h1 / 2, 0));
   g.add(box(w * 0.78, h2, d * 0.8, wall2, 0, h1 + h2 / 2, 0));
   g.add(box(w * 0.5, h3, d * 0.55, trim, 0, h1 + h2 + h3 / 2, 0));
-  // rooftop kit: AC boxes, water tank, antenna
+  // Rooftop kit: AC boxes, water tank, antenna.
   g.add(box(1.2, 0.7, 1.0, trim, -w * 0.2, h1 + h2 + h3 + 0.35, 0));
   const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 1.6, 10),
     new THREE.MeshStandardMaterial({ color: 0x8a9aa8, roughness: 0.6, metalness: 0.4 }));
@@ -125,7 +132,7 @@ function makeBuilding(seed, w, h, d, color) {
     new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.5, metalness: 0.7 }));
   ant.position.set(-w * 0.3, h1 + h2 + h3 + 1.6, -d * 0.2);
   g.add(ant);
-  // windows: framed + recessed, on EVERY face — never a flat wall with
+  // Windows: framed + recessed, on EVERY face — never a flat wall with
   // squares pasted on. Each window gets a dark frame box (proud of the
   // wall), a glass pane set inside it, and a sill below; balconies hang
   // off some of them. Faces: +X (street), -X, +Z and -Z.
@@ -134,7 +141,7 @@ function makeBuilding(seed, w, h, d, color) {
   const frameMat = new THREE.MeshStandardMaterial({ color: 0x2a2f38, roughness: 0.6, metalness: 0.3 });
   const sillMat = new THREE.MeshStandardMaterial({ color: 0xf5efe0, roughness: 0.8 });
   function addWindow(px, py, pz, ry, wx) {
-    // frame box (proud), glass pane (recessed inside it), sill below.
+    // Frame box (proud), glass pane (recessed inside it), sill below.
     // All three are built facing +Z and rotated by ry, so the thin axis
     // always lines up with the wall normal — never buried sideways.
     const frame = box(1.5, 1.9, 0.10, frameMat, px, py, pz);
@@ -146,14 +153,14 @@ function makeBuilding(seed, w, h, d, color) {
       new THREE.MeshStandardMaterial({ color: wc, emissive: lit ? wc : 0x000000, emissiveIntensity: lit ? 0.55 : 0, roughness: 0.2, metalness: 0.3 }));
     win.position.set(px, py, pz);
     win.rotation.y = ry;
-    // push the glass just proud of the frame face so it is never buried
+    // Push the glass just proud of the frame face so it is never buried.
     win.translateZ(0.06);
     g.add(win);
     const sill = box(1.6, 0.10, 0.14, sillMat, px, py - 1.0, pz);
     sill.rotation.y = ry;
     sill.translateZ(0.04);
     g.add(sill);
-    // balcony slab + rail under some windows
+    // Balcony slab + rail under some windows.
     if (r() < 0.4) {
       const balc = box(1.7, 0.14, 0.7, trim, px, py - 1.0, pz);
       balc.rotation.y = ry;
@@ -172,7 +179,7 @@ function makeBuilding(seed, w, h, d, color) {
       const wx = -d / 2 + (cxi + 0.5) * (d / cols);
       addWindow(w / 2, wy, wx, Math.PI / 2, wx);
     }
-    // back face (-X) and both long faces (+Z / -Z), sparser
+    // Back face (-X) and both long faces (+Z / -Z), sparser.
     for (let cxi = 0; cxi < cols; cxi++) {
       if (r() < 0.45) continue;
       const wy = 2.2 + f * 3.2;
@@ -183,22 +190,22 @@ function makeBuilding(seed, w, h, d, color) {
       addWindow(wz, wy, -d / 2, Math.PI, wz);
     }
   }
-  // floor-band cornices: thin trim strips wrapping the slab at every floor
-  // line, so the wall breaks into storeys instead of one flat expanse
+  // Floor-band cornices: thin trim strips wrapping the slab at every floor
+  // line, so the wall breaks into storeys instead of one flat expanse.
   for (let f = 1; f < floors; f++) {
     const by = 0.8 + f * 3.2;
     g.add(box(w + 0.24, 0.18, d + 0.24, trim, 0, by, 0));
   }
-  // corner pilasters: vertical trim ribs on all four corners
+  // Corner pilasters: vertical trim ribs on all four corners.
   for (const [px, pz] of [[-w / 2, -d / 2], [w / 2, -d / 2], [-w / 2, d / 2], [w / 2, d / 2]]) {
     g.add(box(0.5, h1, 0.5, trim, px, h1 / 2, pz));
   }
-  // parapet cap around the roof edge
+  // Parapet cap around the roof edge.
   g.add(box(w + 0.2, 0.35, 0.25, trim, 0, h1 + 0.17, d / 2));
   g.add(box(w + 0.2, 0.35, 0.25, trim, 0, h1 + 0.17, -d / 2));
   g.add(box(0.25, 0.35, d + 0.2, trim, w / 2, h1 + 0.17, 0));
   g.add(box(0.25, 0.35, d + 0.2, trim, -w / 2, h1 + 0.17, 0));
-  // awnings over the ground floor + shopfront (street side)
+  // Awnings over the ground floor + shopfront (street side).
   const awnColors = [0xff5d8f, 0x37e0c8, 0xffd76a, 0xff9d2e];
   const awn = new THREE.MeshStandardMaterial({ color: awnColors[Math.floor(r() * awnColors.length)], roughness: 0.8, side: THREE.DoubleSide });
   const aw = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.08, w * 0.7), awn);
@@ -236,17 +243,16 @@ export function buildCity(scene) {
   const sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({
     map: sunTex, transparent: true, depthWrite: false, fog: false, opacity: 0.9,
   }));
-  // low sun, centred over the road corridor: the sightline from the cover
+  // Low sun, centred over the road corridor: the sightline from the cover
   // camera runs straight down the boulevard, so the disc clears every
-  // building and sits upper-right in the cover frame (the west-row roofs
-  // hide any sun placed further west — v9's (-150, 50) was invisible)
+  // building and sits upper-right in the cover frame.
   sunSprite.position.set(-30, 48, -400);
   sunSprite.scale.set(175, 175, 1);
   scene.add(sunSprite);
-  // the disc itself: FIX ROUND 6 (v15.2) — SMALLER and hotter, so it
-  // reads as a blazing sun, not a flat white moon: a tight saturated
-  // amber ring (r 20) with a small white-gold heart (r 10), the big
-  // soft glow sprite above doing the halo work instead of a fat disc.
+  // The disc itself: SMALLER and hotter, so it reads as a blazing sun,
+  // not a flat white moon — a tight saturated amber ring (r 20) with a
+  // small white-gold heart (r 10), the big soft glow sprite above doing
+  // the halo work instead of a fat disc.
   const sunOuter = new THREE.Mesh(new THREE.CircleGeometry(20, 32),
     new THREE.MeshBasicMaterial({ color: 0xff8c1a, fog: false }));
   sunOuter.position.set(-30, 48, -398);
@@ -266,9 +272,9 @@ export function buildCity(scene) {
   }
 
   // ---- lights ----
-  // FIX ROUND 6 (v15.2) photographic push: sun 2.9 -> 3.1, so the warm
-  // dusk key stays hot against the richer sky; the wet road and the
-  // glossier sea below pick up the sunset instead of going grey.
+  // Warm dusk key: sun 3.1, so the warm key stays hot against the richer
+  // sky; the wet road and the glossier sea below pick up the sunset
+  // instead of going grey.
   const sun = new THREE.DirectionalLight(0xffb36b, 3.1);
   sun.position.set(-60, 110, -140);
   sun.castShadow = true;
@@ -282,11 +288,17 @@ export function buildCity(scene) {
   const fill = new THREE.DirectionalLight(0x8fb8ff, 0.35);
   fill.position.set(80, 60, 120);
   scene.add(fill);
-  // warm rim from the west, where the sun sits: edges facing the sunset
-  // pick up a hot rim so cars and buildings stop reading flat
+  // Warm rim from the west, where the sun sits: edges facing the sunset
+  // pick up a hot rim so cars and buildings stop reading flat.
   const rim = new THREE.DirectionalLight(0xff9d5c, 0.55);
   rim.position.set(-140, 36, -120);
   scene.add(rim);
+  // Bounce from the east (ocean side): a low warm wash that lifts the
+  // shadow sides of cars and people, so nothing goes dead black away
+  // from the sun.
+  const bounce = new THREE.DirectionalLight(0xffd9a0, 0.25);
+  bounce.position.set(160, 40, 60);
+  scene.add(bounce);
 
   // ---- ground base (lawn) ----
   const lawn = new THREE.Mesh(new THREE.PlaneGeometry(520, 420),
@@ -295,7 +307,7 @@ export function buildCity(scene) {
   lawn.position.set(40, 0, 0);
   lawn.receiveShadow = true;
   scene.add(lawn);
-  // lawn texture patches: bushes + path stones break the flat green
+  // Lawn texture patches: bushes + path stones break the flat green.
   const bushMat = new THREE.MeshStandardMaterial({ color: 0x3f7a34, roughness: 1 });
   const bushMat2 = new THREE.MeshStandardMaterial({ color: 0x6fae4e, roughness: 1 });
   for (let i = 0; i < 60; i++) {
@@ -304,7 +316,7 @@ export function buildCity(scene) {
     const side = R() > 0.5 ? -1 : 1;
     b.position.set(side * (16 + R() * 22), 0.3, -170 + R() * 340);
     if (Math.abs(b.position.x) < 14) b.position.x = side * (14 + R() * 8);
-    // keep the pier-camera sightline clear: no bush in front of the lens
+    // Keep the pier-camera sightline clear: no bush in front of the lens.
     if (b.position.x > 13 && b.position.z > -115 && b.position.z < -75) continue;
     b.castShadow = true;
     scene.add(b);
@@ -314,17 +326,15 @@ export function buildCity(scene) {
   const asphalt = asphaltTexture();
   asphalt.repeat.set(1, 22);
   const road = new THREE.Mesh(new THREE.PlaneGeometry(14, 340),
-    // FIX ROUND 6 (v15.2): wet dusk tarmac — roughness 0.94 -> 0.55
-    // with a touch of metalness, so the sunset sky (scene environment)
-    // reflects off the road as a soft sheen instead of the asphalt
-    // swallowing all the light. The canvas sheen streaks in
-    // asphaltTexture do the rest.
+    // Wet dusk tarmac — roughness 0.55 with a touch of metalness, so
+    // the sunset sky reflects off the road as a soft sheen instead of
+    // the asphalt swallowing all the light.
     new THREE.MeshStandardMaterial({ map: asphalt, roughness: 0.55, metalness: 0.12 }));
   road.rotation.x = -Math.PI / 2;
   road.position.set(0, 0.02, 0);
   road.receiveShadow = true;
   scene.add(road);
-  // cross street at z = 60
+  // Cross street at z = 60.
   const asphalt2 = asphaltTexture();
   asphalt2.repeat.set(4, 1);
   const cross = new THREE.Mesh(new THREE.PlaneGeometry(64, 10),
@@ -352,7 +362,7 @@ export function buildCity(scene) {
   stripe(0.3, 340, markYellow, 0.4, 0);
   stripe(0.25, 340, markWhite, -6.7, 0);
   stripe(0.25, 340, markWhite, 6.7, 0);
-  // crosswalks (zebra stripes) at z = -8, -48, 32, 78
+  // Crosswalks (zebra stripes) at z = -8, -48, 32, 78.
   for (const cz of [-8, -48, 32, 78]) {
     for (let i = 0; i < 9; i++) {
       const x = -6.3 + i * 1.575;
@@ -360,7 +370,7 @@ export function buildCity(scene) {
     }
     stripe(0.5, 13.5, markWhite, 0, cz - 2.4); // stop line
   }
-  // drains + manholes
+  // Drains + manholes.
   const drainMat = new THREE.MeshStandardMaterial({ color: 0x1c1e22, roughness: 0.9 });
   for (const [x, z] of [[-6.2, -30], [6.2, 10], [-6.2, 55], [6.2, -70], [-2, 95], [2, -120]]) {
     const d = new THREE.Mesh(new THREE.CircleGeometry(0.55, 16), drainMat);
@@ -372,8 +382,17 @@ export function buildCity(scene) {
     grate.position.set(x === -6.2 ? -6.6 : 6.6, 0.05, z + 6);
     scene.add(grate);
   }
+  // Tyre marks: dark arcs where cars brake and turn, so the road reads
+  // driven-on instead of freshly laid.
+  const tyreMat = new THREE.MeshBasicMaterial({ color: 0x141414, transparent: true, opacity: 0.35 });
+  for (const [tx, tz, tr] of [[-2.5, -30, 0.2], [3.0, 40, -0.3], [-3.0, 90, 0.15], [2.5, -90, -0.2], [-2.0, 130, 0.3]]) {
+    const tm = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 9), tyreMat);
+    tm.rotation.x = -Math.PI / 2; tm.rotation.z = tr;
+    tm.position.set(tx, 0.046, tz);
+    scene.add(tm);
+  }
 
-  // ---- sidewalks + curbs ----
+  // ---- sidewalks + kerbs ----
   const walk = sidewalkTexture();
   walk.repeat.set(2, 40);
   for (const side of [-1, 1]) {
@@ -383,10 +402,10 @@ export function buildCity(scene) {
     sw.position.set(side * 9.5, 0.03, 0);
     sw.receiveShadow = true;
     scene.add(sw);
-    // kerb stones along the road edge
+    // Kerb stones along the road edge.
     const kerb = box(0.35, 0.16, 340, new THREE.MeshStandardMaterial({ color: 0x9a8a72, roughness: 0.9 }), side * 7.15, 0.08, 0);
     scene.add(kerb);
-    // grass strip between sidewalk and buildings/beach
+    // Grass strip between sidewalk and buildings/beach.
     const grass = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 340),
       new THREE.MeshStandardMaterial({ color: 0x6f9a52, roughness: 1 }));
     grass.rotation.x = -Math.PI / 2;
@@ -407,21 +426,44 @@ export function buildCity(scene) {
   const ocean = oceanTexture();
   ocean.repeat.set(10, 14);
   const sea = new THREE.Mesh(new THREE.PlaneGeometry(240, 400),
-    // FIX ROUND 6 (v15.2): glossier sea — roughness 0.55 -> 0.32,
-    // metalness 0.15 -> 0.35, so the sunset glints off the water and
-    // the glitter in oceanTexture has something to catch.
+    // Glossier sea — roughness 0.32, metalness 0.35, so the sunset
+    // glints off the water and the glitter in oceanTexture has
+    // something to catch.
     new THREE.MeshStandardMaterial({ map: ocean, roughness: 0.32, metalness: 0.35 }));
   sea.rotation.x = -Math.PI / 2;
   sea.position.set(180, 0.05, 0);
   sea.receiveShadow = true;
   scene.add(sea);
-  // foam line at the shoreline
+  // Foam line at the shoreline.
   const foam = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 380),
     new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 }));
   foam.rotation.x = -Math.PI / 2;
   foam.position.set(60.5, 0.07, 0);
   scene.add(foam);
-  // beach umbrellas + towels + people
+  // Distant islands on the horizon: dark low silhouettes east of the bay,
+  // so the sea ends in land instead of a flat void.
+  const islandMat = new THREE.MeshStandardMaterial({ color: 0x2a4a3a, roughness: 1 });
+  for (const [ix, iz, iw, ih] of [[270, -140, 60, 14], [285, 40, 80, 18], [260, 150, 55, 11]]) {
+    const isl = new THREE.Mesh(new THREE.ConeGeometry(iw / 2, ih, 8), islandMat);
+    isl.position.set(ix, ih / 2 - 1, iz);
+    isl.scale.z = 0.45;
+    scene.add(isl);
+  }
+  // Sailboats far offshore: white triangle sails, drifting on the glitter.
+  for (const [sx, sz] of [[150, -60], [185, 60], [165, 130]]) {
+    const sail = new THREE.Mesh(new THREE.ConeGeometry(1.2, 3.4, 4),
+      new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.6, side: THREE.DoubleSide }));
+    sail.position.set(sx, 2.2, sz);
+    sail.scale.z = 0.25;
+    scene.add(sail);
+    const hullB = box(0.9, 0.5, 3.2, new THREE.MeshStandardMaterial({ color: 0x8a2d2d, roughness: 0.6 }), sx, 0.4, sz);
+    scene.add(hullB);
+    const mastB = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 3.6, 6),
+      new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.6 }));
+    mastB.position.set(sx, 2.0, sz);
+    scene.add(mastB);
+  }
+  // Beach umbrellas + towels + people.
   const umbColors = [0xff5d8f, 0x37e0c8, 0xffd76a, 0xff9d2e, 0x9d7bff];
   for (let i = 0; i < 16; i++) {
     const ux = 20 + R() * 34, uz = -160 + R() * 320;
@@ -440,9 +482,9 @@ export function buildCity(scene) {
     towel.position.set(ux + 1.6, 0.07, uz + 0.8);
     scene.add(towel);
   }
-  // beach-life cluster near the beach-shot camera (x 20..42, z -20..-4):
+  // Beach-life cluster near the beach-shot camera (x 20..42, z -20..-4):
   // umbrellas, towels, a volleyball net and sunbathers so the foreground
-  // sand never reads as one flat beige plane
+  // sand never reads as one flat beige plane.
   for (let i = 0; i < 5; i++) {
     const ux = 20 + i * 4.2, uz = -18 + (i % 2) * 9;
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6),
@@ -460,7 +502,7 @@ export function buildCity(scene) {
     towel.position.set(ux + 1.8, 0.07, uz + 1);
     scene.add(towel);
   }
-  // volleyball net
+  // Volleyball net.
   for (const nz of [-14, -6]) {
     const np = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.4, 6),
       new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5 }));
@@ -471,16 +513,16 @@ export function buildCity(scene) {
     new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, side: THREE.DoubleSide }));
   net.position.set(28, 1.8, -10);
   scene.add(net);
-  // beach ball
+  // Beach ball.
   const ball = new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 10),
     new THREE.MeshStandardMaterial({ color: 0xff5d8f, roughness: 0.4 }));
   ball.position.set(24, 0.45, -12);
   ball.castShadow = true;
   scene.add(ball);
-  // south beach cluster (fills the beach shot's bottom-right corner):
+  // South beach cluster (fills the beach shot's bottom-right corner):
   // umbrellas, towels and sunbathers on the sand near the boulevard —
   // mid-ground, clear of the camera lens so they read as beach life,
-  // not a giant umbrella in the foreground
+  // not a giant umbrella in the foreground.
   for (let i = 0; i < 3; i++) {
     const ux = 22 + i * 5, uz = (i % 2) * 6;
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6),
@@ -524,13 +566,13 @@ export function buildCity(scene) {
       scene.add(s);
     }
   });
-  // a few low beachfront blocks north, facing the sand
+  // A few low beachfront blocks north, facing the sand.
   for (let i = 0; i < 3; i++) {
     const b = makeBuilding(900 + i * 47, 14, 9 + R() * 5, 12, BUILDING_COLORS[(i + 3) % BUILDING_COLORS.length]);
     b.position.set(-20, 0, 96 + i * 26);
     scene.add(b);
   }
-  // ---- second skyline row (graphics push, fix round 5) ----
+  // ---- second skyline row ----
   // A TALLER row BEHIND the west row (x ~-44), so the skyline reads
   // dense from the road and the title screen shows a real dusk
   // skyline, not a single row. z sits between the first row's
@@ -539,12 +581,9 @@ export function buildCity(scene) {
   // sits at (-30, 96), so nothing here can block a mission route.
   // The towers are SIMPLE (slab + setback + crown, NO per-window
   // meshes): a full makeBuilding carries 250-750 window meshes, and
-  // 8 of them tanked the headless frame rate ~29% (wheels-spin fell
-  // 29.4 -> 21.0, and the slower game time shifted the police-ram
-  // timing so the crew-quick-fix side check failed 64->112 on v15
-  // while v13 passed 56->120). At 45 m from the road a windowless
-  // dark tower reads as a distant silhouette — the density stays,
-  // the cost is 3 meshes per tower.
+  // 8 of them tanked the headless frame rate ~29%. At 45 m from the
+  // road a windowless dark tower reads as a distant silhouette — the
+  // density stays, the cost is 3 meshes per tower.
   function makeSkylineTower(w, h, d, color) {
     const g = new THREE.Group();
     const wall = new THREE.MeshStandardMaterial({ color, roughness: 0.85 });
@@ -566,7 +605,7 @@ export function buildCity(scene) {
     b.rotation.y = (R() - 0.5) * 0.06;
     scene.add(b);
   });
-  // billboard on the west side
+  // Billboard on the west side.
   const bb = makeSign('CORAL BAY HEAT', 'THE CITY IS YOURS', '#1a0f2e', '#ff5d8f');
   bb.position.set(-13.5, 9, -32);
   bb.rotation.y = Math.PI / 2;
@@ -584,7 +623,7 @@ export function buildCity(scene) {
     p2.position.set(12.6, 0, z + 6 + (R() - 0.5) * 3);
     scene.add(p2);
   }
-  // street lamps + traffic lights
+  // Street lamps.
   const lampMat = new THREE.MeshStandardMaterial({ color: 0x2a2f38, roughness: 0.5, metalness: 0.7 });
   for (let i = 0; i < 12; i++) {
     const z = -150 + i * 28;
@@ -601,11 +640,32 @@ export function buildCity(scene) {
       scene.add(lamp);
     }
   }
-  // bus stop on the east sidewalk
-  // FIX ROUND 6b: the sign sat at z 24, 2 m from the new title camera
-  // (10, 1.7, 26) — it filled the title shot's top-right corner like
-  // a billboard. Moved south to z 40, behind the title camera and
-  // behind the cover camera, clear of every staged shot.
+  // Street props: hydrants, bins and benches on the WEST sidewalk (clear
+  // of every staged shot and every mission route), plus a few on the east
+  // sidewalk outside the cover-camera zone (z -2..26).
+  const hydrantMat = new THREE.MeshStandardMaterial({ color: 0xc94a2e, roughness: 0.5, metalness: 0.3 });
+  const binMat = new THREE.MeshStandardMaterial({ color: 0x2a4a3a, roughness: 0.7, metalness: 0.4 });
+  for (const pz of [-120, -70, -20, 40, 90, 140]) {
+    const hyd = new THREE.Group();
+    hyd.add(new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.7, 10), hydrantMat));
+    const hydTop = new THREE.Mesh(new THREE.SphereGeometry(0.16, 10, 8), hydrantMat);
+    hydTop.position.y = 0.4;
+    hyd.add(hydTop);
+    hyd.position.set(-11.5, 0.35, pz);
+    scene.add(hyd);
+    const bin = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.28, 0.85, 10), binMat);
+    bin.position.set(-11.5, 0.45, pz + 4);
+    bin.castShadow = true;
+    scene.add(bin);
+  }
+  for (const pz of [-100, -50, 70, 120]) {
+    // Benches facing the road on the west sidewalk.
+    scene.add(box(2.0, 0.10, 0.55, new THREE.MeshStandardMaterial({ color: 0x9a6a42, roughness: 0.9 }), -11.2, 0.55, pz));
+    scene.add(box(2.0, 0.10, 0.55, new THREE.MeshStandardMaterial({ color: 0x9a6a42, roughness: 0.9 }), -11.2, 0.28, pz));
+    scene.add(box(2.0, 0.55, 0.10, new THREE.MeshStandardMaterial({ color: 0x9a6a42, roughness: 0.9 }), -11.2, 0.85, pz + 0.28));
+  }
+  // Bus stop on the east sidewalk — moved south to z 40, behind the
+  // title camera and behind the cover camera, clear of every staged shot.
   const busSign = makeSign('BUS STOP', 'LINE 9 · PIER', '#12324a', '#ffffff');
   busSign.scale.set(0.45, 0.45, 0.45);
   busSign.position.set(11.6, 2.6, 40);
@@ -636,22 +696,22 @@ export function buildCity(scene) {
     lamp.position.set(16 + i * 5.8, 1.75, i % 2 ? -99.2 : -90.8);
     pierGroup.add(lamp);
   }
-  // crates + barrels on the pier
+  // Crates + barrels on the pier.
   for (let i = 0; i < 8; i++) {
     const cr = box(1.1, 1.1, 1.1, new THREE.MeshStandardMaterial({ color: [0xb88a4a, 0x7a9a5a, 0x9a6a42][i % 3], roughness: 0.9 }),
       30 + R() * 30, 0.9, -97 + R() * 4);
     cr.rotation.y = R() * 1.2;
     pierGroup.add(cr);
   }
-  // benches facing the water + a bait kiosk with a striped awning, so the
-  // pier reads as a place people USE, not an empty boardwalk
+  // Benches facing the water + a bait kiosk with a striped awning, so the
+  // pier reads as a place people USE, not an empty boardwalk.
   for (const bx of [24, 44, 62]) {
     pierGroup.add(box(2.2, 0.12, 0.6, plankMat2, bx, 0.75, -98.2));
     pierGroup.add(box(2.2, 0.12, 0.6, plankMat2, bx, 0.45, -98.2));
     pierGroup.add(box(0.12, 0.4, 0.55, plankMat2, bx - 0.9, 0.6, -98.2));
     pierGroup.add(box(0.12, 0.4, 0.55, plankMat2, bx + 0.9, 0.6, -98.2));
   }
-  // bait kiosk at the pier root: counter, striped awning, sign
+  // Bait kiosk at the pier root: counter, striped awning, sign.
   pierGroup.add(box(3.2, 2.4, 2.4, new THREE.MeshStandardMaterial({ color: 0x2e7a9e, roughness: 0.8 }), 17.5, 1.6, -93.5));
   const kioskAwning = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.08, 1.6),
     new THREE.MeshStandardMaterial({ color: 0xff5d8f, roughness: 0.8, side: THREE.DoubleSide }));
@@ -663,7 +723,7 @@ export function buildCity(scene) {
   kioskSign.position.set(17.5, 3.6, -93.5);
   kioskSign.rotation.y = Math.PI / 2;
   pierGroup.add(kioskSign);
-  // fishing rods leaning on the north railing + buckets
+  // Fishing rods leaning on the north railing + buckets.
   for (const [rx, rz] of [[36, -99.1], [52, -99.1], [68, -99.1]]) {
     const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.045, 3.4, 6),
       new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.6 }));
@@ -675,13 +735,10 @@ export function buildCity(scene) {
     bucket.position.set(rx + 0.8, 0.66, rz + 0.4);
     pierGroup.add(bucket);
   }
-  // Fix round 3 (v12): the pier shot's foreground RIGHT was empty sand.
-  // The new pier camera sits south of the root looking east, so its right
-  // foreground is the pier's SOUTH edge (x 28..34, z -91..-93). Fill it
-  // with real pier gear — crates, a barrel, a rope coil, a spare-plank
-  // stack, a rod + bucket, a bench — all ON the planks at the edge, low
-  // (nothing above 1.1 m), clear of the hero (28.5, -94.5) and of the
-  // camera-hero corridor. The deck edge beam + plank texture do the rest.
+  // Pier gear on the south edge (x 28..34, z -91..-93): crates, a barrel,
+  // a rope coil, a spare-plank stack, a rod + bucket, a bench — all ON
+  // the planks at the edge, low (nothing above 1.1 m), clear of the hero
+  // and of the camera-hero corridor.
   const gearWood = new THREE.MeshStandardMaterial({ color: 0xb88a4a, roughness: 0.9 });
   pierGroup.add(box(1.1, 1.1, 1.1, gearWood, 31.0, 0.96, -91.7));
   const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 1.0, 12),
@@ -695,7 +752,7 @@ export function buildCity(scene) {
   rope.position.set(29.6, 0.47, -92.6);
   rope.castShadow = true;
   pierGroup.add(rope);
-  // spare planks stacked flat by the edge, with a rod leaning on them
+  // Spare planks stacked flat by the edge, with a rod leaning on them.
   for (let i = 0; i < 3; i++) {
     pierGroup.add(box(2.4, 0.09, 0.5, i % 2 ? plankMat : plankMat2, 33.2, 0.46 + i * 0.10, -92.4));
   }
@@ -709,7 +766,7 @@ export function buildCity(scene) {
     new THREE.MeshStandardMaterial({ color: 0xc94a2e, roughness: 0.7 }));
   bucket2.position.set(34.3, 0.66, -92.0);
   pierGroup.add(bucket2);
-  // south-edge bench (slabs + legs, facing the deck) at the right edge
+  // South-edge bench (slabs + legs, facing the deck) at the right edge.
   pierGroup.add(box(2.2, 0.12, 0.6, plankMat2, 34.5, 0.75, -91.8));
   pierGroup.add(box(2.2, 0.12, 0.6, plankMat2, 34.5, 0.45, -91.8));
   pierGroup.add(box(0.12, 0.4, 0.55, plankMat2, 33.6, 0.6, -91.8));
@@ -719,13 +776,12 @@ export function buildCity(scene) {
   pierSign.rotation.y = Math.PI / 2;
   pierGroup.add(pierSign);
   scene.add(pierGroup);
-  // ---- pier foreground (sand north of the pier root): the old pier shot
-  // was a void of empty sand in the foreground. A beached dinghy on the
-  // sand BEYOND the pier (24 m from the lens, never in the camera-hero
-  // corridor) and flat towels by the pier root give the low pier camera
-  // something to look over. Lesson from the first attempt: NOTHING tall
-  // within 10 m of this lens — a lifeguard tower and a dinghy that close
-  // filled the whole frame and hid the hero.
+  // ---- pier foreground (sand north of the pier root) ----
+  // A beached dinghy on the sand BEYOND the pier (24 m from the lens,
+  // never in the camera-hero corridor) and flat towels by the pier root
+  // give the low pier camera something to look over. NOTHING tall within
+  // 10 m of this lens — a lifeguard tower and a dinghy that close filled
+  // the whole frame and hid the hero.
   const dinghy = makeBoat(0xffd76a, false);
   dinghy.position.set(40, 0.0, -102);
   dinghy.rotation.y = 0.8;
@@ -737,14 +793,11 @@ export function buildCity(scene) {
     tw.position.set(tx, 0.07, tz);
     scene.add(tw);
   }
-  // Fix round 4 (v13): the pier shot's bottom-RIGHT foreground was STILL
-  // bare sand. Fix 3 filled the pier deck's south edge, but the sand
-  // strip the low pier camera actually looks over — x 24..36, z -88..-91,
-  // right in front of the lens — had nothing in it. Fill THAT quadrant
-  // with gear spread INTO it, not along an edge: crates, barrels, rope
-  // coils, a plank stack, a bench, a cooler. All low (nothing above
-  // 0.9 m) and at least 5 m from the lens, so they read as foreground
-  // clutter without ever hiding the hero or the deck.
+  // Foreground gear spread into the sand quadrant the low pier camera
+  // looks over (x 24..36, z -88..-91): crates, barrels, rope coils, a
+  // plank stack, a bench, a cooler. All low (nothing above 0.9 m) and
+  // at least 5 m from the lens, so they read as foreground clutter
+  // without ever hiding the hero or the deck.
   const fillWood = new THREE.MeshStandardMaterial({ color: 0xb88a4a, roughness: 0.9 });
   const fillWood2 = new THREE.MeshStandardMaterial({ color: 0x7a9a5a, roughness: 0.9 });
   const fillBarrel = new THREE.MeshStandardMaterial({ color: 0x2e7a9e, roughness: 0.7 });
@@ -771,20 +824,20 @@ export function buildCity(scene) {
   for (let i = 0; i < 3; i++) {
     scene.add(box(2.2, 0.09, 0.5, i % 2 ? plankMat : plankMat2, 29.5, 0.09 + i * 0.10, -89.0));
   }
-  // low bench on the sand, facing the pier, at the quadrant's east edge
-  // (seat + backrest slabs, same build as the pier benches)
+  // Low bench on the sand, facing the pier, at the quadrant's east edge
+  // (seat + backrest slabs, same build as the pier benches).
   scene.add(box(2.0, 0.12, 0.55, plankMat2, 34.5, 0.75, -88.5));
   scene.add(box(2.0, 0.12, 0.55, plankMat2, 34.5, 0.45, -88.5));
   scene.add(box(0.12, 0.4, 0.5, plankMat2, 33.6, 0.6, -88.5));
   scene.add(box(0.12, 0.4, 0.5, plankMat2, 35.4, 0.6, -88.5));
-  // cooler + bait bucket by the crates
+  // Cooler + bait bucket by the crates.
   scene.add(box(0.7, 0.5, 0.45, new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.6 }), 30.5, 0.29, -90.8));
   const baitBucket = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.24, 0.48, 10),
     new THREE.MeshStandardMaterial({ color: 0xffd76a, roughness: 0.7 }));
   baitBucket.position.set(27.2, 0.28, -88.6);
   baitBucket.castShadow = true;
   scene.add(baitBucket);
-  // boats in the bay
+  // Boats in the bay.
   function makeBoat(color, big) {
     const g = new THREE.Group();
     const hullMat = new THREE.MeshPhysicalMaterial({ color, metalness: 0.3, roughness: 0.4, clearcoat: 0.8 });
@@ -799,10 +852,9 @@ export function buildCity(scene) {
     g.add(deck);
     const cabin = box(big ? 1.6 : 1.1, 0.9, big ? 2.2 : 1.5, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }), 0, 1.5, 0.4);
     g.add(cabin);
-    g.add(box(big ? 1.7 : 1.2, 0.4, 0.1, MAT_GLASS(), 0, 1.55, -0.75));
+    g.add(box(big ? 1.7 : 1.2, 0.4, 0.1, new THREE.MeshStandardMaterial({ color: 0x182838, roughness: 0.15, metalness: 0.5 }), 0, 1.55, -0.75));
     return g;
   }
-  function MAT_GLASS() { return new THREE.MeshStandardMaterial({ color: 0x182838, roughness: 0.15, metalness: 0.5 }); }
   const boat1 = makeBoat(0xf2f2ee, true);
   boat1.position.set(66, 0.1, -102);
   boat1.rotation.y = 0.5;
@@ -815,19 +867,18 @@ export function buildCity(scene) {
   boat3.position.set(62, 0.1, -78);
   boat3.rotation.y = 1.2;
   scene.add(boat3);
-  // boats are boardable in M6/M7: the game picks the one nearest the
-  // destination pier exit, never the one nearest the player
+  // Boats are boardable in M6/M7: the game picks the one nearest the
+  // destination pier exit, never the one nearest the player.
   refs.boats = [boat1, boat2, boat3];
 
   // ---- The Docks (north, z = 120..165) ----
-  const dockMat = new THREE.MeshStandardMaterial({ color: 0x8a8a86, roughness: 0.95 });
   const apron = new THREE.Mesh(new THREE.PlaneGeometry(120, 50),
     new THREE.MeshStandardMaterial({ map: sidewalkTexture(), roughness: 0.95 }));
   apron.rotation.x = -Math.PI / 2;
   apron.position.set(-20, 0.04, 142);
   apron.receiveShadow = true;
   scene.add(apron);
-  // gantry crane
+  // Gantry crane.
   const craneMat = new THREE.MeshStandardMaterial({ color: 0xd98a2e, roughness: 0.55, metalness: 0.5 });
   const crane = new THREE.Group();
   for (const [x, z] of [[-38, 128], [-30, 128], [-38, 156], [-30, 156]]) {
@@ -836,13 +887,9 @@ export function buildCity(scene) {
   crane.add(box(10, 2, 30, craneMat, -34, 26, 142));
   crane.add(box(10, 1.6, 4, craneMat, -34, 29, 142));
   crane.add(box(1.2, 1.2, 1.2, new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6 }), -34, 24.5, 136));
-  // NOTE: the crane used to hang a cable + container at (-34, 14.5, 136).
-  // From the docks camera that box lined up directly under the helicopter
-  // and read as a disconnected sling load floating in the air — removed.
   scene.add(crane);
-  // containers, stacked and coloured — ribbed steel (never a flat slab),
-  // muted colours only: the old magenta stacks at x=2 sat right in the
-  // docks camera's face and ate the bottom-right corner of the shot.
+  // Containers, stacked and coloured — ribbed steel (never a flat slab),
+  // muted colours only.
   const contColors = [0xc94a2e, 0x2e7a9e, 0x7a9e2e, 0xd9a02e, 0x3a7a8a, 0x4a6a8a];
   const contSpots = [
     [-52, 132, 0], [-52, 138, 0], [-52, 135, 1], [-58, 132, 0], [-58, 138, 0],
@@ -854,8 +901,8 @@ export function buildCity(scene) {
     c.rotation.y = (i % 3) * 0.02;
     scene.add(c);
   });
-  // warehouses: real buildings with windows, rooflines and awnings on the
-  // camera-facing (+X) side — never flat slabs — plus a dock office sign
+  // Warehouses: real buildings with windows, rooflines and awnings on the
+  // camera-facing (+X) side — never flat slabs — plus a dock office sign.
   for (let i = 0; i < 2; i++) {
     const wh = makeBuilding(1200 + i * 53, 18, 9, 14, [0x9a8a72, 0x7a8a9a][i]);
     wh.position.set(-58 + i * 46, 0, 158);
@@ -865,7 +912,7 @@ export function buildCity(scene) {
   dockSign.position.set(-48.6, 7.5, 158);
   dockSign.rotation.y = Math.PI / 2;
   scene.add(dockSign);
-  // forklift parked by the containers near the hero
+  // Forklift parked by the containers near the hero.
   const fork = new THREE.Group();
   fork.add(box(1.6, 1.1, 2.2, new THREE.MeshStandardMaterial({ color: 0xd9a02e, roughness: 0.6, metalness: 0.3 }), 0, 0.75, 0));
   fork.add(box(1.4, 0.9, 1.0, new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 }), 0, 1.7, 0.3));
@@ -875,8 +922,8 @@ export function buildCity(scene) {
   fork.position.set(-8, 0, 146);
   fork.rotation.y = 0.5;
   scene.add(fork);
-  // extra container rows + crates close to the docks camera, for depth
-  // (flanking the hero, clear of the lens and the camera-hero corridor)
+  // Extra container rows + crates close to the docks camera, for depth
+  // (flanking the hero, clear of the lens and the camera-hero corridor).
   const nearCont = [
     [-18, 144, 0, 0xc94a2e], [-24, 148, 0, 0x2e7a9e], [-26, 140, 0, 0x7a9e2e],
     [-24, 126, 0, 0xd9a02e], [-24, 132, 0, 0x3a7a8a], [-18, 129, 1, 0x4a6a8a],
@@ -892,9 +939,9 @@ export function buildCity(scene) {
     cr.rotation.y = R() * 1.2;
     scene.add(cr);
   }
-  // ---- docks apron detail: the old apron was one flat grey-brown void.
-  // Painted lane lines + a zebra crossing, glossy puddles, oil stains,
-  // bollards along the yard edge and pallet stacks break it up.
+  // ---- docks apron detail: painted lane lines + a zebra crossing,
+  // glossy puddles, oil stains, bollards along the yard edge and pallet
+  // stacks break up the flat grey-brown void.
   const apronMark = new THREE.MeshBasicMaterial({ color: 0xf5c832 });
   function apronStripe(w, l, x, z, ry = 0) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, l), apronMark);
@@ -967,7 +1014,7 @@ export function buildCity(scene) {
   taxi.position.set(-3.4, 0, -60);
   scene.add(taxi);
   refs.traffic.push(taxi);
-  refs.taxi = taxi; // game.js used to find the taxi by fragile position match
+  refs.taxi = taxi; // the game finds the taxi by this ref, never by position
 
   const van = makeVan(0x4a7a9e);
   van.position.set(3.5, 0, 22);
@@ -981,7 +1028,7 @@ export function buildCity(scene) {
   scene.add(scooter);
   refs.traffic.push(scooter);
 
-  // a second police car + sedan on the cross street
+  // A second police car + sedan on the cross street.
   const police3 = makePoliceCar();
   police3.position.set(-18, 0, 60);
   police3.rotation.y = Math.PI / 2;
@@ -1003,42 +1050,42 @@ export function buildCity(scene) {
   const spots = [];
   for (let i = 0; i < 14; i++) {
     spots.push({ x: -9.6 + (R() - 0.5) * 1.2, z: -40 + i * 6.5, y: 0.03, rot: R() > 0.5 ? Math.PI : 0 });
-    // east sidewalk: keep the cover-camera zone (z -2..26) clear so nobody
-    // stands right in front of the lens
+    // East sidewalk: keep the cover-camera zone (z -2..26) clear so nobody
+    // stands right in front of the lens.
     const ez = -44 + i * 6.5;
     if (ez < -2 || ez > 26) spots.push({ x: 9.6 + (R() - 0.5) * 1.2, z: ez, y: 0.03, rot: R() > 0.5 ? Math.PI : 0 });
   }
-  // crosswalk crowd at z = -8
+  // Crosswalk crowd at z = -8.
   for (let i = 0; i < 6; i++) {
     spots.push({ x: -5 + i * 2.1, z: -8 + (R() - 0.5) * 2, y: 0.045, rot: Math.PI / 2 + (R() - 0.5) * 0.4 });
   }
-  // beach crowd
+  // Beach crowd.
   for (let i = 0; i < 16; i++) {
     spots.push({ x: 18 + R() * 36, z: -150 + R() * 300, y: 0.04, rot: R() * Math.PI * 2, scale: 0.95 });
   }
-  // sunbathers + players around the beach-life cluster (near beach camera)
+  // Sunbathers + players around the beach-life cluster (near beach camera).
   for (let i = 0; i < 7; i++) {
     spots.push({ x: 20 + R() * 18, z: -20 + R() * 22, y: 0.04, rot: R() * Math.PI * 2, scale: 0.95 });
   }
-  // south beach sunbathers (fills the beach shot's bottom-right corner)
+  // South beach sunbathers (fills the beach shot's bottom-right corner).
   for (let i = 0; i < 5; i++) {
     spots.push({ x: 24 + R() * 14, z: 6 + R() * 16, y: 0.04, rot: R() * Math.PI * 2, scale: 0.95 });
   }
-  // pier crowd — ON the planks (deck top 0.41), denser now: walkers down
-  // the pier, a pair chatting by the kiosk, anglers at the north rail
+  // Pier crowd — ON the planks (deck top 0.41), denser now: walkers down
+  // the pier, a pair chatting by the kiosk, anglers at the north rail.
   for (let i = 0; i < 12; i++) {
     spots.push({ x: 20 + R() * 44, z: -95 + (R() - 0.5) * 5, y: 0.41, rot: R() * Math.PI * 2 });
   }
-  // fix round 3 (v12): two FIXED walkers on the pier's south edge, in the
-  // new pier shot's right foreground (x 30..34, z -92..-93.5) — 6..11 m
-  // from that lens, so they read as people, never as giants. Both stand
-  // clear of the hero (28.5, -94.5) and of the camera-hero corridor.
+  // Two FIXED walkers on the pier's south edge, in the pier shot's right
+  // foreground (x 30..34, z -92..-93.5) — 6..11 m from that lens, so they
+  // read as people, never as giants. Both stand clear of the hero and of
+  // the camera-hero corridor.
   spots.push({ x: 30.5, z: -92.2, y: 0.41, rot: Math.PI * 0.85 });
   spots.push({ x: 34.0, z: -93.5, y: 0.41, rot: Math.PI * 1.1 });
-  // Fix round 4 (v13): two walkers ON THE SAND in the pier shot's
-  // bottom-right quadrant (x 26..34, z -89..-91), among the new crates
-  // and rope coils — the quadrant gets people as well as gear, and the
-  // nearer one (26, -90.2, ~7 m from the lens) anchors the foreground.
+  // Two walkers ON THE SAND in the pier shot's bottom-right quadrant
+  // (x 26..34, z -89..-91), among the crates and rope coils — the
+  // quadrant gets people as well as gear, and the nearer one anchors
+  // the foreground.
   spots.push({ x: 26.0, z: -90.2, y: 0.04, rot: Math.PI * 0.6 });
   spots.push({ x: 33.5, z: -89.6, y: 0.04, rot: Math.PI * 1.4 });
   for (let i = 0; i < 2; i++) {
@@ -1047,7 +1094,7 @@ export function buildCity(scene) {
   for (const ax of [36, 52, 68]) {
     spots.push({ x: ax + 0.6, z: -98.4, y: 0.41, rot: Math.PI });
   }
-  // docks workers — FIXED spots, hi-vis. Every one is at least 9 m from
+  // Docks workers — FIXED spots, hi-vis. Every one is at least 9 m from
   // the staged hero (-2, 143) AND at least 23 m from the docks camera
   // (5, 150): the first attempt put a worker 3 m from the lens and he
   // filled the whole foreground with his back.

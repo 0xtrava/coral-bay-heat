@@ -1,6 +1,5 @@
 // Coral Bay Heat — HUD wiring: the big circular minimap (canvas, drawn
 // fresh each frame from the player's position) and the crew portraits.
-// Recovery round 21 (2026-11-21): unchanged behaviour, witnessed rebuild.
 import { drawPortrait } from './textures.js';
 
 // City bounds the minimap covers: x -60..80, z -170..170.
@@ -15,11 +14,11 @@ export function initPortraits() {
 }
 
 // Draw the circular minimap. Player arrow, mission marker, police dots,
-// streets with names, coastline and district labels — all legible at 240px.
-// opts.rect: draw the same island map as a RECTANGLE (no circular clip,
-// no rim) for the full map/stats pause screen — the canvas is bigger
-// there, so fonts and markers scale by k = W/480 (k = 1 at the HUD's
-// 480px, so the minimap itself is unchanged).
+// streets with names, coastline and district labels — all legible at
+// 240px. opts.rect draws the same island map as a RECTANGLE (no circular
+// clip, no rim) for the full map/stats pause screen — the canvas is
+// bigger there, so fonts and markers scale by k = W/480 (k = 1 at the
+// HUD's 480px, so the minimap itself is unchanged).
 export function drawMinimap(ctx, px, pz, prot, opts = {}) {
   const W = ctx.canvas.width, H = ctx.canvas.height;
   const k = W / 480; // scale factor for fonts/markers on a bigger canvas
@@ -28,19 +27,19 @@ export function drawMinimap(ctx, px, pz, prot, opts = {}) {
   ctx.clearRect(0, 0, W, H);
   ctx.save();
   if (!opts.rect) {
-    // clip to the circle
+    // Clip to the circle.
     ctx.beginPath(); ctx.arc(W / 2, H / 2, W / 2, 0, 7); ctx.clip();
   }
-  // land
+  // Land.
   ctx.fillStyle = '#3d5a3a'; ctx.fillRect(0, 0, W, H);
-  // ocean (east)
+  // Ocean (east).
   ctx.fillStyle = '#0e7fa8';
   ctx.beginPath();
   ctx.moveTo(X(62), 0);
   ctx.bezierCurveTo(X(58), H * 0.3, X(66), H * 0.6, X(60), H);
   ctx.lineTo(W, H); ctx.lineTo(W, 0); ctx.closePath();
   ctx.fill();
-  // beach strip
+  // Beach strip.
   ctx.fillStyle = '#e8c98f';
   ctx.beginPath();
   ctx.moveTo(X(56), 0);
@@ -49,13 +48,13 @@ export function drawMinimap(ctx, px, pz, prot, opts = {}) {
   ctx.bezierCurveTo(X(66), H * 0.6, X(58), H * 0.3, X(62), 0);
   ctx.closePath();
   ctx.fill();
-  // docks apron (north)
+  // Docks apron (north).
   ctx.fillStyle = '#8a8a86';
   ctx.fillRect(X(-58), Z(120), X(10) - X(-58), Z(165) - Z(120));
-  // pier
+  // Pier.
   ctx.fillStyle = '#9a6a42';
   ctx.fillRect(X(14), Z(-99), X(74) - X(14), Z(-91) - Z(-99));
-  // streets
+  // Streets.
   ctx.strokeStyle = '#c8c2b2'; ctx.lineCap = 'round';
   const streets = [
     { x1: 0, z1: -170, x2: 0, z2: 170, w: 13 },   // Strand Blvd
@@ -73,12 +72,12 @@ export function drawMinimap(ctx, px, pz, prot, opts = {}) {
     ctx.moveTo(X(s.x1), Z(s.z1)); ctx.lineTo(X(s.x2), Z(s.z2));
     ctx.stroke();
   }
-  // street centre lines
+  // Street centre lines.
   ctx.strokeStyle = '#f5c832'; ctx.lineWidth = 2;
   ctx.setLineDash([8, 8]);
   ctx.beginPath(); ctx.moveTo(X(0), Z(-170)); ctx.lineTo(X(0), Z(170)); ctx.stroke();
   ctx.setLineDash([]);
-  // district labels — readable words, not single letters
+  // District labels — readable words, not single letters.
   ctx.fillStyle = '#ffffff';
   ctx.textAlign = 'center';
   ctx.font = `bold ${Math.round(21 * k)}px Arial`;
@@ -90,7 +89,7 @@ export function drawMinimap(ctx, px, pz, prot, opts = {}) {
   ctx.font = `bold ${Math.round(17 * k)}px Arial`;
   ctx.fillStyle = '#ffe9a8';
   ctx.fillText('GARAGE', X(-30), Z(96));
-  // street names
+  // Street names.
   ctx.font = `bold ${Math.round(14 * k)}px Arial`;
   ctx.fillStyle = '#ffe9a8';
   ctx.save();
@@ -101,21 +100,21 @@ export function drawMinimap(ctx, px, pz, prot, opts = {}) {
   ctx.translate(X(-30), Z(54)); ctx.rotate(0);
   ctx.fillText('CROSS ST', 0, 0);
   ctx.restore();
-  // north arrow
+  // North arrow.
   ctx.fillStyle = '#fff';
   ctx.font = `bold ${Math.round(20 * k)}px Arial`;
   ctx.fillText('N', W / 2, 42 * k);
   ctx.beginPath();
   ctx.moveTo(W / 2, 46 * k); ctx.lineTo(W / 2 - 7 * k, 62 * k); ctx.lineTo(W / 2 + 7 * k, 62 * k);
   ctx.closePath(); ctx.fill();
-  // mission marker (marina lot)
+  // Mission marker (marina lot).
   const mx = X(8), my = Z(-60);
   ctx.fillStyle = '#ffd76a';
   ctx.beginPath(); ctx.arc(mx, my, 13 * k, 0, 7); ctx.fill();
   ctx.fillStyle = '#1a1200';
   ctx.font = `bold ${Math.round(16 * k)}px Arial`;
   ctx.fillText('!', mx, my + 6 * k);
-  // police dots
+  // Police dots.
   const police = opts.police || [[-3.4, -13], [3.6, -26], [-18, 60]];
   for (const [x, z] of police) {
     ctx.fillStyle = '#ff3b30';
@@ -123,7 +122,7 @@ export function drawMinimap(ctx, px, pz, prot, opts = {}) {
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * k;
     ctx.stroke();
   }
-  // player arrow
+  // Player arrow.
   const pxx = X(px), pzz = Z(pz);
   ctx.save();
   ctx.translate(pxx, pzz);
@@ -134,18 +133,18 @@ export function drawMinimap(ctx, px, pz, prot, opts = {}) {
   ctx.moveTo(0, -16 * k); ctx.lineTo(11 * k, 12 * k); ctx.lineTo(0, 6 * k); ctx.lineTo(-11 * k, 12 * k);
   ctx.closePath(); ctx.fill(); ctx.stroke();
   ctx.restore();
-  // view ring around the player
+  // View ring around the player.
   ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2 * k;
   ctx.beginPath(); ctx.arc(pxx, pzz, 26 * k, 0, 7); ctx.stroke();
   ctx.restore();
   if (opts.rect) {
-    // rectangular frame for the pause screen, in place of the rim
+    // Rectangular frame for the pause screen, in place of the rim.
     ctx.strokeStyle = 'rgba(55,224,200,0.9)'; ctx.lineWidth = 4;
     ctx.strokeRect(2, 2, W - 4, H - 4);
     return;
   }
-  // rim: a dark outer ring first, so the circle reads as a solid disc even
-  // when a bright 3D object (lamp globe, awning) sits right behind its edge
+  // Rim: a dark outer ring first, so the circle reads as a solid disc
+  // even when a bright 3D object sits right behind its edge.
   ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 12;
   ctx.beginPath(); ctx.arc(W / 2, H / 2, W / 2 - 6, 0, 7); ctx.stroke();
   ctx.strokeStyle = 'rgba(55,224,200,0.9)'; ctx.lineWidth = 6;
@@ -166,7 +165,7 @@ export function updateHud(state) {
   if (tag) tag.textContent = `WANTED · LEVEL ${state.wanted} · AIR UNIT DEPLOYED`;
 }
 
-// Full HUD render from the Phase 2 game state: mission panel, police table,
+// Full HUD render from the game state: mission panel, police table,
 // cash, fixer rank/RP, weapon slots, radio line, dialogue, vitals, packages.
 export function renderHud(s) {
   updateHud(s);

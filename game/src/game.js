@@ -1,7 +1,8 @@
-// Coral Bay Heat — Phase 2: missions M1-M8, wanted police, shops, weapons,
+// Coral Bay Heat — missions M1-M8, wanted police, shops, weapons,
 // crew, radio, taxi, packages, save/load, fail + retry, autopilot harness.
-// The game owns the player state (position, heading, speed, mode); main.js
-// renders the driven vehicle, the on-foot avatar and the camera from it.
+// The game owns the player state (position, heading, speed, mode);
+// main.js renders the driven vehicle, the on-foot avatar and the camera
+// from it.
 import { makeCivilianCar, makePoliceCar } from './cars.js';
 
 const SAVE_KEY = 'coral-bay-heat-save-v1';
@@ -120,12 +121,11 @@ export function createGame(ctx) {
   waitingCar.position.set(20, 0, 140);
   waitingCar.rotation.y = -0.4;
   scene.add(waitingCar);
-  // Fix round 2 (v11): the taxi used to be found by matching its position
-  // (z === -60 && x < 0) — brittle if the traffic layout ever moves. The
-  // city now hands it over directly as refs.taxi.
+  // The city hands the taxi over directly as refs.taxi — never found by
+  // matching its position, which breaks the moment traffic moves.
   const taxiMesh = refs.taxi || refs.traffic[4];
 
-  // objective beacon: gold ring + beam, moved to the current step target
+  // Objective beacon: gold ring + beam, moved to the current step target.
   const beaconMat = new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.85 });
   const beacon = new THREE.Group();
   const ring = new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.18, 8, 28), beaconMat);
@@ -140,7 +140,7 @@ export function createGame(ctx) {
   beacon.add(beam);
   scene.add(beacon);
 
-  // package pickups (gold crates)
+  // Package pickups (gold crates).
   const pkgMeshes = [];
   const pkgSpots = [[6, -140], [-6, 60], [6, 120], [-6, -40]];
   for (const [x, z] of pkgSpots) {
@@ -154,7 +154,7 @@ export function createGame(ctx) {
     scene.add(p);
     pkgMeshes.push(p);
   }
-  // cash drop at the docks (M5)
+  // Cash drop at the docks (M5).
   const cashMesh = new THREE.Group();
   const cashBox = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.7, 0.9),
     new THREE.MeshStandardMaterial({ color: 0x2ee66b, roughness: 0.35, metalness: 0.3, emissive: 0x1a8a3a, emissiveIntensity: 0.6 }));
@@ -164,7 +164,7 @@ export function createGame(ctx) {
   cashMesh.visible = false;
   scene.add(cashMesh);
 
-  // rivals (M2 ambush) and police chasers, hidden until needed
+  // Rivals (M2 ambush) and police chasers, hidden until needed.
   const rivals = [];
   for (let i = 0; i < 2; i++) {
     const r = makeCivilianCar(i === 0 ? 0x8a1a2a : 0x1a1a22);
@@ -245,7 +245,7 @@ export function createGame(ctx) {
     state.step++;
     if (state.step >= mission().steps.length) completeMission();
     else {
-      // M8 finale: the escape leg runs under four stars
+      // M8 finale: the escape leg runs under four stars.
       if (state.mission === 7 && state.step === 2) state.wanted = 4;
       placeBeacon();
     }
@@ -257,9 +257,9 @@ export function createGame(ctx) {
     state.cash += m.reward;
     state.rp = Math.min(state.rpMax, state.rp + 350);
     if (state.rp >= state.rpMax) { state.rank = 'B'; }
-    // Mara's crew patches the car up between jobs
+    // Mara's crew patches the car up between jobs.
     state.health = state.maxHealth;
-    // M1: Mara swaps you back into the Coral GT at the garage
+    // M1: Mara swaps you back into the Coral GT at the garage.
     if (state.mission === 0 && state.vehicle === 'sedan') state.vehicle = 'hero';
     toast(`${m.id} COMPLETE — +$${m.reward.toLocaleString()}`);
     saveGame();
@@ -406,7 +406,7 @@ export function createGame(ctx) {
     const w = state.weapons.find((x) => x.sel) || state.weapons[1];
     if (w.name !== 'FISTS' && w.ammo <= 0) { toast('Out of ammo — visit the gun store'); return { ok: false, why: 'no ammo' }; }
     if (w.name !== 'FISTS') w.ammo--;
-    // hits a rival or chaser roughly ahead within 35 m
+    // Hits a rival or chaser roughly ahead within 35 m.
     for (const r of rivals) {
       if (!r.active) continue;
       const d = dist(state.pos.x, state.pos.z, r.mesh.position.x, r.mesh.position.z);
@@ -425,7 +425,7 @@ export function createGame(ctx) {
       r.mesh.visible = false;
       toast('Rival taken out');
     } else {
-      // shoved back a little and stunned — the ram lands, the chase ends
+      // Shoved back a little and stunned — the ram lands, the chase ends.
       const dx = r.mesh.position.x - state.pos.x;
       const dz = r.mesh.position.z - state.pos.z;
       const d = Math.hypot(dx, dz) || 1;
@@ -467,7 +467,7 @@ export function createGame(ctx) {
     syncHud();
   }
   function pickBoatForDestination() {
-    // nearest the DESTINATION pier exit, never nearest the player
+    // Nearest the DESTINATION pier exit, never nearest the player.
     let best = -1, bestD = Infinity;
     refs.boats.forEach((b, i) => {
       const d = dist(b.position.x, b.position.z, DEST_EXIT.x, DEST_EXIT.z);
@@ -500,10 +500,10 @@ export function createGame(ctx) {
     else if (d < 6) { throttle = 0.35; }
     else throttle = 1;
     if (d < 3) brake = 1;
-    // honour the approach cap: a slow, tight approach actually lands a ram
+    // Honour the approach cap: a slow, tight approach actually lands a ram.
     if (maxSpeed && state.speed > maxSpeed) { throttle = 0; brake = 1; }
-    // slow down to turn, and slow down to close in: a car at 38 m/s cannot
-    // swing onto a target behind it or stop inside a 4 m circle
+    // Slow down to turn, and slow down to close in: a car at 38 m/s cannot
+    // swing onto a target behind it or stop inside a 4 m circle.
     const turnCap = Math.abs(err) > 0.9 ? 8 : Infinity;
     const approachCap = 6 + d * 0.6;
     const cap = Math.min(turnCap, approachCap, maxSpeed || Infinity);
@@ -542,7 +542,7 @@ export function createGame(ctx) {
           if (k.dist < 5) { state.mode = 'foot'; state.speed = 0; }
           break;
         }
-        // on foot by the sedan: take it
+        // On foot by the sedan: take it.
         if (dist(state.pos.x, state.pos.z, sedan.position.x, sedan.position.z) < 5) {
           state.vehicle = 'sedan'; state.mode = 'car'; state.speed = 0;
           state.taxiMode = false;
@@ -557,7 +557,7 @@ export function createGame(ctx) {
         const r = alive[0];
         Object.assign(k, steerTo(r.mesh.position.x, r.mesh.position.z, dt, 8));
         if (k.dist < 4.5) damageRival(r, 1);
-        // shoot whenever roughly aimed: the ambush ends by gunfire as well
+        // Shoot whenever roughly aimed: the ambush ends by gunfire as well.
         if (k.dist < 25) {
           const want = Math.atan2(-(r.mesh.position.x - state.pos.x), -(r.mesh.position.z - state.pos.z));
           if (Math.abs(angDiff(want, state.heading)) < 0.8) shoot();
@@ -578,10 +578,10 @@ export function createGame(ctx) {
       }
       case 'hide': {
         const d = dist(state.pos.x, state.pos.z, s.x, s.z);
-        // slow approach: the car must STOP inside the alley, not blow through it
+        // Slow approach: the car must STOP inside the alley, not blow through it.
         if (d > s.r) { Object.assign(k, steerTo(s.x, s.z, dt, 8)); break; }
         if (Math.abs(state.speed) > 1.5) { k.brake = 1; break; }
-        // hidden: heat fades
+        // Hidden: heat fades.
         state.hideT += dt;
         const rate = state.kikiT > 0 ? 2.5 : 4;
         if (state.hideT >= rate) { state.hideT = 0; state.wanted = Math.max(0, state.wanted - 1); syncHud(); }
@@ -615,7 +615,7 @@ export function createGame(ctx) {
       }
       case 'board': {
         if (state.mode === 'car') { state.mode = 'foot'; state.speed = 0; break; }
-        // chosen boat glides to the pier end, then board
+        // Chosen boat glides to the pier end, then board.
         const bi = pickBoatForDestination();
         const b = refs.boats[bi];
         b.position.x += clamp(64 - b.position.x, -6 * dt, 6 * dt);
@@ -653,7 +653,7 @@ export function createGame(ctx) {
   function updatePolice(dt) {
     const want = state.wanted;
     const active = Math.min(want, 3);
-    // hidden in the garage alley, engine off: the CBPD loses the trail
+    // Hidden in the garage alley, engine off: the CBPD loses the trail.
     const hidden = state.mission === 3 && Math.abs(state.speed) < 1.5 &&
       dist(state.pos.x, state.pos.z, HIDE_ZONE.x, HIDE_ZONE.z) < 10;
     chasers.forEach((c, i) => {
@@ -678,7 +678,7 @@ export function createGame(ctx) {
           if (state.health <= 0) { state.health = 0; fail('wrecked'); }
           syncHud();
         }
-        // busted on foot at high heat
+        // Busted on foot at high heat.
         if (state.mode === 'foot' && want >= 4 && d < 3) {
           state.bustT += dt;
           if (state.bustT > 2) fail('busted');
@@ -687,7 +687,7 @@ export function createGame(ctx) {
         c.mesh.visible = false;
       }
     });
-    // rivals shoot during the ambush
+    // Rivals shoot during the ambush.
     for (const r of rivals) {
       if (!r.active) continue;
       r.shootT -= dt;
@@ -698,7 +698,7 @@ export function createGame(ctx) {
         if (state.health <= 0) { state.health = 0; fail('wrecked'); }
         syncHud();
       }
-      // rivals creep toward the player, leashed to the meet block
+      // Rivals creep toward the player, leashed to the meet block.
       if (r.stun > 0) { r.stun -= dt; continue; }
       if (d > 6) {
         const wantA = Math.atan2(-(state.pos.x - r.mesh.position.x), -(state.pos.z - r.mesh.position.z));
@@ -706,7 +706,7 @@ export function createGame(ctx) {
         r.mesh.position.x += -Math.sin(wantA) * 7 * dt;
         r.mesh.position.z += -Math.cos(wantA) * 7 * dt;
       }
-      // leash: never drag the fight out of the downtown block
+      // Leash: never drag the fight out of the downtown block.
       const ld = dist(r.mesh.position.x, r.mesh.position.z, -24, -120);
       if (ld > 30) {
         r.mesh.position.x += (-24 - r.mesh.position.x) / ld * 5 * dt;
@@ -738,15 +738,15 @@ export function createGame(ctx) {
     if (!k.throttle && !k.brake) state.speed *= Math.max(0, 1 - (state.mode === 'foot' ? 2.5 : 0.6) * dt);
     state.speed = clamp(state.speed, state.mode === 'foot' ? 0 : -8, maxSp);
     if (Math.abs(state.speed) > 0.2 || k.throttle) {
-      // tight low-speed turning: the car must be able to swing onto a
-      // target a few metres away instead of orbiting it at 20 m
+      // Tight low-speed turning: the car must be able to swing onto a
+      // target a few metres away instead of orbiting it at 20 m.
       const spd = Math.abs(state.speed);
       const authority = 0.9 + 0.9 * (1 - Math.min(1, spd / 20));
       state.heading += k.steer * authority * dt * (state.speed >= 0 ? 1 : -1);
     }
     state.pos.x += -Math.sin(state.heading) * state.speed * dt;
     state.pos.z += -Math.cos(state.heading) * state.speed * dt;
-    // keep inside the island (boats stay in the bay: x 58..200, z -170..170)
+    // Keep inside the island (boats stay in the bay: x 58..200, z -170..170).
     if (state.mode === 'boat') {
       state.pos.x = clamp(state.pos.x, 58, 200);
       state.pos.z = clamp(state.pos.z, -170, 170);
@@ -754,18 +754,18 @@ export function createGame(ctx) {
       state.pos.x = clamp(state.pos.x, -60, 70);
       state.pos.z = clamp(state.pos.z, -168, 168);
     }
-    // taxi fares
+    // Taxi fares.
     if (state.taxiMode && state.mode === 'car' && Math.abs(state.speed) > 1) {
       const earn = Math.abs(state.speed) * dt * 0.4;
       state.cash += earn;
       state.taxiEarned += earn;
     }
-    // beacon pulse
+    // Beacon pulse.
     beacon.rotation.y += dt;
     ring.scale.setScalar(1 + Math.sin(state.playT * 3) * 0.08);
 
     updatePolice(dt);
-    // heli follows the player at high wanted (free mode only; shots stage it)
+    // Heli follows the player at high wanted (free mode only; shots stage it).
     if (refs.heli && state.wanted >= 3 && !ctx.isShot) {
       refs.heli.position.x += (state.pos.x - refs.heli.position.x) * Math.min(1, dt * 0.5);
       refs.heli.position.z += (state.pos.z - 20 - refs.heli.position.z) * Math.min(1, dt * 0.5);
@@ -837,7 +837,7 @@ export function createGame(ctx) {
     };
   }
 
-  // public API (also exposed as window.__GAME__ by main.js)
+  // Public API (also exposed as window.__GAME__ by main.js).
   const api = {
     state, tick, startMission, retry, fail, saveGame, loadGame,
     buyWeapon, buyUpgrade, useCrew, nextRadio, selectWeapon, shoot,

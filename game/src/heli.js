@@ -1,8 +1,8 @@
-// Coral Bay Heat — police helicopter. Big, dark, silhouetted against the
-// sky, main rotor with a translucent blur disc so it reads as spinning.
-// Recovery round 21 (2026-11-21): unchanged behaviour, witnessed rebuild.
-// Fix round 2 (v11): POLICE side lettering + tail band + belly spotlight,
-// so it reads as a CBPD air unit from any angle — never a plain dark blob.
+// Coral Bay Heat — police helicopter. Big and dark, silhouetted against
+// the sky, with a main rotor plus a translucent blur disc so it reads as
+// spinning even in a still screenshot. POLICE flank lettering, a white
+// tail band and a belly spotlight pod mark it as a CBPD air unit from
+// any angle — never a plain dark blob.
 import * as THREE from 'three';
 import { textTexture } from './cars.js';
 
@@ -13,7 +13,7 @@ export function makeHelicopter() {
   const glassMat = new THREE.MeshPhysicalMaterial({ color: 0x182838, roughness: 0.1, metalness: 0.5, clearcoat: 1 });
   const accent = new THREE.MeshStandardMaterial({ color: 0xffc832, roughness: 0.4, metalness: 0.4 });
 
-  // fuselage: rounded cabin from a stretched sphere + belly box
+  // Fuselage: a rounded cabin from a stretched sphere, with a belly box.
   const cabin = new THREE.Mesh(new THREE.SphereGeometry(1.15, 20, 14), bodyMat);
   cabin.scale.set(1.0, 0.95, 1.55);
   cabin.castShadow = true;
@@ -21,17 +21,17 @@ export function makeHelicopter() {
   const belly = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.5, 2.2), darkMat);
   belly.position.set(0, -0.75, 0.2);
   heli.add(belly);
-  // cockpit glass
+
+  // Cockpit glass at the nose.
   const glass = new THREE.Mesh(new THREE.SphereGeometry(0.95, 16, 12), glassMat);
   glass.scale.set(0.92, 0.72, 0.9);
   glass.position.set(0, 0.12, -1.05);
   heli.add(glass);
-  // nose stripe + CBPD-style marking band
+
+  // Nose stripe, then POLICE on both flanks and a white tail band.
   const stripe = new THREE.Mesh(new THREE.BoxGeometry(1.62, 0.16, 0.5), accent);
   stripe.position.set(0, -0.15, -0.9);
   heli.add(stripe);
-  // POLICE lettering on both flanks + a white tail band: the air unit
-  // must read as police even when the light bar is out of frame
   for (const side of [-1, 1]) {
     const decal = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.45),
       new THREE.MeshBasicMaterial({ map: textTexture('POLICE', '#ffd76a'), transparent: true }));
@@ -43,7 +43,9 @@ export function makeHelicopter() {
     new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.5 }));
   tailBand.position.set(0, 0.28, 3.6);
   heli.add(tailBand);
-  // belly spotlight pod (the searchlight cone hangs from this, not from air)
+
+  // Belly spotlight pod: the searchlight cone hangs from this, not
+  // from thin air.
   const spotPod = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.34, 0.3, 12), darkMat);
   spotPod.position.set(0, -1.0, -1.2);
   heli.add(spotPod);
@@ -52,7 +54,8 @@ export function makeHelicopter() {
   spotLens.rotation.x = Math.PI / 2;
   spotLens.position.set(0, -1.16, -1.2);
   heli.add(spotLens);
-  // tail boom + fins
+
+  // Tail boom with vertical and horizontal fins.
   const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.42, 3.4, 10), bodyMat);
   boom.rotation.x = Math.PI / 2 - 0.10;
   boom.position.set(0, 0.28, 2.9);
@@ -64,7 +67,8 @@ export function makeHelicopter() {
   const finH = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.07, 0.5), darkMat);
   finH.position.set(0, 0.45, 4.3);
   heli.add(finH);
-  // tail rotor (small, spins fast)
+
+  // Tail rotor: two crossed blades, spinning fast.
   const tailRotor = new THREE.Group();
   for (let i = 0; i < 2; i++) {
     const b = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.5, 0.05), darkMat);
@@ -74,7 +78,8 @@ export function makeHelicopter() {
   tailRotor.position.set(0.32, 0.45, 4.55);
   tailRotor.rotation.y = Math.PI / 2;
   heli.add(tailRotor);
-  // skids
+
+  // Skids on struts.
   for (const side of [-1, 1]) {
     const skid = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.6, 8), darkMat);
     skid.rotation.x = Math.PI / 2;
@@ -86,8 +91,9 @@ export function makeHelicopter() {
       heli.add(strut);
     }
   }
-  // searchlight cone (translucent, points down from the heli: apex at the
-  // heli, wide base on the ground)
+
+  // Searchlight cone: translucent, apex at the heli, wide base on the
+  // ground. Opacity is driven by the staging code in main.js.
   const coneMat = new THREE.MeshBasicMaterial({
     color: 0xfff2b0, transparent: true, opacity: 0.10,
     blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
@@ -95,7 +101,9 @@ export function makeHelicopter() {
   const cone = new THREE.Mesh(new THREE.ConeGeometry(1.9, 9, 20, 1, true), coneMat);
   cone.position.set(0, -5.2, -1.2);
   heli.add(cone);
-  // main rotor mast + blades + blur disc
+
+  // Main rotor: mast, four blades, and a blur disc so the spin reads in
+  // a still frame.
   const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.7, 10), darkMat);
   mast.position.set(0, 1.35, 0);
   heli.add(mast);
@@ -103,15 +111,13 @@ export function makeHelicopter() {
   rotor.position.set(0, 1.7, 0);
   const bladeMat = new THREE.MeshStandardMaterial({ color: 0x11151c, roughness: 0.5, metalness: 0.5 });
   for (let i = 0; i < 4; i++) {
-    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.05, 4.6), bladeMat);
-    blade.position.z = i % 2 === 0 ? 0 : 0;
     const holder = new THREE.Group();
     holder.rotation.y = (i * Math.PI) / 2;
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.05, 4.6), bladeMat);
     blade.position.set(0, 0, 2.3);
     holder.add(blade);
     rotor.add(holder);
   }
-  // blur disc: reads as a spinning rotor even in a still screenshot
   const blur = new THREE.Mesh(
     new THREE.CircleGeometry(4.7, 40),
     new THREE.MeshBasicMaterial({
@@ -131,6 +137,7 @@ export function makeHelicopter() {
   blurRing.rotation.x = -Math.PI / 2;
   rotor.add(blurRing);
   heli.add(rotor);
+
   heli.userData.rotor = rotor;
   heli.userData.tailRotor = tailRotor;
   heli.userData.cone = cone;

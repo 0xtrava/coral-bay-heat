@@ -5,11 +5,16 @@
 // time, the other stays vertical), so no frame ever shows both feet in the
 // air. Variety: skin / shirt / pants / hair / hats differ per seed, some
 // wear shorts, some stand or chat instead of walking.
+//
+// QUALITY PUSH: faces now read at a glance — eyes, brows, a nose hint and
+// a mouth, plus ears — and the police uniform carries the full kit: radio
+// on the shoulder, name tag, duty belt with pouches, and boots. Civilians
+// get more variety: backpacks, sunglasses, more hats and colours.
 import * as THREE from 'three';
 
-const SHIRTS = [0xff5d8f, 0x37e0c8, 0xffd76a, 0x6ad8ff, 0xff9d2e, 0x9d7bff, 0x7dff9a, 0xf2f2ee, 0xff6b4a, 0xe8e8e8, 0x2e8a6a];
-const PANTS = [0x2a2f45, 0x4a3a28, 0x3a5a7a, 0x555555, 0x7a2d4d, 0x1e3a2a];
-const SKINS = [0xe8b98a, 0xc98d5f, 0x8a5a34, 0xf0c49a, 0xa06a3f];
+const SHIRTS = [0xff5d8f, 0x37e0c8, 0xffd76a, 0x6ad8ff, 0xff9d2e, 0x9d7bff, 0x7dff9a, 0xf2f2ee, 0xff6b4a, 0xe8e8e8, 0x2e8a6a, 0xc94f6d, 0x4a90d9];
+const PANTS = [0x2a2f45, 0x4a3a28, 0x3a5a7a, 0x555555, 0x7a2d4d, 0x1e3a2a, 0x6a6a72];
+const SKINS = [0xe8b98a, 0xc98d5f, 0x8a5a34, 0xf0c49a, 0xa06a3f, 0x6b4423];
 const HAIRS = [0x1c1c22, 0x3a1f0d, 0xd8b13a, 0x6a6a72, 0x8a2d2d, 0x111111];
 const SHOES = [0x1c1c22, 0x3a2a1a, 0xf2f2ee, 0x8a2d2d, 0x2a4a6a];
 const HATS = [0xff5d8f, 0xffd76a, 0x37e0c8, 0xf2f2ee, 0x2e5a8a];
@@ -32,7 +37,7 @@ export function makePerson(seed = 1, scale = 1, opts = {}) {
   const rnd = seededRnd(seed);
   const g = new THREE.Group();
   const skin = mat(SKINS[Math.floor(rnd() * SKINS.length)], 0.7);
-  // hi-vis dock workers: orange vest shirt, so the docks crew reads at a
+  // Hi-vis dock workers: orange vest shirt, so the docks crew reads at a
   // glance and never blends into a container wall. opts.shirt forces a
   // specific shirt colour — the PLAYER shooter wears a red jacket, so
   // he reads as the player, not an NPC.
@@ -47,6 +52,8 @@ export function makePerson(seed = 1, scale = 1, opts = {}) {
   const s = scale * (h / 1.7);
   const shorts = !opts.noShorts && rnd() < 0.35;
   const mode = rnd() < 0.55 ? 'walk' : rnd() < 0.72 ? 'stand' : 'chat';
+  const backpack = !opts.hivis && !opts.shirt && rnd() < 0.25;
+  const shades = !opts.hivis && rnd() < 0.22;
 
   // ---- torso: chest + shoulder bar + waist ----
   const torso = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.52, 0.24), shirt);
@@ -59,15 +66,65 @@ export function makePerson(seed = 1, scale = 1, opts = {}) {
     mat(0x222222, 0.7));
   waist.position.y = 0.80;
   g.add(waist);
+  // Backpack: a coloured slab on the back with two straps, for variety.
+  if (backpack) {
+    const packMat = mat([0x2e5a8a, 0x8a2d2d, 0x2e8a6a][Math.floor(rnd() * 3)], 0.8);
+    const pack = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.38, 0.12), packMat);
+    pack.position.set(0, 1.08, 0.17);
+    pack.castShadow = true;
+    g.add(pack);
+    for (const sx of [-0.13, 0.13]) {
+      const strap = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.30, 0.02), mat(0x1c1c22, 0.8));
+      strap.position.set(sx, 1.10, -0.13);
+      g.add(strap);
+    }
+  }
 
-  // ---- head: rounded, with one of five hair/hat styles ----
+  // ---- head: rounded, with a FACE and one of five hair/hat styles ----
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.135, 12, 10), skin);
   head.scale.set(1, 1.18, 1.02);
   head.position.y = 1.50; head.castShadow = true;
   g.add(head);
+  // Face: two eyes, brows, a nose hint and a mouth — the figure reads as
+  // a person at a glance instead of a blank mannequin. Faces forward
+  // (-Z), the direction the figure walks.
+  const dark = mat(0x1c1c22, 0.6);
+  for (const ex of [-0.05, 0.05]) {
+    const eye = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.03, 0.01), dark);
+    eye.position.set(ex, 1.52, -0.135);
+    g.add(eye);
+    const brow = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.012, 0.01), hair);
+    brow.position.set(ex, 1.565, -0.132);
+    g.add(brow);
+  }
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.05, 0.02), skin);
+  nose.position.set(0, 1.47, -0.14);
+  g.add(nose);
+  const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.012, 0.01),
+    mat(0x7a3a28, 0.7));
+  mouth.position.set(0, 1.41, -0.135);
+  g.add(mouth);
+  // Ears on both sides.
+  for (const side of [-1, 1]) {
+    const ear = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.05, 0.04), skin);
+    ear.position.set(side * 0.135, 1.50, 0);
+    g.add(ear);
+  }
+  // Sunglasses: dark lenses + bridge, for the beach crowd.
+  if (shades) {
+    const lensMat = mat(0x0c1016, 0.25);
+    for (const ex of [-0.05, 0.05]) {
+      const lens = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, 0.015), lensMat);
+      lens.position.set(ex, 1.52, -0.14);
+      g.add(lens);
+    }
+    const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.012, 0.012), lensMat);
+    bridge.position.set(0, 1.52, -0.14);
+    g.add(bridge);
+  }
   const style = opts.hivis ? 0.95 : rnd(); // hi-vis workers wear a hard hat
   if (opts.hivis) {
-    // hard hat: yellow dome + brim, unmistakable at docks distance
+    // Hard hat: yellow dome + brim, unmistakable at docks distance.
     const dome = new THREE.Mesh(new THREE.SphereGeometry(0.155, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55),
       mat(0xffd21a, 0.5));
     dome.position.y = 1.53;
@@ -75,7 +132,7 @@ export function makePerson(seed = 1, scale = 1, opts = {}) {
     const brimH = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.02, 12), mat(0xffd21a, 0.5));
     brimH.position.y = 1.55;
     g.add(brimH);
-    // reflective silver stripes across the vest
+    // Reflective silver stripes across the vest.
     const stripeMat = mat(0xe8ecf0, 0.4);
     for (const sy of [0.95, 1.18]) {
       const st = new THREE.Mesh(new THREE.BoxGeometry(0.43, 0.05, 0.25), stripeMat);
@@ -83,12 +140,12 @@ export function makePerson(seed = 1, scale = 1, opts = {}) {
       g.add(st);
     }
   } else if (style < 0.42) {
-    // short hair: cap over the crown
+    // Short hair: cap over the crown.
     const cap = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.52), hair);
     cap.position.y = 1.53;
     g.add(cap);
   } else if (style < 0.62) {
-    // long hair: cap + back panel to the shoulders
+    // Long hair: cap + back panel to the shoulders.
     const cap = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), hair);
     cap.position.y = 1.53;
     g.add(cap);
@@ -96,7 +153,7 @@ export function makePerson(seed = 1, scale = 1, opts = {}) {
     back.position.set(0, 1.32, 0.12);
     g.add(back);
   } else if (style < 0.76) {
-    // bun
+    // Bun.
     const cap = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5), hair);
     cap.position.y = 1.53;
     g.add(cap);
@@ -104,7 +161,7 @@ export function makePerson(seed = 1, scale = 1, opts = {}) {
     bun.position.set(0, 1.66, 0.06);
     g.add(bun);
   } else if (style < 0.9) {
-    // baseball cap
+    // Baseball cap.
     const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.135, 0.14, 0.09, 12),
       mat(HATS[Math.floor(rnd() * HATS.length)], 0.8));
     crown.position.y = 1.60;
@@ -114,7 +171,7 @@ export function makePerson(seed = 1, scale = 1, opts = {}) {
     brim.position.set(0, 1.565, -0.17);
     g.add(brim);
   } else {
-    // afro
+    // Afro.
     const afro = new THREE.Mesh(new THREE.SphereGeometry(0.175, 12, 10), hair);
     afro.position.y = 1.56;
     g.add(afro);
@@ -166,17 +223,17 @@ export function makePerson(seed = 1, scale = 1, opts = {}) {
 
   // ---- pose ----
   if (mode === 'stand') {
-    // feet together, arms relaxed at the sides
+    // Feet together, arms relaxed at the sides.
     legL.position.x = -0.09; legR.position.x = 0.09;
     armL.rotation.x = 0.06; armR.rotation.x = 0.06;
   } else if (mode === 'chat') {
-    // feet together, one hand raised mid-gesture
+    // Feet together, one hand raised mid-gesture.
     legL.position.x = -0.09; legR.position.x = 0.09;
     armR.rotation.x = -0.85;
     armR.rotation.z = -0.25;
     armL.rotation.x = 0.15;
   } else {
-    // mid-stride start pose: one leg forward, one planted — never both airborne
+    // Mid-stride start pose: one leg forward, one planted — never both airborne.
     legL.rotation.x = 0.38;
     armR.rotation.x = -0.32;
     armL.rotation.x = 0.30;
@@ -203,12 +260,12 @@ export function makePerson(seed = 1, scale = 1, opts = {}) {
 export function makeShooter(seed = 7, opts = {}) {
   const g = makePerson(seed, 1, opts);
   const u = g.userData;
-  // braced stance: left leg forward, right leg back, feet planted
+  // Braced stance: left leg forward, right leg back, feet planted.
   u.legL.rotation.x = 0.30;
   u.legR.rotation.x = -0.18;
   u.legL.position.x = -0.11;
   u.legR.position.x = 0.11;
-  // both arms dead level forward (rotation.x +1.45 swings a hanging arm
+  // Both arms dead level forward (rotation.x +1.45 swings a hanging arm
   // up to horizontal, pointing -Z, the figure's facing direction) and
   // angled INWARD (rotation.z ∓0.38) so both hands converge on the one
   // gun instead of pointing 0.54 m apart, parallel, at nothing.
@@ -216,27 +273,25 @@ export function makeShooter(seed = 7, opts = {}) {
   u.armR.rotation.x = 1.42;
   u.armL.rotation.z = 0.38;
   u.armR.rotation.z = -0.38;
-  // chunky pistol in the right hand, slide forward, grip down: a
-  // DARK GUNMETAL slide (fix round 5, v15.1) so the gun reads as a
-  // dark silhouette AGAINST the bright muzzle flash behind it — the
-  // old bright-steel slide washed out to white inside the flash
-  // bloom and the pistol vanished entirely. 0.56 long and 0.11 tall
-  // so it is a visible shape at 15 m, with a dark barrel ring at
-  // the muzzle so the eye finds it. The gun meshes render AFTER
-  // the additive flash sprites (renderOrder 10, transparent pass
-  // with depthWrite on) so the silhouette paints OVER the bloom
+  // Chunky pistol in the right hand, slide forward, grip down: a DARK
+  // GUNMETAL slide so the gun reads as a dark silhouette AGAINST the
+  // bright muzzle flash behind it — a bright-steel slide washed out to
+  // white inside the flash bloom and the pistol vanished entirely.
+  // 0.56 long and 0.11 tall so it is a visible shape at 15 m, with a
+  // dark barrel ring at the muzzle so the eye finds it. The gun meshes
+  // render AFTER the additive flash sprites (renderOrder 10, transparent
+  // pass with depthWrite on) so the silhouette paints OVER the bloom
   // instead of the bloom painting over the gun.
   //
-  // FIX ROUND 5 (v15.2) — the gun is mounted on the FIGURE, not on
-  // the arm pivot: the arm's local -Z is VERTICAL once the arm is
-  // pitched forward (rotation.x 1.42), so a gun parented to the arm
-  // with its slide along local Z stood on end like a flagpole, its
-  // muzzle a third of a metre above the hands, and the whole pistol
-  // hid behind the shooter's own head from the rear camera. That —
-  // not the flash — was why the pistol never read. On the figure the
-  // slide lies level along figure -Z (the aim line), the grip hangs
-  // below the slide's rear right where the converged hands are, and
-  // the muzzleTip anchor rides at the true barrel mouth.
+  // The gun is mounted on the FIGURE, not on the arm pivot: the arm's
+  // local -Z is VERTICAL once the arm is pitched forward (rotation.x
+  // 1.42), so a gun parented to the arm with its slide along local Z
+  // stood on end like a flagpole, its muzzle a third of a metre above
+  // the hands, and the whole pistol hid behind the shooter's own head
+  // from the rear camera. On the figure the slide lies level along
+  // figure -Z (the aim line), the grip hangs below the slide's rear
+  // right where the converged hands are, and the muzzleTip anchor
+  // rides at the true barrel mouth.
   const gunMetal = new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.35, metalness: 0.85 });
   const slideMetal = new THREE.MeshStandardMaterial({ color: 0x17191d, roughness: 0.4, metalness: 0.7 });
   for (const m of [gunMetal, slideMetal]) {
@@ -258,14 +313,14 @@ export function makeShooter(seed = 7, opts = {}) {
   grip.position.set(0, -0.09, 0.10);
   grip.rotation.x = 0.25;
   gun.add(grip);
-  // level, on the aim line, between the converged hands: the hands
+  // Level, on the aim line, between the converged hands: the hands
   // meet at figure (±0.07, 1.21, -0.49), so the slide (z -0.27 to
   // -0.83) runs forward from the hands and the grip (y 1.12, z -0.45)
   // drops right under them — a two-handed grip, not a gun floating
   // past the hands.
   gun.position.set(0, 1.21, -0.55);
   g.add(gun);
-  // left hand meets the grip from below, closing the two-handed grip:
+  // Left hand meets the grip from below, closing the two-handed grip:
   // +0.12 local x walks it from the left shoulder across to the gun,
   // which the inward arm angle carries to figure-centre.
   const gripHand = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.10),
@@ -281,25 +336,24 @@ export function makeShooter(seed = 7, opts = {}) {
 }
 
 // A POLICE OFFICER in a two-handed aiming stance — the shootout's
-// target in fix round 5 (v15.2): the player is in a stand-off with the
-// POLICE now, no gang rivals. Built on the same aiming rig as
-// makeShooter (so the pistol, muzzleTip anchor and stance are
-// identical), then dressed as CBPD: dark navy uniform shirt +
-// trousers (forced, never the random pedestrian palette), full-length
-// legs, a navy peaked cap with a gold band, and a gold badge on the
-// chest. The officer faces the player, so the camera sees his FRONT:
-// cap, badge and navy uniform all read as police at a glance.
+// target: the player is in a stand-off with the POLICE now, no gang
+// rivals. Built on the same aiming rig as makeShooter (so the pistol,
+// muzzleTip anchor and stance are identical), then dressed as CBPD:
+// dark navy uniform shirt + trousers (forced, never the random
+// pedestrian palette), full-length legs, a navy peaked cap with a gold
+// band, and a gold badge on the chest. The officer faces the player,
+// so the camera sees his FRONT: cap, badge and navy uniform all read
+// as police at a glance.
 //
-// FIX ROUND 6 (v15.2) — the figure now reads AS POLICE, not as a
-// dark silhouette: he is 1.3x LIFE SIZE (a ~2.2 m hero-scale officer,
-// so at shootout distance he stands ~120 px tall, not ~60), and the
-// uniform carries every marker a real uniform has, all oversized and
-// gold-on-navy or white-on-navy so they survive a glance: a white
-// shirt V + black tie at the collar, gold shoulder boards, a wide
-// gold duty belt with gold buckle and pouches, a big gold chest
-// badge, a white POLICE chest patch (unlit canvas texture, so the
-// letters stay readable in dusk light), a taller gold cap band with
-// a big gold cap badge, and gold sleeve stripes.
+// The figure reads AS POLICE, not as a dark silhouette: he is 1.3x
+// LIFE SIZE (a ~2.2 m hero-scale officer, so at shootout distance he
+// stands ~120 px tall, not ~60), and the uniform carries every marker
+// a real uniform has, all oversized and gold-on-navy or white-on-navy
+// so they survive a glance: a white shirt V + black tie at the collar,
+// gold shoulder boards, a wide gold duty belt with gold buckle and
+// pouches, a big gold chest badge, a white POLICE chest patch (unlit
+// canvas texture, so the letters stay readable in dusk light), a tall
+// gold cap band with a big gold cap badge, and gold sleeve stripes.
 function policePatchTexture() {
   const c = document.createElement('canvas');
   c.width = 256; c.height = 64;
@@ -317,34 +371,34 @@ function policePatchTexture() {
 
 export function makePoliceOfficer(seed = 21) {
   const g = makeShooter(seed, { shirt: 0x22345c, pants: 0x1e2a44, noShorts: true });
-  // hero scale: 1.3x, so the uniform reads at a glance from the
+  // Hero scale: 1.3x, so the uniform reads at a glance from the
   // over-shoulder camera. Feet stay on the ground (scale is about the
   // group origin at y = 0); the gun and muzzleTip scale with him.
   g.scale.multiplyScalar(1.3);
   const navy = new THREE.MeshStandardMaterial({ color: 0x1e2a44, roughness: 0.75 });
-  // FIX ROUND 6b: the gold carries a warm emissive lift (0.5), so the
-  // badge, cap band, shoulder boards and buckle still read gold when
-  // the officer's front is in shade — the dusk sun lights his back,
-  // and unlit gold went near-black in the first fix-6 capture.
+  // The gold carries a warm emissive lift (0.5), so the badge, cap band,
+  // shoulder boards and buckle still read gold when the officer's front
+  // is in shade — the dusk sun lights his back, and unlit gold went
+  // near-black in the first capture.
   const gold = new THREE.MeshStandardMaterial({ color: 0xffd21a, roughness: 0.35, metalness: 0.7, emissive: 0x8a6a00, emissiveIntensity: 0.5 });
   const white = new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.7, emissive: 0xffffff, emissiveIntensity: 0.22 });
   const black = new THREE.MeshStandardMaterial({ color: 0x111216, roughness: 0.6 });
-  // white shirt V at the collar + black tie: the white triangle at the
-  // throat is the first thing the eye finds on a navy uniform
+  // White shirt V at the collar + black tie: the white triangle at the
+  // throat is the first thing the eye finds on a navy uniform.
   const shirtV = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.14, 0.02), white);
   shirtV.position.set(0, 1.36, -0.135);
   g.add(shirtV);
   const tie = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 0.02), black);
   tie.position.set(0, 1.26, -0.14);
   g.add(tie);
-  // gold shoulder boards (epaulettes) on both shoulders
+  // Gold shoulder boards (epaulettes) on both shoulders.
   for (const sx of [-0.20, 0.20]) {
     const board = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.025, 0.16), gold);
     board.position.set(sx, 1.345, 0);
     g.add(board);
   }
-  // wide black duty belt with a gold buckle and side pouches — the
-  // horizontal black band breaks the navy torso in two at a glance
+  // Wide black duty belt with a gold buckle and side pouches — the
+  // horizontal black band breaks the navy torso in two at a glance.
   const belt = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.09, 0.27), black);
   belt.position.set(0, 0.82, 0);
   g.add(belt);
@@ -356,7 +410,22 @@ export function makePoliceOfficer(seed = 21) {
     pouch.position.set(px, 0.82, -0.13);
     g.add(pouch);
   }
-  // gold sleeve stripes, parented to the ARM pivots (not static boxes):
+  // Shoulder radio + coiled cord: the boxy radio rides the left shoulder
+  // strap, its antenna up, a thin cord running down to the belt — the
+  // kit that says "on duty" before the badge does.
+  const radio = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.16, 0.05), black);
+  radio.position.set(-0.20, 1.28, -0.10);
+  radio.rotation.z = 0.15;
+  g.add(radio);
+  const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.012, 0.16, 6), black);
+  antenna.position.set(-0.22, 1.42, -0.10);
+  antenna.rotation.z = 0.15;
+  g.add(antenna);
+  // Name tag: small gold plate on the left chest, above the badge line.
+  const nameTag = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.03, 0.015), gold);
+  nameTag.position.set(0.11, 1.30, -0.135);
+  g.add(nameTag);
+  // Gold sleeve stripes, parented to the ARM pivots (not static boxes):
   // the arms are pitched forward into the aim, so a static stripe at
   // the old upper-arm spot would float in empty air beside the torso.
   // On the pivot the stripe rides the sleeve wherever the arm points.
@@ -365,13 +434,12 @@ export function makePoliceOfficer(seed = 21) {
     stripe.position.set(0, -0.13, 0);
     arm.add(stripe);
   }
-  // peaked cap: navy crown over the hair, gold band around its base,
+  // Peaked cap: navy crown over the hair, gold band around its base,
   // brim jutting forward over the face — the silhouette that says
   // "police" before the badge does. The crown sits high (y 1.62) so
   // it covers the hair cap underneath instead of letting it poke out.
-  // FIX ROUND 6: the band is TALLER (0.075, was 0.05) and the cap
-  // badge BIGGER (0.055, was 0.035) — at 120 px the gold band is the
-  // officer's headline, and it has to be unmissable.
+  // The band is TALL (0.075) and the cap badge BIG (0.055) — at 120 px
+  // the gold band is the officer's headline, and it has to be unmissable.
   const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.145, 0.15, 0.10, 12), navy);
   crown.position.y = 1.62;
   crown.castShadow = true;
@@ -386,14 +454,14 @@ export function makePoliceOfficer(seed = 21) {
   const brim = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.02, 0.15), navy);
   brim.position.set(0, 1.585, -0.19);
   g.add(brim);
-  // gold badge on the RIGHT chest (his right, screen-left): the
+  // Gold badge on the RIGHT chest (his right, screen-left): the
   // muzzle flash blooms across his left chest, so the badge sits
-  // where it stays clear of the flash — FIX ROUND 6: bigger
-  // (0.18 x 0.20, was 0.14 x 0.16) so the gold reads at a glance.
+  // where it stays clear of the flash — bigger (0.18 x 0.20) so the
+  // gold reads at a glance.
   const badge = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.20, 0.02), gold);
   badge.position.set(-0.11, 1.18, -0.13);
   g.add(badge);
-  // white POLICE chest patch across the chest, under the badge line:
+  // White POLICE chest patch across the chest, under the badge line:
   // an unlit canvas texture, so the letters stay bright white in dusk
   // light instead of going dark with the navy cloth. This is the
   // single most legible police marker at shootout distance.
@@ -402,6 +470,13 @@ export function makePoliceOfficer(seed = 21) {
   patch.position.set(0, 1.02, -0.135);
   patch.rotation.y = Math.PI;
   g.add(patch);
+  // Boots: dark, slightly taller than a shoe, so the uniform ends in
+  // proper footwear instead of sneakers.
+  for (const leg of [g.userData.legL, g.userData.legR]) {
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, 0.28), black);
+    boot.position.set(0, -0.71, 0.03);
+    leg.add(boot);
+  }
   return g;
 }
 
@@ -420,6 +495,15 @@ export function makeTargetMarker() {
   );
   arrow.rotation.x = Math.PI; // tip down, like GTA's enemy arrow
   g.add(arrow);
+  // A thin red ring under the arrow, so the marker reads as a floating
+  // beacon even when the cone is edge-on to the camera.
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.16, 0.24, 20),
+    new THREE.MeshBasicMaterial({ color: 0xff2020, transparent: true, opacity: 0.7, side: THREE.DoubleSide }),
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = -0.35;
+  g.add(ring);
   return g;
 }
 
@@ -437,26 +521,25 @@ export function makeWorker(seed = 1, scale = 1) {
 // hand and a small dark blood pool under the torso. The long axis is
 // local Z (head -Z, feet +Z); rotate the group to lay it broadside to
 // the camera. Static — never added to the animated crowd.
-// opts.police dresses the body as a FALLEN POLICE OFFICER (fix round 5,
-// v15.2): navy uniform, gold badge on the chest, and his peaked cap
-// lying on the sand beside his head, knocked off as he fell.
+// opts.police dresses the body as a FALLEN POLICE OFFICER: navy uniform,
+// gold badge on the chest, and his peaked cap lying on the sand beside
+// his head, knocked off as he fell.
 export function makeFallenPerson(seed = 1, opts = {}) {
   const rnd = seededRnd(seed);
   const g = new THREE.Group();
   const skin = mat(SKINS[Math.floor(rnd() * SKINS.length)], 0.7);
-  // Fix round 5 (v14): the shirt is FORCED bright white and the pants
-  // forced dark navy — the seeded random shirt could be tan or brown
-  // and vanish into the sand. A white-shirted body on tan sand reads
-  // at a glance; the dark blood pool and the dropped pistol finish it.
-  // Fix round 5 (v15.2): opts.police swaps the white shirt for the
-  // same dark navy uniform as the standing officer, so the fallen body
-  // reads as police too — the navy body on tan sand, the gold badge
-  // and the cap beside him carry it.
+  // The shirt is FORCED bright white and the pants forced dark navy —
+  // a seeded random shirt could be tan or brown and vanish into the
+  // sand. A white-shirted body on tan sand reads at a glance; the dark
+  // blood pool and the dropped pistol finish it. opts.police swaps the
+  // white shirt for the same dark navy uniform as the standing officer,
+  // so the fallen body reads as police too — the navy body on tan sand,
+  // the gold badge and the cap beside him carry it.
   const shirt = opts.police ? mat(0x22345c, 0.8) : mat(0xf2f2ee, 0.8);
   const pants = mat(0x2a2f45, 0.85);
   const hair = mat(HAIRS[Math.floor(rnd() * HAIRS.length)], 0.9);
   const shoe = mat(SHOES[Math.floor(rnd() * SHOES.length)], 0.6);
-  // torso: flat on the ground, chest up
+  // Torso: flat on the ground, chest up.
   const torso = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.24, 0.58), shirt);
   torso.position.set(0, 0.14, 0.05);
   torso.castShadow = true;
@@ -465,7 +548,7 @@ export function makeFallenPerson(seed = 1, opts = {}) {
   shoulders.position.set(0, 0.16, -0.18);
   shoulders.castShadow = true;
   g.add(shoulders);
-  // head: turned to one side, resting on the ground
+  // Head: turned to one side, resting on the ground.
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.135, 12, 10), skin);
   head.scale.set(1, 1.02, 1.18);
   head.position.set(0.06, 0.14, -0.42);
@@ -476,8 +559,8 @@ export function makeFallenPerson(seed = 1, opts = {}) {
   cap.position.set(0.06, 0.16, -0.42);
   cap.rotation.y = 0.9;
   g.add(cap);
-  // legs: stretched out, one slightly bent and splayed — a body that fell,
-  // not a mannequin laid out straight
+  // Legs: stretched out, one slightly bent and splayed — a body that fell,
+  // not a mannequin laid out straight.
   const legL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.14, 0.78), pants);
   legL.position.set(-0.11, 0.09, 0.70);
   legL.castShadow = true;
@@ -494,7 +577,7 @@ export function makeFallenPerson(seed = 1, opts = {}) {
     foot.castShadow = true;
     g.add(foot);
   }
-  // left arm: THROWN UP as he fell — the one vertical element on an
+  // Left arm: THROWN UP as he fell — the one vertical element on an
   // otherwise flat body, and the reason the figure reads as a person
   // rather than a shadow on the sand. The arm rises from the ground at
   // the body's left side to ~0.50 m (hand open), leaning over the
@@ -510,7 +593,7 @@ export function makeFallenPerson(seed = 1, opts = {}) {
   const handL = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.07, 0.12), skin);
   handL.position.set(-0.22, 0.50, -0.04);
   g.add(handL);
-  // right arm: bent across the chest
+  // Right arm: bent across the chest.
   const armR = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.10, 0.42), shirt);
   armR.position.set(0.22, 0.17, -0.08);
   armR.rotation.y = -0.7;
@@ -519,8 +602,8 @@ export function makeFallenPerson(seed = 1, opts = {}) {
   const handR = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.07, 0.10), skin);
   handR.position.set(0.10, 0.18, -0.24);
   g.add(handR);
-  // dropped pistol on the sand by the raised arm's base — where the
-  // hand was when the gun left it
+  // Dropped pistol on the sand by the raised arm's base — where the
+  // hand was when the gun left it.
   const gun = new THREE.Group();
   const gunMetal = new THREE.MeshStandardMaterial({ color: 0x1c1e22, roughness: 0.4, metalness: 0.8 });
   const slide = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.22), gunMetal);
@@ -532,13 +615,13 @@ export function makeFallenPerson(seed = 1, opts = {}) {
   gun.rotation.y = 0.7;
   g.add(gun);
   if (opts.police) {
-    // gold badge flat on the chest — the torso's top face is y 0.26.
+    // Gold badge flat on the chest — the torso's top face is y 0.26.
     // Oversized (0.12) so the gold reads at beach distance.
     const badge = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, 0.14),
       new THREE.MeshStandardMaterial({ color: 0xffd21a, roughness: 0.35, metalness: 0.7 }));
     badge.position.set(0.10, 0.27, 0.05);
     g.add(badge);
-    // his peaked cap, knocked off as he fell, lying on the sand by
+    // His peaked cap, knocked off as he fell, lying on the sand by
     // his head (head end is -Z): dome up, brim pointing away from
     // the body, so it reads as a cap on the ground, not a blob. The
     // gold band around the dome is the tell that it is a police cap.
@@ -556,9 +639,7 @@ export function makeFallenPerson(seed = 1, opts = {}) {
     capBrim.rotation.y = 0.4;
     g.add(capBrim);
   }
-  // FIX ROUND 6 (v15.2) — BLOOD, unmistakable at a glance. Egi asked
-  // for more, and the fix-5 pool still read as a dark shadow on the
-  // sand. Now it is a system, not a disc: a BIG bright-red main pool
+  // BLOOD, unmistakable at a glance: a BIG bright-red main pool
   // (radius 0.95, brighter 0x7a0d0d, opacity 0.95) spilling onto the
   // open sand beside the navy torso; a long smear trailing toward the
   // camera side, as if he was dragged / crawled; four satellite
@@ -574,28 +655,28 @@ export function makeFallenPerson(seed = 1, opts = {}) {
   pool.scale.set(1.45, 0.9, 1);
   pool.position.set(0.25, 0.015, 0.05);
   g.add(pool);
-  // smear trailing toward the camera side (+X), elongated
+  // Smear trailing toward the camera side (+X), elongated.
   const smear = new THREE.Mesh(new THREE.CircleGeometry(0.55, 16), bloodMat);
   smear.rotation.x = -Math.PI / 2;
   smear.scale.set(1.9, 0.55, 1);
   smear.rotation.z = 0.5;
   smear.position.set(1.15, 0.016, 0.35);
   g.add(smear);
-  // satellite splatters: drops flung around the body
+  // Satellite splatters: drops flung around the body.
   for (const [sx, sz, sr] of [[-0.75, 0.55, 0.22], [0.85, -0.55, 0.18], [1.55, -0.15, 0.14], [-0.35, -0.75, 0.16], [0.45, 0.85, 0.12]]) {
     const drop = new THREE.Mesh(new THREE.CircleGeometry(sr, 12), bloodMat);
     drop.rotation.x = -Math.PI / 2;
     drop.position.set(sx, 0.016, sz);
     g.add(drop);
   }
-  // small pool under the head (head end is -Z)
+  // Small pool under the head (head end is -Z).
   const headPool = new THREE.Mesh(new THREE.CircleGeometry(0.30, 14), bloodDark);
   headPool.rotation.x = -Math.PI / 2;
   headPool.scale.set(1.3, 0.9, 1);
   headPool.position.set(0.06, 0.016, -0.55);
   g.add(headPool);
-  // blood ON the uniform: dark-red patches on the chest and the side
-  // of the torso (thin boxes just proud of the cloth, top face y 0.26)
+  // Blood ON the uniform: dark-red patches on the chest and the side
+  // of the torso (thin boxes just proud of the cloth, top face y 0.26).
   const chestBlood = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.02, 0.34), bloodDark);
   chestBlood.position.set(-0.06, 0.265, 0.12);
   chestBlood.rotation.y = 0.2;
@@ -632,8 +713,8 @@ export function animateCrowd(crowd, t) {
     const gy = u.groundY || 0;
     if (u.mode === 'walk') {
       const ph = u.phase + t * u.walkSpeed * 4;
-      // one-foot-planted gait: each leg only swings forward from vertical,
-      // the other stays planted, so a foot is on the ground in every frame
+      // One-foot-planted gait: each leg only swings forward from vertical,
+      // the other stays planted, so a foot is on the ground in every frame.
       const swingL = Math.max(0, Math.sin(ph)) * 0.45;
       const swingR = Math.max(0, Math.sin(ph + Math.PI)) * 0.45;
       u.legL.rotation.x = swingL;
@@ -641,7 +722,7 @@ export function animateCrowd(crowd, t) {
       u.armL.rotation.x = -swingR * 0.8;
       u.armR.rotation.x = -swingL * 0.8;
       // NO vertical bob: the planted foot must stay exactly on the ground
-      // in every frame — the leg swing alone reads as walking
+      // in every frame — the leg swing alone reads as walking.
       p.position.y = gy;
       p.rotation.z = Math.sin(ph) * 0.015;
     } else if (u.mode === 'stand') {
@@ -650,7 +731,7 @@ export function animateCrowd(crowd, t) {
       u.armR.rotation.x = 0.06 + Math.cos(t * 0.7 + u.phase) * 0.04;
       p.rotation.z = Math.sin(t * 0.5 + u.phase) * 0.01;
     } else {
-      // chat: raised hand gestures, head nods
+      // Chat: raised hand gestures, head nods.
       p.position.y = gy;
       u.armR.rotation.x = -0.85 + Math.sin(t * 1.4 + u.phase) * 0.18;
       u.armL.rotation.x = 0.15 + Math.sin(t * 1.1 + u.phase) * 0.08;
