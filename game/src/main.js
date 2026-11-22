@@ -153,7 +153,54 @@ if (shot === 'cover') {
   // car); here we only store the target and brighten the beam a
   // touch (0.16, was 0.10) so the long diagonal shaft reads.
   heli.userData.spotTarget = new THREE.Vector3(3.5, 1.0, 14);
-  heli.userData.cone.material.opacity = 0.16;
+  // FIX ROUND 6 FOLLOW-UP v15.4 (beam fix) — the heli itself POINTS
+  // AT OUR CAR (Egi: "heli nya mengarah ke mobil kita aja biar make
+  // sense lampu nya ga kek gitu"). The v15.3 heli hovered 38 m up the
+  // road facing north while its beam ran back south to the car, so
+  // the light read as disconnected. Now: the heli sits just north of
+  // the hero (preset [2, 11, 0]) with its nose turned back toward him
+  // (rotation.y PI + 0.15: the model faces -z, so PI turns it south
+  // onto the car), a touch smaller now it is closer to the lens
+  // (scale 1.15, was 1.35), and the beam is STRONGER (opacity 0.30,
+  // was 0.16) with a visible light pool on the road around the car.
+  heli.rotation.y = Math.PI + 0.15;
+  heli.scale.setScalar(1.15);
+  heli.userData.cone.material.opacity = 0.30;
+  // Light pool: two flat additive radial-gradient discs on the road
+  // around the hero car (a wide soft wash + a hot core), stretched
+  // along the beam's ground direction so the pool reads as light
+  // falling at an angle, not a painted circle. Shot-only; the hero
+  // sits in the middle of it, so the beam visibly lands ON our car.
+  if (!heli.userData.poolDisc) {
+    const poolTex = (() => {
+      const c = document.createElement('canvas');
+      c.width = c.height = 256;
+      const g = c.getContext('2d');
+      const grad = g.createRadialGradient(128, 128, 0, 128, 128, 128);
+      grad.addColorStop(0, 'rgba(255,242,176,0.95)');
+      grad.addColorStop(0.45, 'rgba(255,242,176,0.45)');
+      grad.addColorStop(1, 'rgba(255,242,176,0)');
+      g.fillStyle = grad;
+      g.fillRect(0, 0, 256, 256);
+      return new THREE.CanvasTexture(c);
+    })();
+    const mkPool = (radius, opacity, y) => {
+      const m = new THREE.Mesh(
+        new THREE.CircleGeometry(radius, 40),
+        new THREE.MeshBasicMaterial({
+          map: poolTex, transparent: true, opacity,
+          blending: THREE.AdditiveBlending, depthWrite: false,
+        }),
+      );
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(3.5, y, 14);
+      m.scale.set(1, 1.35, 1);
+      m.renderOrder = 5;
+      scene.add(m);
+      return m;
+    };
+    heli.userData.poolDisc = [mkPool(4.0, 0.32, 0.06), mkPool(1.9, 0.5, 0.07)];
+  }
   // FIX ROUND 6b: the cover is a POLICE CHASE at 111 KM/H with three
   // stars — but the static HUD panel still says M1 "STEAL THE MARINA
   // SEDAN / Reach the marina lot", a quiet theft, which contradicts

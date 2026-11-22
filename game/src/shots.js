@@ -47,7 +47,14 @@ export const SHOTS = {
     // ahead of him (cop1 z 4, cop3 z -4, cop2 z -14, cop4 z -24).
     hero: [3.5, 0, 14],
     heroRot: 0.05,
-    heli: [-3, 14, -24],
+    // FIX ROUND 6 FOLLOW-UP v15.4 (beam fix): the heli HOVERS OVER
+    // THE CHASE, just north of the hero (was [-3, 14, -24], 38 m up
+    // the road — so far away the beam crossed the whole frame
+    // diagonally and read as disconnected from the heli). Now it sits
+    // above the road just ahead of the hero, nose turned back at him
+    // (rotation set in main.js staging), so heli, beam and car read
+    // as one spotlight. The bob/drift in animate() follows this preset.
+    heli: [2, 11, 0],
     wanted: 3,
     fov: 55,
   },
