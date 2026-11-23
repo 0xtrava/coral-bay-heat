@@ -640,7 +640,11 @@ export class Game {
     this.heli.pool.visible = show;
     if (!show) return;
     const t = this.vehicle === 'foot' ? this.foot : this.vehicle === 'boat' ? this.boat : this.car;
-    updateHeli(this.heli, { x: t.x, z: t.z }, dt, this.time);
+    // staged shots can pin the heli ahead of the player (cover/shootout)
+    // so its body lands in the frame instead of hovering out of sight
+    // above the player's head
+    const target = this.heliTarget || { x: t.x, z: t.z };
+    updateHeli(this.heli, target, dt, this.time);
   }
 
   _updateWanted(dt) {
@@ -1189,12 +1193,14 @@ export class Game {
     this.scooterState.z = 18;
     this.scooter.position.set(16, 0, 18);
     this.scooter.rotation.y = Math.PI;
-    // heli low above the hero, beam down on it — its body in the frame,
-    // not 26 m up where only the cone shows
-    setHeliAltitude(this.heli, 11);
+    // heli low ahead of the hero, beam down on the road by the lead
+    // cruiser — its body in the frame, not 26 m up where only the cone
+    // shows (pinned ahead via heliTarget; the per-frame hover follows it)
+    this.heliTarget = { x: 12, z: 20 };
+    setHeliAltitude(this.heli, 12);
     this.heli.group.visible = true;
     this.heli.pool.visible = true;
-    updateHeli(this.heli, { x: this.car.x, z: this.car.z }, 0, this.time);
+    updateHeli(this.heli, this.heliTarget, 0, this.time);
   }
 
   placeShootoutScene() {
@@ -1222,9 +1228,13 @@ export class Game {
       this.shoot(best);
       this.tracerTimer = 3600;
     }
+    // heli low over the officers, beam down among them — its body in the
+    // top of the frame, not 26 m up out of sight
+    this.heliTarget = { x: 116, z: -8 };
+    setHeliAltitude(this.heli, 8);
     this.heli.group.visible = true;
     this.heli.pool.visible = true;
-    updateHeli(this.heli, { x: 116, z: 0 }, 0, this.time);
+    updateHeli(this.heli, this.heliTarget, 0, this.time);
   }
 
   placeTitleTraffic() {
@@ -1240,8 +1250,11 @@ export class Game {
       t.mesh.position.set(civ[i].x, 0, civ[i].z);
       t.mesh.rotation.y = civ[i].h;
     }
-    this.scooterState.z = 44;
-    this.scooter.position.set(100, 0, 44);
+    // the scooter rider loops far north, out of the title frame — it
+    // would otherwise wander through the hero's foreground mid-capture
+    this.scooterState.z = -90;
+    this.scooterState.dir = -1;
+    this.scooter.position.set(100, 0, -90);
     this.scooter.rotation.y = Math.PI;
   }
 

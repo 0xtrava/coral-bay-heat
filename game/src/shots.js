@@ -20,8 +20,10 @@ function stageCover(game) {
   game.placeCoverTraffic();
   // street-level chase cam: low behind the hero (south of it, looking
   // north up the boulevard), hero big at bottom-right, cruisers ahead,
-  // sun and heli in the top of the frame — the v17 composition
-  game.setCameraMode('chase', { x: 2.2, y: 2.6, z: -8.5 }, { x: -0.5, y: 3.0, z: 30 });
+  // sun and heli in the top of the frame — the v17 composition.
+  // FIXED, not chase: the capture runs at ~1 fps, so a lerping chase
+  // camera never converges and the hero ends up behind the camera.
+  game.setCameraMode('fixed', { x: 10.5, y: 2.2, z: 39.5 }, { x: 12.5, y: 3.0, z: 4 });
   game.hud.showHud(true);
   game.hud.showTitle(false);
   game.hud.showMap(false);
@@ -41,8 +43,10 @@ function stageShootout(game) {
   game.placeShootoutScene();
   // foot cam south of the player, looking north AT the staged scene
   // (officers x 110-122, van, fallen) — the old aim looked south at
-  // empty sand while the whole cast stood behind the camera
-  game.setCameraMode('foot', { x: 0, y: 2.3, z: -6.5 }, { x: 0.5, y: 1.4, z: 8 });
+  // empty sand while the whole cast stood behind the camera.
+  // FIXED, not foot: the capture runs at ~1 fps, so a lerping foot
+  // camera never converges and ends up stuck inside a building.
+  game.setCameraMode('fixed', { x: 116, y: 2.3, z: 10.5 }, { x: 115.5, y: 1.4, z: -4 });
   game.hud.showHud(true);
   game.hud.showTitle(false);
   game.hud.showMap(false);
@@ -73,14 +77,15 @@ function stageTitle(game) {
   game.startPlay();
   game.setCash(18450);
   game.setClock(SUNSET_CLOCK);
-  game.teleportCar(94, 62, Math.PI * 0.92);
+  game.teleportCar(94, 56, Math.PI * 0.92);
   game.placeTitleTraffic();
-  // fixed camera on the boulevard, clear of the sidewalk palms, looking
+  // fixed camera on the boulevard, between the palm rows, looking
   // north-west up the avenue: hero car left-foreground, sun centre,
-  // hotel row ahead — the v17 title composition
+  // hotel row ahead — the v17 title composition. The palms stay on the
+  // sidewalks; the camera sits mid-road so none of them lands in it.
   game.setCameraMode('fixed',
-    { x: 99, y: 3.0, z: 70 },
-    { x: 58, y: 8, z: -50 });
+    { x: 97, y: 3.5, z: 64 },
+    { x: 50, y: 7, z: -45 });
   game.hud.showHud(false);
   game.hud.showMap(false);
   game.hud.showTitle(true);
