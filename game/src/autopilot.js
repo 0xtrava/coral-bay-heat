@@ -131,10 +131,18 @@ export function createPilot() {
       // Off-route recovery: a low frame rate can throw the car off the
       // road grid (it overshoots a turn and lands inside a block). Aiming
       // at the stale waypoint then drives it diagonally through buildings
-      // forever. If we are off the grid and not yet on the final off-road
-      // leg, throw the route away and re-plan from where we actually are.
+      // forever. If we are well off the grid and far from the waypoint,
+      // throw the route away and re-plan from where we actually are.
+      // (A normal turn stays within ~4 of a centreline, so it never
+      // triggers this.)
       const isLast = this.idx === this.route.length - 1;
-      if (!isLast && !onAvenue(car.x, car.z) && !onStreet(car.x, car.z)) {
+      const offGrid = Math.min(
+        Math.abs(nearestLine(AVENUES, car.x) - car.x),
+        Math.abs(nearestLine(STREETS, car.z) - car.z),
+      );
+      const [cwx, cwz] = this.route[this.idx];
+      const distToWp = Math.hypot(cwx - car.x, cwz - car.z);
+      if (!isLast && offGrid > 4 && distToWp > 15) {
         this.route = [];
         return { throttle: 0, steer: 0 };
       }
@@ -152,6 +160,15 @@ export function createPilot() {
       let top = car.topSpeed;
       if (Math.abs(diff) > 0.6) top = Math.min(top, 12);
       if (isLast && dist < 30) top = Math.min(top, 6 + dist * 0.2);
+      // look ahead: if the NEXT leg turns sharply, slow down before the
+      // current waypoint instead of arriving at it at full speed
+      if (this.idx + 1 < this.route.length) {
+        const [nx2, nz2] = this.route[this.idx + 1];
+        let turn = Math.atan2(nx2 - wx, nz2 - wz) - Math.atan2(wx - car.x, wz - car.z);
+        while (turn > Math.PI) turn -= Math.PI * 2;
+        while (turn < -Math.PI) turn += Math.PI * 2;
+        if (Math.abs(turn) > 0.6) top = Math.min(top, 6 + dist * 0.5);
+      }
       let throttle;
       if (car.speed > top + 1) throttle = -0.7;
       else if (car.speed < top) throttle = 1;

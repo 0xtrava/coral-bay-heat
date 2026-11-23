@@ -265,7 +265,11 @@ function drive(dt) {
   state.speed += throttle * accel * dt;
   if (throttle === 0) state.speed -= Math.sign(state.speed) * Math.min(Math.abs(state.speed), 8 * dt);
   state.speed = clamp(state.speed, -12, top);
-  const steerAngle = steer * 0.55 * (state.speed >= 0 ? 1 : -1) * Math.min(1, Math.abs(state.speed) / 8 + 0.2);
+  // steering: the turn rate scales with speed so the turn radius stays
+  // near 6 units — a fixed 0.55 rad/s at 36 u/s is a 65-unit radius and
+  // the car cannot make a 90° turn on the road grid at all
+  const turnRate = Math.max(1.0, Math.min(4.0, Math.abs(state.speed) / 6));
+  const steerAngle = steer * turnRate * (state.speed >= 0 ? 1 : -1) * Math.min(1, Math.abs(state.speed) / 8 + 0.2);
   state.heading += steerAngle * dt * (Math.abs(state.speed) > 0.5 ? 1 : 0);
   const nx = state.pos.x + Math.sin(state.heading) * state.speed * dt;
   const nz = state.pos.z + Math.cos(state.heading) * state.speed * dt;
