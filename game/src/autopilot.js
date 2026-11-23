@@ -128,6 +128,16 @@ export function createPilot() {
       if (this.idx >= this.route.length) {
         return { throttle: 0, steer: 0 };
       }
+      // Off-route recovery: a low frame rate can throw the car off the
+      // road grid (it overshoots a turn and lands inside a block). Aiming
+      // at the stale waypoint then drives it diagonally through buildings
+      // forever. If we are off the grid and not yet on the final off-road
+      // leg, throw the route away and re-plan from where we actually are.
+      const isLast = this.idx === this.route.length - 1;
+      if (!isLast && !onAvenue(car.x, car.z) && !onStreet(car.x, car.z)) {
+        this.route = [];
+        return { throttle: 0, steer: 0 };
+      }
       const [wx, wz] = this.route[this.idx];
       const dx = wx - car.x, dz = wz - car.z;
       const dist = Math.hypot(dx, dz);
@@ -136,12 +146,16 @@ export function createPilot() {
       while (diff > Math.PI) diff -= Math.PI * 2;
       while (diff < -Math.PI) diff += Math.PI * 2;
       const steer = Math.max(-1, Math.min(1, diff * 1.6));
-      // brake for sharp turns and for the final approach
-      const isLast = this.idx === this.route.length - 1;
+      // brake for sharp turns and for the final approach — a positive
+      // throttle still accelerates, so above the target speed we must
+      // brake (negative) or coast (zero), never cruise at 0.25
       let top = car.topSpeed;
       if (Math.abs(diff) > 0.6) top = Math.min(top, 12);
-      if (isLast && dist < 40) top = Math.min(top, 10 + dist * 0.25);
-      const throttle = car.speed < top ? 1 : 0.25;
+      if (isLast && dist < 30) top = Math.min(top, 6 + dist * 0.2);
+      let throttle;
+      if (car.speed > top + 1) throttle = -0.7;
+      else if (car.speed < top) throttle = 1;
+      else throttle = 0;
       return { throttle, steer };
     },
 

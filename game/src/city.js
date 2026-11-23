@@ -358,6 +358,9 @@ export function buildCity(scene, rng) {
   umbrella(117, -6, 0x4d8fd1);
   umbrella(113, 36, 0xffd24d);
   umbrella(118, 66, 0x7ac74f);
+  // two more framing the M4 shootout patch of sand
+  umbrella(109, 33, 0xe85d75);
+  umbrella(126, 13, 0x7ac74f);
   for (let i = 0; i < 6; i++) {
     box(1.4, 1.4, 1.4, lambert(0xa8845a), 112 + between(rng, -1, 5), 0.7, -70 + i * 26, world);
   }

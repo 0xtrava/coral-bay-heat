@@ -168,6 +168,14 @@ export function drawMinimap(canvas, view) {
   g.strokeStyle = '#c9a06a';
   g.lineWidth = 4;
   g.beginPath(); g.moveTo(px(106), pz(72)); g.lineTo(px(140), pz(72)); g.stroke();
+  // route line from the player to the waypoint (purple, like a sat-nav)
+  if (view.waypoint) {
+    g.strokeStyle = '#b45cff';
+    g.lineWidth = 3;
+    g.setLineDash([7, 5]);
+    g.beginPath(); g.moveTo(px(view.x), pz(view.z)); g.lineTo(px(view.waypoint[0]), pz(view.waypoint[1])); g.stroke();
+    g.setLineDash([]);
+  }
   // police blips
   for (const p of view.police || []) {
     g.fillStyle = '#e02020';

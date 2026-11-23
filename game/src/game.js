@@ -102,7 +102,7 @@ const boatMeshes = BOATS.map((b) => {
 // ---- M4 actors: officers, fallen officer, burning van, tracer ----
 function buildOfficer() {
   const g = new THREE.Group();
-  const navy = new THREE.MeshLambertMaterial({ color: 0x1d2f55 });
+  const navy = new THREE.MeshLambertMaterial({ color: 0x2a4a7a });
   const skin = new THREE.MeshLambertMaterial({ color: 0xd9a06f });
   const legs = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.66, 0.22), navy);
   legs.position.y = 0.33; g.add(legs);
@@ -116,8 +116,8 @@ function buildOfficer() {
   cap.position.y = 1.68; g.add(cap);
   const band = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.05, 0.4), new THREE.MeshLambertMaterial({ color: 0xffd24d }));
   band.position.y = 1.62; g.add(band);
-  const marker = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.9, 4), new THREE.MeshBasicMaterial({ color: 0xe02020 }));
-  marker.position.y = 2.6; marker.rotation.x = Math.PI;
+  const marker = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.0, 4), new THREE.MeshBasicMaterial({ color: 0xe02020 }));
+  marker.position.y = 2.7; marker.rotation.x = Math.PI;
   g.add(marker);
   g.userData.marker = marker;
   g.userData.alive = true;
@@ -141,21 +141,25 @@ const fallen = new THREE.Group();
 
 const van = new THREE.Group();
 {
-  const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.9, 4.4), new THREE.MeshLambertMaterial({ color: 0x8a8f96 }));
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.9, 4.4), new THREE.MeshLambertMaterial({ color: 0xe8e8e8 }));
   body.position.y = 1.15; van.add(body);
-  const cab = new THREE.Mesh(new THREE.BoxGeometry(2.1, 1.2, 1.2), new THREE.MeshLambertMaterial({ color: 0x6a6f76 }));
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(2.24, 0.4, 4.44), new THREE.MeshLambertMaterial({ color: 0x1d2f55 }));
+  stripe.position.y = 1.0; van.add(stripe);
+  const cab = new THREE.Mesh(new THREE.BoxGeometry(2.1, 1.2, 1.2), new THREE.MeshLambertMaterial({ color: 0xd8dce2 }));
   cab.position.set(0, 0.8, 2.6); van.add(cab);
+  const bar = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.16, 0.4), new THREE.MeshBasicMaterial({ color: 0x2244ff }));
+  bar.position.set(0, 2.18, 1.6); van.add(bar);
   van.userData.flames = [];
   for (let i = 0; i < 5; i++) {
-    const f = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.8 + Math.random() * 1.2, 6),
+    const f = new THREE.Mesh(new THREE.ConeGeometry(0.75, 2.7 + Math.random() * 1.8, 6),
       new THREE.MeshBasicMaterial({ color: i % 2 ? 0xff8a00 : 0xffd24d, transparent: true, opacity: 0.9 }));
-    f.position.set((Math.random() - 0.5) * 1.6, 2.4 + Math.random(), (Math.random() - 0.5) * 3);
+    f.position.set((Math.random() - 0.5) * 1.6, 3.2 + Math.random(), (Math.random() - 0.5) * 3);
     van.add(f);
     van.userData.flames.push(f);
   }
-  const smoke = new THREE.Mesh(new THREE.SphereGeometry(1.6, 8, 6),
-    new THREE.MeshBasicMaterial({ color: 0x2a2d34, transparent: true, opacity: 0.5 }));
-  smoke.position.y = 4.4;
+  const smoke = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 6),
+    new THREE.MeshBasicMaterial({ color: 0x555a63, transparent: true, opacity: 0.35 }));
+  smoke.position.y = 5.2;
   van.add(smoke);
   van.userData.smoke = smoke;
   van.visible = false;
@@ -722,6 +726,14 @@ function districtSubFor(d) {
 
 // ---- camera ----
 let fixedCam = null;
+// Chase-camera framing: the staged shootout gets a closer, lower frame
+// so the protagonist fills the shot instead of reading as a small figure.
+function chaseParams() {
+  if (SHOT === 'shootout') return { back: 4.2, side: 2.4, up: 2.0, lookDist: 5, lookY: 2.0 };
+  if (state.mode === 'car') return { back: 8.5, side: 5.0, up: 3.2, lookDist: 10, lookY: 3.5 };
+  return { back: 6.5, side: 1.6, up: 2.8, lookDist: 10, lookY: 3.5 };
+}
+
 function updateCamera(dt) {
   if (fixedCam) {
     camera.position.lerp(fixedCam.pos, Math.min(1, dt * 2));
@@ -733,15 +745,13 @@ function updateCamera(dt) {
   const pz = state.mode === 'car' ? state.pos.z : playerState.z;
   const fx = Math.sin(heading), fz = Math.cos(heading);
   const rx = Math.cos(heading), rz = -Math.sin(heading);
-  const back = state.mode === 'car' ? 8.5 : 6.5;
-  const side = state.mode === 'car' ? 5.0 : 1.6;
-  const up = state.mode === 'car' ? 3.2 : 2.8;
+  const { back, side, up, lookDist, lookY } = chaseParams();
   const tx = px - fx * back + rx * side;
   const tz = pz - fz * back + rz * side;
   camera.position.x = lerp(camera.position.x, tx, Math.min(1, dt * 5));
   camera.position.y = lerp(camera.position.y, up, Math.min(1, dt * 5));
   camera.position.z = lerp(camera.position.z, tz, Math.min(1, dt * 5));
-  camera.lookAt(px + fx * 10, 3.5, pz + fz * 10);
+  camera.lookAt(px + fx * lookDist, lookY, pz + fz * lookDist);
 }
 
 // Snap the chase camera to its exact framing at once — staged shots are
@@ -752,11 +762,9 @@ function snapChaseCamera() {
   const pz = state.mode === 'car' ? state.pos.z : playerState.z;
   const fx = Math.sin(heading), fz = Math.cos(heading);
   const rx = Math.cos(heading), rz = -Math.sin(heading);
-  const back = state.mode === 'car' ? 8.5 : 6.5;
-  const side = state.mode === 'car' ? 5.0 : 1.6;
-  const up = state.mode === 'car' ? 3.2 : 2.8;
+  const { back, side, up, lookDist, lookY } = chaseParams();
   camera.position.set(px - fx * back + rx * side, up, pz - fz * back + rz * side);
-  camera.lookAt(px + fx * 10, 3.5, pz + fz * 10);
+  camera.lookAt(px + fx * lookDist, lookY, pz + fz * lookDist);
 }
 
 // ---- the __GAME__ surface the playtest drives ----
@@ -844,6 +852,10 @@ window.__GAME__ = {
       dist, x, z,
     }));
     state.wanted = Math.max(state.wanted, 3);
+  },
+  // Set the CBPD panel rows without spawning police cars (shootout staging).
+  setPoliceUnits(units) {
+    state._policeList = units;
   },
   placeHeli(x, z, h) {
     heli.visible = true;
@@ -952,7 +964,10 @@ function frame() {
   // clock: one game-minute per 6 game-seconds
   const mins = 17 * 60 + 42 + Math.floor(state.gameTime / 6);
   state.time = `${String(Math.floor(mins / 60) % 24).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
-  state.district = districtAt(state.pos.x, state.pos.z);
+  // on foot, the district follows the player, not the parked car
+  const dpx = state.mode === 'foot' ? playerState.x : state.pos.x;
+  const dpz = state.mode === 'foot' ? playerState.z : state.pos.z;
+  state.district = districtAt(dpx, dpz);
   if (!overlayOpen() && !state.failed && !state.victory) {
     if (state.mode === 'car') drive(dt);
     else walk(dt);

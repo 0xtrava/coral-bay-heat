@@ -20,6 +20,35 @@ export function drawBigMap(canvas, view) {
   const W = canvas.width, H = canvas.height;
   const px = (x) => ((x + 120) / 240) * W;
   const pz = (z) => ((z + 120) / 240) * H;
+  // district tints over the block grid, so each quarter reads differently
+  const tints = [
+    ['DOWNTOWN', -24, -24, 48, 48, 'rgba(120,180,90,0.22)'],
+    ['MARINA BEACH', 84, -60, 108, 60, 'rgba(232,201,143,0.30)'],
+    ['PIER 9', 48, 60, 108, 120, 'rgba(90,140,180,0.25)'],
+    ['THE DOCKS', -120, -120, 48, -60, 'rgba(150,120,180,0.22)'],
+    ['OLD TOWN', -120, -60, -60, 60, 'rgba(220,140,140,0.22)'],
+    ['NORTHSIDE', 48, -120, 108, -60, 'rgba(90,180,170,0.22)'],
+    ['GARAGE', -120, 60, -24, 120, 'rgba(180,160,90,0.22)'],
+  ];
+  for (const [, x0, z0, x1, z1, col] of tints) {
+    g.fillStyle = col;
+    g.fillRect(px(x0), pz(z0), px(x1) - px(x0), pz(z1) - pz(z0));
+  }
+  // markers: H hotel, J job, R race, S shop
+  const marks = [
+    ['H', 70, -48, '#ffd24d'], ['H', 70, -12, '#ffd24d'], ['H', 70, 24, '#ffd24d'],
+    ['J', 48, 12, '#b45cff'], ['J', -60, -60, '#b45cff'],
+    ['R', 12, 12, '#ff5a5a'],
+    ['S', 30, -42, '#2fd8c8'], ['S', -38, 96, '#2fd8c8'],
+  ];
+  g.font = 'bold 12px Arial';
+  g.textAlign = 'center';
+  for (const [letter, x, z, color] of marks) {
+    g.fillStyle = color;
+    g.beginPath(); g.arc(px(x), pz(z), 9, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#141210';
+    g.fillText(letter, px(x), pz(z) + 4);
+  }
   g.font = 'bold 15px Arial';
   g.textAlign = 'center';
   const labels = [
@@ -81,11 +110,16 @@ export function stageShot(game, shot) {
       dialogue: 'Hold the beach. Three officers, one van — make it count.',
     });
     game.placeOfficers([
-      [118, 18], [120, 27], [116, 31],
+      [115, 20], [117, 26], [114, 29],
     ]);
-    game.placeFallenOfficer(114, 28);
-    game.placeBurningVan(121, 20);
-    game.placeHeli(116, 6, 20);
+    game.placeFallenOfficer(113, 27);
+    game.placeBurningVan(119, 19);
+    game.setPoliceUnits([
+      { name: 'IBIS-43', role: 'RAMMING', dist: 4 },
+      { name: 'TARPON-10', role: 'Pursuit', dist: 6 },
+      { name: 'HERON-19', role: 'SEARCH', dist: 5 },
+    ]);
+    game.placeHeli(132, 22, 11);
     game.placeBystanders([[110, 30], [109, 18], [115, 34], [108, 26]]);
     game.placeTracer();
     game.setSun(1, 0.16, 0.15);
