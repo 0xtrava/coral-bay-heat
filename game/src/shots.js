@@ -81,16 +81,16 @@ function stageTitle(game) {
   game.startPlay();
   game.setCash(18450);
   game.setClock(SUNSET_CLOCK);
-  game.teleportCar(94, 12, Math.PI * 0.92);
+  game.teleportCar(92, 37, Math.PI * 0.92);
   game.placeTitleTraffic();
   // fixed camera on the boulevard, between the palm rows, looking
   // north-west up the avenue: hero car left-foreground, sun centre,
-  // hotel row ahead — the v17 title composition. Closer to the hotels
-  // now (camera at z 20, not 70) so their signs read, and the camera
-  // sits between palm rows so no frond dominates the frame.
+  // hotel row ahead — the v17 title composition. Mid-avenue (z 45):
+  // close enough for the hotel signs to read, far enough back that no
+  // single building fills the frame (z 20 put one right on the lens).
   game.setCameraMode('fixed',
-    { x: 96, y: 3.5, z: 20 },
-    { x: 55, y: 8, z: -50 });
+    { x: 96, y: 4.0, z: 45 },
+    { x: 62, y: 7, z: -50 });
   game.hud.showHud(false);
   game.hud.showMap(false);
   game.hud.showTitle(true);

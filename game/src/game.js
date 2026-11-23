@@ -790,7 +790,7 @@ export class Game {
     this.fallen.visible = true;
     // down beside the player, left of his line of fire — in the old
     // spot (110, 4) he fell outside the shootout frame entirely
-    this.fallen.position.set(this.foot.x - 3.5, 0, this.foot.z - 1);
+    this.fallen.position.set(this.foot.x - 2.5, 0, this.foot.z - 0.5);
     this.fallen.rotation.y = 0.8;
   }
 

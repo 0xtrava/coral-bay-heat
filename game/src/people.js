@@ -99,8 +99,8 @@ export function makeFallenOfficer() {
   const head = limb(0.3, 0.28, 0.3, 0xd9a986, 0, 0.26, 0.85);
   const cap = limb(0.34, 0.1, 0.32, 0x14203a, 0, 0.42, 0.85);
   const pool = new THREE.Mesh(
-    new THREE.CircleGeometry(0.85, 20),
-    new THREE.MeshBasicMaterial({ color: 0x8a0f0f, transparent: true, opacity: 0.85 }),
+    new THREE.CircleGeometry(1.1, 20),
+    new THREE.MeshBasicMaterial({ color: 0xa01515, transparent: true, opacity: 0.9 }),
   );
   pool.rotation.x = -Math.PI / 2;
   pool.position.set(0.1, 0.02, 0.1);
