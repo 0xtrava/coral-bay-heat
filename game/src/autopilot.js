@@ -56,7 +56,6 @@ export class Autopilot {
     this.stuckTimer = 0;
     this.reverseTimer = 0;
     this.failures = 0;
-    this.lastPos = null;
     this.lastMoveTime = 0;
     this.onNudge = null; // called with {x, z} when a nudge is needed
   }
@@ -87,15 +86,17 @@ export class Autopilot {
       }
       return this.update(dt, time);
     }
-    // stuck detection: barely moving while far from the waypoint
-    if (this.lastPos) {
-      const moved = Math.hypot(s.x - this.lastPos.x, s.z - this.lastPos.z);
-      if (moved > 0.4) {
-        this.lastMoveTime = time;
-        this.stuckTimer = 0;
-      }
+    // stuck detection: barely moving while far from the waypoint.
+    // NOTE: displacement per step is speed*dt (<=0.5 even at top
+    // speed), so the old per-step 0.4 threshold read any speed below
+    // 24 as "stuck" and looped reverse/replan forever around the
+    // nearest avenue. Compare speed instead: a car wedged on a
+    // building reads ~0.2 (the collider damps speed x0.4 per step),
+    // a driving car reads well above 2.
+    if (Math.abs(s.speed) > 2) {
+      this.lastMoveTime = time;
+      this.stuckTimer = 0;
     }
-    this.lastPos = { x: s.x, z: s.z };
     if (time - this.lastMoveTime > 2.5 && dist > 4) {
       this.stuckTimer += dt;
       if (this.stuckTimer > 1.2) {

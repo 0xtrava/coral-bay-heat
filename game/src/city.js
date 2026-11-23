@@ -211,8 +211,11 @@ export function buildBlocks(state) {
   // named hotels: tall, signed, inside their blocks, clear of every road
   addBuilding(group, colliders, rng, 60, -60, 20, 14, 30, PALETTE.wallCream,
     { text: 'HOTEL CORAL', sub: '★ ★ ★ ★', w: 16, h: 4 });
-  addBuilding(group, colliders, rng, 12, -60, 16, 12, 26, PALETTE.wallPink,
-    { text: 'LAGUNA RASI', sub: 'ROOMS · POOL', w: 14, h: 3.5 });
+  // LAGUNA RASI: inside the 24-48 block, clear of every road. It used
+  // to sit centred on avenue 12 (x=12) and walled the whole avenue off
+  // — a car driving up it wedged on the hotel face. Never again.
+  addBuilding(group, colliders, rng, 36, -60, 12, 12, 26, PALETTE.wallPink,
+    { text: 'LAGUNA RASI', sub: 'ROOMS · POOL', w: 11, h: 3.5 });
   addBuilding(group, colliders, rng, -36, -60, 18, 13, 24, PALETTE.wallTeal,
     { text: 'PALM COURT', sub: 'SUITES', w: 14, h: 3.5 });
   // the garage: low and wide, signed
@@ -238,7 +241,7 @@ export function buildBlocks(state) {
       // skip blocks already holding a named building
       const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
       if (Math.abs(cx - 60) < 14 && Math.abs(cz + 60) < 12) continue;
-      if (Math.abs(cx - 12) < 12 && Math.abs(cz + 60) < 10) continue;
+      if (Math.abs(cx - 36) < 12 && Math.abs(cz + 60) < 10) continue;
       if (Math.abs(cx + 36) < 13 && Math.abs(cz + 60) < 11) continue;
       if (Math.abs(cx + 32) < 12 && Math.abs(cz - 102) < 10) continue;
       if (Math.abs(cx - 18) < 10 && Math.abs(cz + 36) < 8) continue;
