@@ -208,16 +208,18 @@ function addBuilding(group, colliders, rng, cx, cz, w, d, h, color, sign) {
 
 export function buildBlocks(state) {
   const { group, colliders, rng } = state;
-  // named hotels: tall, signed, inside their blocks, clear of every road
+  // named hotels: tall, signed, inside their blocks, clear of every road.
+  // The signs are big on purpose — the title camera reads them from
+  // 130 m down the boulevard, and small signs were unreadable there.
   addBuilding(group, colliders, rng, 60, -60, 20, 14, 30, PALETTE.wallCream,
-    { text: 'HOTEL CORAL', sub: '★ ★ ★ ★', w: 16, h: 4 });
+    { text: 'HOTEL CORAL', sub: '★ ★ ★ ★', w: 22, h: 5 });
   // LAGUNA RASI: inside the 24-48 block, clear of every road. It used
   // to sit centred on avenue 12 (x=12) and walled the whole avenue off
   // — a car driving up it wedged on the hotel face. Never again.
   addBuilding(group, colliders, rng, 36, -60, 12, 12, 26, PALETTE.wallPink,
-    { text: 'LAGUNA RASI', sub: 'ROOMS · POOL', w: 11, h: 3.5 });
+    { text: 'LAGUNA RASI', sub: 'ROOMS · POOL', w: 16, h: 4.5 });
   addBuilding(group, colliders, rng, -36, -60, 18, 13, 24, PALETTE.wallTeal,
-    { text: 'PALM COURT', sub: 'SUITES', w: 14, h: 3.5 });
+    { text: 'PALM COURT', sub: 'SUITES', w: 19, h: 4.5 });
   // the garage: low and wide, signed
   addBuilding(group, colliders, rng, -32, 102, 16, 12, 7, PALETTE.wallTerra,
     { text: "LIO'S GARAGE", sub: 'TUNE · REPAIR', w: 13, h: 3 });

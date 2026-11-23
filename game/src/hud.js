@@ -184,6 +184,39 @@ export class HUD {
     c.fillRect(mx(108), 0, mx(134) - mx(108), H);
     c.fillStyle = '#8a6a44';
     c.fillRect(mx(96), mz(-51.5), mx(132) - mx(96), mz(-44.5) - mz(-51.5));
+    // marina + sea detail: the eastern third is sea, not flat blue —
+    // a marina basin by the beach, named boats, two islands, a
+    // breakwater and the pier running out past the beach
+    const sx = (x) => W * 0.62 + ((x - 134) / 110) * W * 0.38;
+    c.fillStyle = '#1a6a8a';
+    c.fillRect(sx(134), mz(-72), sx(244) - sx(134), mz(72) - mz(-72)); // marina basin
+    c.strokeStyle = '#d9b478';
+    c.lineWidth = 4;
+    c.beginPath(); c.moveTo(sx(150), mz(-72)); c.lineTo(sx(150), mz(72)); c.stroke(); // breakwater
+    c.strokeStyle = '#8a6a44';
+    c.lineWidth = 5;
+    c.beginPath(); c.moveTo(mx(96), mz(-48)); c.lineTo(sx(210), mz(-48)); c.stroke(); // pier out to sea
+    const seaBoats = [
+      { x: 160, z: -60, n: 'NIGHT TIDE' }, { x: 200, z: -30, n: 'CORAL DREAM' },
+      { x: 170, z: 0, n: 'BLUE HORIZON' }, { x: 210, z: 10, n: 'ISLAND QUEEN' },
+      { x: 175, z: 30, n: 'RED TIDE' }, { x: 205, z: 55, n: 'SEA STAR' },
+      { x: 165, z: 60, n: 'GOLDEN HOUR' },
+    ];
+    for (const b of seaBoats) {
+      c.fillStyle = '#f4f0e2';
+      c.beginPath(); c.ellipse(sx(b.x), mz(b.z), 9, 5, 0, 0, 7); c.fill();
+      c.fillStyle = '#fff';
+      c.font = 'bold 10px Arial';
+      c.fillText(b.n, sx(b.x) - 26, mz(b.z) - 9);
+    }
+    // two islands in the sea
+    c.fillStyle = '#3f7d4e';
+    c.beginPath(); c.ellipse(sx(190), mz(-55), 16, 8, 0.4, 0, 7); c.fill();
+    c.beginPath(); c.ellipse(sx(225), mz(35), 12, 7, -0.3, 0, 7); c.fill();
+    c.fillStyle = '#fff';
+    c.font = 'bold 10px Arial';
+    c.fillText('REEF ISLE', sx(190) - 24, mz(-55) - 12);
+    c.fillText('PALM CAY', sx(225) - 22, mz(35) - 11);
     // route line from player to target
     if (s.target) {
       c.strokeStyle = '#b45ae8';
@@ -199,12 +232,17 @@ export class HUD {
       c.font = 'bold 11px Arial';
       c.fillText('!', mx(s.target.x) - 2, mz(s.target.z) + 4);
     }
-    // markers: shops, garage, boats
+    // markers: shops, garage, boats, hotels
     const marks = [
       { x: 12, z: -42, t: 'G', c: '#ffd34d' },
       { x: -24, z: 96, t: 'G', c: '#ffd34d' },
       { x: 140, z: 108, t: 'B', c: '#ff4040' },
       { x: 96, z: -48, t: 'P', c: '#7fd9d9' },
+      { x: 60, z: -60, t: 'H', c: '#ff9ec4' },
+      { x: 36, z: -60, t: 'H', c: '#ff9ec4' },
+      { x: -36, z: -60, t: 'H', c: '#ff9ec4' },
+      { x: 18, z: -36, t: 'S', c: '#ffd34d' },
+      { x: -32, z: 102, t: 'G', c: '#ffd34d' },
     ];
     for (const m of marks) {
       c.fillStyle = m.c;
