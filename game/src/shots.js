@@ -93,6 +93,8 @@ export function stageShot(game, shot) {
     // three cruisers ahead, spread across lanes so none blocks the hero
     const spots = [[82, -55, 19], [86, -62, 26], [82, -70, 34], [86, -78, 42]];
     game.placePolice(spots, 30.5);
+    // civilian traffic on the avenue so the chase reads busy, not empty
+    game.placeTraffic([[80, -68, Math.PI], [88, -84, Math.PI], [80, -100, 0]]);
     game.placeHeli(80, -66, 11);
     game.setSun(0.15, 0.20, -1);
     game.setTrafficVisible(true);
@@ -110,10 +112,10 @@ export function stageShot(game, shot) {
       dialogue: 'Hold the beach. Three officers, one van — make it count.',
     });
     game.placeOfficers([
-      [115, 20], [117, 26], [114, 29],
+      [116, 21], [118, 22], [115, 29],
     ]);
     game.placeFallenOfficer(113, 27);
-    game.placeBurningVan(119, 19);
+    game.placeBurningVan(121, 26);
     game.setPoliceUnits([
       { name: 'IBIS-43', role: 'RAMMING', dist: 4 },
       { name: 'TARPON-10', role: 'Pursuit', dist: 6 },
@@ -155,8 +157,9 @@ export function stageShot(game, shot) {
     return;
   }
   if (shot === 'title') {
-    // Boulevard at dusk: hotels signed and fully visible, hero parked big.
-    game.teleportHero(90, 42, Math.PI * 0.72);
+    // Boulevard at dusk: hotels signed and fully visible, hero parked big
+    // in the foreground (12 units ahead of the title camera).
+    game.teleportHero(88, 56, Math.PI * 0.72);
     game.parkHero();
     game.placeHeli(60, -30, 26);
     game.showTitleScreen([

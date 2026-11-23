@@ -151,15 +151,15 @@ const van = new THREE.Group();
   bar.position.set(0, 2.18, 1.6); van.add(bar);
   van.userData.flames = [];
   for (let i = 0; i < 5; i++) {
-    const f = new THREE.Mesh(new THREE.ConeGeometry(0.75, 2.7 + Math.random() * 1.8, 6),
+    const f = new THREE.Mesh(new THREE.ConeGeometry(0.6, 2.0 + Math.random() * 1.2, 6),
       new THREE.MeshBasicMaterial({ color: i % 2 ? 0xff8a00 : 0xffd24d, transparent: true, opacity: 0.9 }));
-    f.position.set((Math.random() - 0.5) * 1.6, 3.2 + Math.random(), (Math.random() - 0.5) * 3);
+    f.position.set((Math.random() - 0.5) * 1.6, 2.8 + Math.random(), (Math.random() - 0.5) * 3);
     van.add(f);
     van.userData.flames.push(f);
   }
-  const smoke = new THREE.Mesh(new THREE.SphereGeometry(1.2, 8, 6),
-    new THREE.MeshBasicMaterial({ color: 0x555a63, transparent: true, opacity: 0.35 }));
-  smoke.position.y = 5.2;
+  const smoke = new THREE.Mesh(new THREE.SphereGeometry(0.9, 8, 6),
+    new THREE.MeshBasicMaterial({ color: 0x777d88, transparent: true, opacity: 0.3 }));
+  smoke.position.y = 5.8;
   van.add(smoke);
   van.userData.smoke = smoke;
   van.visible = false;
@@ -870,6 +870,19 @@ window.__GAME__ = {
   setPoliceUnits(units) {
     state._policeList = units;
   },
+  // Park traffic cars on an avenue for a staged shot (they keep driving
+  // their route, so they read as live traffic, not props).
+  placeTraffic(spots) {
+    spots.forEach(([x, z, heading], i) => {
+      const c = traffic[i];
+      if (!c) return;
+      c.userData.route = { axis: 'z', fixed: x, from: -114, to: 114 };
+      c.userData.t = z;
+      c.userData.dir = heading === 0 ? 1 : -1;
+      c.position.set(x, 0, z);
+      c.rotation.y = heading;
+    });
+  },
   placeHeli(x, z, h) {
     heli.visible = true;
     beam.visible = true;
@@ -971,6 +984,9 @@ let hudTimer = 0;
 
 function frame() {
   requestAnimationFrame(frame);
+  // the title and map are full-screen menus — the game HUD must not
+  // bleed through their translucent backgrounds
+  document.getElementById('hud').style.display = (titleOpen || mapOpen) ? 'none' : 'block';
   const rawDt = Math.min(clock.getDelta(), 0.1);
   const dt = rawDt * FF;
   state.gameTime += dt;
