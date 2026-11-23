@@ -16,9 +16,11 @@ export async function launchChrome(port) {
   const chrome = spawn(CHROME, [
     '--headless=new',
     '--no-sandbox',
-    '--disable-gpu',
     '--mute-audio',
     '--hide-scrollbars',
+    // software WebGL (SwiftShader): the game needs a real GL context
+    '--use-angle=swiftshader',
+    '--enable-unsafe-swiftshader',
     `--remote-debugging-port=${port}`,
     `--user-data-dir=${userDataDir}`,
     `--window-size=${VIEWPORT.width},${VIEWPORT.height}`,
