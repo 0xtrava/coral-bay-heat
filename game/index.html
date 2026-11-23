@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CORAL BAY HEAT</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #1a0f2e; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #f2f2ee; }
+  #game, #game canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  .panel { background: rgba(12, 12, 28, 0.72); border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(2px); }
+  .bar { height: 8px; background: rgba(255,255,255,0.16); border-radius: 4px; overflow: hidden; flex: 1; }
+  .bar-fill { height: 100%; border-radius: 4px; }
+  .bar-fill.green { background: #5ec85e; } .bar-fill.amber { background: #ffb347; }
+  .bar-fill.red { background: #ff5e5e; } .bar-fill.blue { background: #4d8fd1; }
+
+  .hud-tl { position: absolute; top: 14px; left: 14px; }
+  .hud-cash { font-size: 30px; font-weight: bold; color: #7dff8a; text-shadow: 0 2px 6px rgba(0,0,0,0.7); }
+  .hud-clock { font-size: 13px; color: #e8e4d8; margin-top: 2px; }
+  .hud-tr { position: absolute; top: 14px; right: 14px; text-align: right; }
+  .hud-stars { font-size: 22px; letter-spacing: 3px; text-shadow: 0 2px 6px rgba(0,0,0,0.8); }
+  .hud-wanted { margin-top: 6px; font-size: 11px; font-weight: bold; letter-spacing: 1px;
+    color: #ff8a8a; background: rgba(60,10,10,0.7); border: 1px solid rgba(255,90,90,0.4);
+    padding: 4px 8px; border-radius: 6px; }
+
+  .hud-left { position: absolute; top: 92px; left: 14px; width: 300px; display: flex; flex-direction: column; gap: 10px; }
+  .mp-kicker { font-size: 11px; letter-spacing: 2px; color: #ffd24d; }
+  .mp-title { font-size: 19px; font-weight: bold; color: #ffb347; margin-top: 2px; }
+  .mp-stage { display: inline-block; font-size: 12px; font-weight: bold; background: #ffb347; color: #20140a;
+    border-radius: 4px; padding: 2px 7px; margin-top: 5px; }
+  .mp-brief { font-size: 12.5px; line-height: 1.45; color: #e8e4d8; margin-top: 7px; }
+  .mp-next { font-size: 12px; color: #7dff8a; margin-top: 6px; }
+  .cbpd-head { font-size: 12px; font-weight: bold; letter-spacing: 1px; color: #ff8a8a;
+    display: flex; justify-content: space-between; }
+  .cbpd-row { display: flex; justify-content: space-between; font-size: 12.5px; padding: 3px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.07); }
+  .cbpd-row:last-child { border-bottom: none; }
+  .cbpd-role { color: #9fd8ff; font-size: 11px; }
+  .dp-name { font-size: 16px; font-weight: bold; color: #ffd24d; }
+  .dp-sub { font-size: 11.5px; color: #c9c2b2; margin-top: 2px; }
+  .dp-respect { font-size: 11.5px; margin-top: 7px; }
+  .dp-packages { font-size: 11.5px; margin-top: 5px; color: #9fd8ff; }
+  .district-panel .bar { margin-top: 4px; }
+
+  .hud-right { position: absolute; top: 92px; right: 14px; width: 268px; display: flex; flex-direction: column; gap: 10px; }
+  .fx-kicker { font-size: 11px; letter-spacing: 2px; color: #7dff8a; }
+  .fx-name { font-size: 18px; font-weight: bold; }
+  .fx-rank { font-size: 11.5px; color: #c9c2b2; margin-top: 2px; }
+  .fixer-card .bar { margin-top: 6px; }
+  .fx-row { display: flex; gap: 10px; margin-top: 8px; align-items: flex-start; }
+  .fx-row img { width: 56px; height: 56px; border-radius: 8px; border: 2px solid rgba(255,210,77,0.6); }
+  .fx-quote { font-size: 12px; line-height: 1.4; color: #e8e4d8; font-style: italic; }
+  .weapons { display: flex; gap: 6px; }
+  .weapon-slot { flex: 1; background: rgba(12,12,28,0.72); border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 8px; padding: 6px 4px 5px; text-align: center; position: relative; }
+  .weapon-slot.active { border-color: #ffb347; box-shadow: 0 0 0 2px rgba(255,179,71,0.55); }
+  .weapon-slot img { width: 34px; height: 34px; }
+  .ws-num { position: absolute; top: 2px; left: 5px; font-size: 10px; color: #c9c2b2; }
+  .ws-label { font-size: 10px; letter-spacing: 1px; color: #e8e4d8; }
+  .ws-ammo { font-size: 13px; font-weight: bold; color: #ffd24d; }
+  .crew-card { display: flex; gap: 10px; align-items: center; padding: 8px 10px; }
+  .crew-card img { width: 44px; height: 44px; border-radius: 50%; border: 2px solid rgba(125,255,138,0.5); }
+  .cc-name { font-size: 13px; }
+  .cc-skill { font-size: 11px; color: #9fd8ff; margin-top: 2px; }
+
+  .hud-bl { position: absolute; left: 14px; bottom: 14px; width: 300px; }
+  .health-panel { padding: 8px 12px; margin-bottom: 8px; }
+  .hp-row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+  .hp-label { font-size: 11px; letter-spacing: 1px; width: 52px; }
+  .hp-val { font-size: 12px; font-weight: bold; width: 26px; text-align: right; }
+  .speedo { font-size: 15px; color: #e8e4d8; text-shadow: 0 2px 6px rgba(0,0,0,0.8); }
+  .speedo b { font-size: 34px; color: #fff; }
+  .car-name { font-size: 12px; font-weight: bold; color: #ffd24d; margin-top: 2px; }
+  .car-cond { font-size: 11px; color: #ff9a9a; }
+  .radio-line { font-size: 11.5px; color: #9fd8ff; margin-top: 4px; }
+
+  .hud-br { position: absolute; right: 14px; bottom: 14px; }
+  .minimap-wrap { position: relative; width: 220px; height: 220px; border-radius: 50%;
+    border: 3px solid #2fd8c8; overflow: hidden; box-shadow: 0 0 0 3px rgba(0,0,0,0.45), 0 4px 18px rgba(0,0,0,0.5); }
+  .minimap-wrap canvas { width: 100%; height: 100%; display: block; }
+  .minimap-label { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center;
+    font-size: 11px; font-weight: bold; letter-spacing: 2px; color: #fff; text-shadow: 0 1px 4px #000; }
+
+  .dialogue { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%);
+    max-width: 560px; background: rgba(12,12,28,0.8); border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 10px; padding: 10px 16px; font-size: 13.5px; line-height: 1.45; }
+  .dialogue b { color: #7dff8a; }
+
+  /* ---- map screen ---- */
+  #map-screen { position: fixed; inset: 0; z-index: 20; background: rgba(8,8,20,0.96); padding: 18px 26px; display: none; }
+  .ms-top { display: flex; justify-content: space-between; align-items: baseline; }
+  .ms-title { font-size: 22px; letter-spacing: 2px; } .ms-title b { color: #ffb347; }
+  .ms-tabs { font-size: 13px; letter-spacing: 2px; color: #9a93a8; }
+  .ms-cash { font-size: 24px; font-weight: bold; color: #7dff8a; }
+  .ms-body { display: flex; gap: 22px; margin-top: 14px; }
+  .ms-mapwrap { flex: 0 0 560px; }
+  #ms-map { width: 560px; height: 420px; border: 3px solid #2fd8c8; border-radius: 6px; }
+  .ms-mapfoot { text-align: center; font-size: 11px; letter-spacing: 2px; color: #9a93a8; margin-top: 8px; }
+  .ms-side { flex: 1; }
+  .ms-ring { font-size: 34px; font-weight: bold; color: #ffb347; }
+  .ms-ring small { display: block; font-size: 11px; letter-spacing: 2px; color: #9a93a8; }
+  .ms-sec { font-size: 12px; font-weight: bold; letter-spacing: 2px; color: #7dff8a; margin: 14px 0 6px; }
+  .ms-ratings { display: flex; gap: 8px; }
+  .medal { width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    font-weight: bold; font-size: 15px; }
+  .medal.g { background: #ffd24d; color: #20140a; } .medal.s { background: #cfd6dd; color: #20242a; }
+  .medal.b { background: #c07a3e; color: #fff; } .medal.empty { background: #33333d; color: #777; }
+  .prog-row { display: flex; align-items: center; gap: 10px; font-size: 12px; margin: 4px 0; }
+  .prog-row span { width: 150px; color: #c9c2b2; } .prog-row b { width: 44px; text-align: right; color: #ffd24d; }
+  .career-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 18px; font-size: 12px; color: #c9c2b2; }
+  .career-grid b { color: #fff; float: right; }
+  .career-line { font-size: 12px; color: #9fd8ff; margin-top: 8px; }
+  #ms-crew { font-size: 12px; color: #c9c2b2; line-height: 1.7; }
+  .ms-slots { display: flex; gap: 14px; margin-top: 16px; }
+  .save-slot { flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 8px; padding: 10px 12px; font-size: 13px; }
+  .save-slot.filled { border-color: #ffb347; }
+  .save-slot span { font-size: 11.5px; color: #9fd8ff; }
+
+  /* ---- title screen ---- */
+  #title-screen { position: fixed; inset: 0; z-index: 15; display: none; pointer-events: none;
+    background: linear-gradient(to bottom, rgba(20,8,32,0.25), rgba(20,8,32,0) 40%, rgba(20,8,32,0) 70%, rgba(20,8,32,0.55)); }
+  .ts-left { position: absolute; left: 48px; top: 56px; width: 640px; }
+  .ts-title { font-size: 84px; line-height: 0.95; font-weight: 900; letter-spacing: 2px;
+    background: linear-gradient(180deg, #ffe9a8 0%, #ffb347 45%, #ff5e8a 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 4px 24px rgba(0,0,0,0.35); }
+  .ts-title span { color: #fff; -webkit-text-fill-color: #fff; }
+  .ts-tag { margin-top: 12px; font-size: 13px; letter-spacing: 3px; color: #ffe9a8; text-shadow: 0 2px 6px #000; }
+  .ts-menu { margin-top: 34px; font-size: 26px; font-weight: bold; letter-spacing: 1px; }
+  .ts-item { padding: 7px 0; color: #e8e4d8; text-shadow: 0 2px 8px #000; }
+  .ts-item.sel { color: #ffb347; }
+  .ts-right { position: absolute; right: 48px; top: 120px; width: 380px; display: flex; flex-direction: column; gap: 12px; }
+  .ts-right .save-slot { background: rgba(12,12,28,0.78); }
+  .ts-foot { position: absolute; left: 0; right: 0; bottom: 26px; text-align: center;
+    font-size: 17px; letter-spacing: 6px; color: #ffd24d; text-shadow: 0 2px 8px #000; }
+  .ts-foot small { display: block; margin-top: 6px; font-size: 11px; letter-spacing: 2px; color: #e8e4d8; }
+
+  /* ---- fail / victory ---- */
+  #fail, #victory { position: fixed; inset: 0; z-index: 30; display: none; align-items: center; justify-content: center; }
+  #fail { background: rgba(40,4,4,0.72); }
+  #victory { background: rgba(20,30,4,0.66); }
+  .fail-box, .vic-box { text-align: center; }
+  .fail-title { font-size: 72px; font-weight: 900; letter-spacing: 6px; color: #ff5e5e; text-shadow: 0 4px 24px #000; }
+  .vic-title { font-size: 72px; font-weight: 900; letter-spacing: 6px; color: #ffd24d; text-shadow: 0 4px 24px #000; }
+  .fail-sub, .vic-sub { font-size: 18px; margin-top: 10px; }
+  .fail-hint, .vic-hint { font-size: 13px; color: #c9c2b2; margin-top: 14px; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.js" } }
+</script>
+</head>
+<body>
+<div id="game"></div>
+<div id="hud"></div>
+<div id="map-screen"></div>
+<div id="title-screen"></div>
+<div id="fail"></div>
+<div id="victory"></div>
+<script type="module" src="./src/game.js"></script>
+</body>
+</html>
