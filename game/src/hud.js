@@ -168,6 +168,19 @@ export class HUD {
     c.fillRect(W * 0.62, 0, W * 0.38, H);
     const mx = (x) => ((x + 100) / 240) * W * 0.62;
     const mz = (z) => ((z + 112) / 244) * H;
+    // varied city blocks: each avenue/street cell gets a muted tone
+    // picked from its coordinates, so the west half reads as a real
+    // city instead of one flat green field
+    const blockTones = ['rgba(90,140,90,0.55)', 'rgba(140,150,110,0.55)', 'rgba(110,130,160,0.55)', 'rgba(150,120,100,0.55)', 'rgba(80,120,110,0.55)'];
+    const bxs = [-100, ...AVENUES, 108];
+    const bzs = [-112, ...STREETS, 124];
+    for (let i = 0; i < bxs.length - 1; i++) {
+      for (let j = 0; j < bzs.length - 1; j++) {
+        if (bxs[i] >= 108) continue; // beach and sea are drawn above
+        c.fillStyle = blockTones[(Math.abs(bxs[i] * 7 + bzs[j] * 13) | 0) % blockTones.length];
+        c.fillRect(mx(bxs[i]) + 3, mz(bzs[j]) + 3, mx(bxs[i + 1]) - mx(bxs[i]) - 6, mz(bzs[j + 1]) - mz(bzs[j]) - 6);
+      }
+    }
     // district tints
     const tints = { DOWNTOWN: 'rgba(120,180,120,0.35)', NORTHSIDE: 'rgba(120,140,200,0.35)', 'OLD TOWN': 'rgba(200,180,120,0.35)', 'THE DOCKS': 'rgba(180,120,120,0.35)', 'MARINA BEACH': 'rgba(220,200,140,0.35)', 'PIER 9': 'rgba(140,200,200,0.35)', GARAGE: 'rgba(160,140,180,0.35)' };
     for (const d of DISTRICTS) {

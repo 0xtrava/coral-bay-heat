@@ -788,7 +788,9 @@ export class Game {
     this.flames.visible = true;
     this.flames.position.set(120, 1.2, -8);
     this.fallen.visible = true;
-    this.fallen.position.set(110, 0, 4);
+    // down beside the player, left of his line of fire — in the old
+    // spot (110, 4) he fell outside the shootout frame entirely
+    this.fallen.position.set(this.foot.x - 3.5, 0, this.foot.z - 1);
     this.fallen.rotation.y = 0.8;
   }
 
@@ -1213,6 +1215,18 @@ export class Game {
     this.playerMesh.position.set(116, 0, 4);
     this.playerMesh.rotation.y = Math.PI;
     this._armShootout();
+    // two parked cruisers flanking the standoff — the live pursuit
+    // units are still 20+ m out, so the frame needs police cars in it;
+    // they sit behind the officers, framing the scene, not blocking it
+    for (const p of this.shootoutProps || []) this.scene.remove(p);
+    this.shootoutProps = [];
+    for (const [x, z, ry] of [[107, -15, Math.PI], [125, -13, Math.PI]]) {
+      const cruiser = makeCruiser();
+      cruiser.position.set(x, 0, z);
+      cruiser.rotation.y = ry;
+      this.scene.add(cruiser);
+      this.shootoutProps.push(cruiser);
+    }
     // freeze one shot in the air: aim at the nearest officer, fire, then
     // hold the tracer + muzzle flash on for the capture — the loop would
     // fade them in 0.09 s otherwise, and the frame would show no shot
@@ -1238,9 +1252,10 @@ export class Game {
   }
 
   placeTitleTraffic() {
-    // a few cars parked and rolling on the boulevard behind the hero
+    // a few cars parked and rolling on the boulevard ahead of the hero
+    // (north of the title camera, so none of them sits on the lens)
     const civ = [
-      { x: 96, z: 20, h: Math.PI }, { x: 96, z: -10, h: Math.PI }, { x: 84, z: 30, h: 0 },
+      { x: 96, z: -20, h: Math.PI }, { x: 96, z: -40, h: Math.PI }, { x: 84, z: 10, h: 0 },
     ];
     for (let i = 0; i < 3 && i < this.traffic.length; i++) {
       const t = this.traffic[i];

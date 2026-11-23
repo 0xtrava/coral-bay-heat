@@ -23,7 +23,9 @@ function stageCover(game) {
   // sun and heli in the top of the frame — the v17 composition.
   // FIXED, not chase: the capture runs at ~1 fps, so a lerping chase
   // camera never converges and the hero ends up behind the camera.
-  game.setCameraMode('fixed', { x: 10.5, y: 2.2, z: 39.5 }, { x: 12.5, y: 3.0, z: 4 });
+  // Offset to the west so the hero reads rear-3/4, full car in frame —
+  // straight behind it the rear bumper cropped out the bottom.
+  game.setCameraMode('fixed', { x: 8.5, y: 2.8, z: 42.5 }, { x: 12.5, y: 2.2, z: 4 });
   game.hud.showHud(true);
   game.hud.showTitle(false);
   game.hud.showMap(false);
@@ -46,7 +48,9 @@ function stageShootout(game) {
   // empty sand while the whole cast stood behind the camera.
   // FIXED, not foot: the capture runs at ~1 fps, so a lerping foot
   // camera never converges and ends up stuck inside a building.
-  game.setCameraMode('fixed', { x: 116, y: 2.3, z: 10.5 }, { x: 115.5, y: 1.4, z: -4 });
+  // Closer now, so the player fills a third of the frame, and aimed
+  // slightly left so the fallen officer lands in the left third.
+  game.setCameraMode('fixed', { x: 116, y: 2.0, z: 8.5 }, { x: 113, y: 1.4, z: -4 });
   game.hud.showHud(true);
   game.hud.showTitle(false);
   game.hud.showMap(false);
@@ -77,15 +81,16 @@ function stageTitle(game) {
   game.startPlay();
   game.setCash(18450);
   game.setClock(SUNSET_CLOCK);
-  game.teleportCar(94, 56, Math.PI * 0.92);
+  game.teleportCar(94, 12, Math.PI * 0.92);
   game.placeTitleTraffic();
   // fixed camera on the boulevard, between the palm rows, looking
   // north-west up the avenue: hero car left-foreground, sun centre,
-  // hotel row ahead — the v17 title composition. The palms stay on the
-  // sidewalks; the camera sits mid-road so none of them lands in it.
+  // hotel row ahead — the v17 title composition. Closer to the hotels
+  // now (camera at z 20, not 70) so their signs read, and the camera
+  // sits between palm rows so no frond dominates the frame.
   game.setCameraMode('fixed',
-    { x: 97, y: 3.5, z: 64 },
-    { x: 50, y: 7, z: -45 });
+    { x: 96, y: 3.5, z: 20 },
+    { x: 55, y: 8, z: -50 });
   game.hud.showHud(false);
   game.hud.showMap(false);
   game.hud.showTitle(true);
