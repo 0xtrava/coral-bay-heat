@@ -8,7 +8,7 @@ import { PALETTE, glowTexture } from './materials.js';
 import { buildCity, buildBlocks, buildProps, AVENUES, STREETS, BEACH_X0, districtAt } from './city.js';
 import { makeHeroCar, makeCruiser, makeCivilianCar, makePoliceVan, makeScooter } from './cars.js';
 import { makePlayer, makeOfficer, makeFallenOfficer, makePedestrian, makeBeachgoer, stepWalk } from './people.js';
-import { makeHeli, updateHeli } from './heli.js';
+import { makeHeli, updateHeli, setHeliAltitude } from './heli.js';
 import { MISSIONS, BOATS, BOAT_EXIT, pickBoatForDestination, SHOPS, TAXI_START, HERO_START, VICTORY_CASH } from './missions.js';
 import { Autopilot } from './autopilot.js';
 import { AudioEngine } from './audio.js';
@@ -117,14 +117,14 @@ export class Game {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.12;
+    this.renderer.toneMappingExposure = 1.3;
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.Fog(0xc96a72, 90, 480);
     this.camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 1400);
     this.camera.position.set(0, 6, 20);
     const hemi = new THREE.HemisphereLight(0xd98ab0, 0x4a3a30, 0.85);
     this.scene.add(hemi);
-    const sun = new THREE.DirectionalLight(0xffb36b, 2.1);
+    const sun = new THREE.DirectionalLight(0xffb36b, 2.6);
     sun.position.set(120, 150, -260);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
@@ -1157,11 +1157,12 @@ export class Game {
 
   // ---- shot staging helpers ----
   placeCoverTraffic() {
-    // four cruisers ahead up the boulevard, traffic alongside, the
-    // scooter rider, pedestrians on the walks, heli already overhead
+    // four cruisers in a tight pack ahead up the boulevard, the red
+    // delivery van leading them — the chase, in frame, right in front
+    // of the hero instead of scattered 30 m apart
     const spots = [
-      { x: 10, z: 12, h: Math.PI }, { x: 15, z: -4, h: Math.PI },
-      { x: 9, z: -18, h: Math.PI }, { x: 14, z: -30, h: Math.PI },
+      { x: 11, z: 22, h: Math.PI }, { x: 14, z: 10, h: Math.PI },
+      { x: 10, z: -2, h: Math.PI }, { x: 13, z: -14, h: Math.PI },
     ];
     for (let i = 0; i < 4; i++) {
       const p = this.police[i];
@@ -1171,9 +1172,10 @@ export class Game {
       p.mesh.position.set(p.x, 0, p.z);
       p.mesh.rotation.y = p.heading;
     }
-    // civilian cars ahead and behind on the boulevard
+    // civilian cars ahead and behind on the boulevard; the lead one
+    // reads as the red delivery van from the v17 cover
     const civ = [
-      { x: 12, z: -44, h: Math.PI }, { x: 12, z: 52, h: 0 }, { x: 24, z: -10, h: Math.PI },
+      { x: 12, z: -26, h: Math.PI }, { x: 12, z: 52, h: 0 }, { x: 24, z: -10, h: Math.PI },
     ];
     for (let i = 0; i < 3 && i < this.traffic.length; i++) {
       const t = this.traffic[i];
@@ -1182,11 +1184,14 @@ export class Game {
       t.dir = civ[i].h === 0 ? 1 : -1;
       t.mesh.position.set(civ[i].x, 0, civ[i].z);
       t.mesh.rotation.y = civ[i].h;
+      if (i === 0) t.mesh.children[0].material.color.setHex(0xd92020);
     }
     this.scooterState.z = 18;
     this.scooter.position.set(16, 0, 18);
     this.scooter.rotation.y = Math.PI;
-    // heli right above the hero, beam down on it
+    // heli low above the hero, beam down on it — its body in the frame,
+    // not 26 m up where only the cone shows
+    setHeliAltitude(this.heli, 11);
     this.heli.group.visible = true;
     this.heli.pool.visible = true;
     updateHeli(this.heli, { x: this.car.x, z: this.car.z }, 0, this.time);
@@ -1202,6 +1207,21 @@ export class Game {
     this.playerMesh.position.set(116, 0, 4);
     this.playerMesh.rotation.y = Math.PI;
     this._armShootout();
+    // freeze one shot in the air: aim at the nearest officer, fire, then
+    // hold the tracer + muzzle flash on for the capture — the loop would
+    // fade them in 0.09 s otherwise, and the frame would show no shot
+    const alive = this.officers.filter((o) => !o.down && o.mesh.visible);
+    if (alive.length) {
+      let best = alive[0], bd = Infinity;
+      for (const o of alive) {
+        const d = Math.hypot(o.x - this.foot.x, o.z - this.foot.z);
+        if (d < bd) { bd = d; best = o; }
+      }
+      this.foot.heading = Math.atan2(best.x - this.foot.x, best.z - this.foot.z);
+      this.playerMesh.rotation.y = this.foot.heading;
+      this.shoot(best);
+      this.tracerTimer = 3600;
+    }
     this.heli.group.visible = true;
     this.heli.pool.visible = true;
     updateHeli(this.heli, { x: 116, z: 0 }, 0, this.time);

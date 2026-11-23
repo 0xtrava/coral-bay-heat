@@ -63,24 +63,38 @@ export function makeHeli() {
   return { group: g, pool };
 }
 
+// Hover altitude for a staged shot: the chase camera sits low, so the
+// cover shot flies the heli down in the frame (altitude 11) instead of
+// 26 m up where only the beam shows.
+export function setHeliAltitude(heli, altitude) {
+  heli.altitude = altitude;
+}
+
 // Hover above a target, rotor spinning, beam aimed down at it.
 export function updateHeli(heli, target, dt, time) {
   const g = heli.group;
   const u = g.userData;
   u.rotor.rotation.y += dt * 22;
-  // gentle bob and drift so the hover feels alive
-  const hoverY = 26 + Math.sin(time * 0.7 + u.phase) * 1.2;
+  // gentle bob and drift so the hover feels alive; the cover shot flies
+  // the heli low (altitude 11) so its body lands in the frame
+  const alt = heli.altitude ?? 26;
+  const hoverY = alt + Math.sin(time * 0.7 + u.phase) * 1.2;
   g.position.set(
     target.x + Math.sin(time * 0.23 + u.phase) * 4,
     hoverY,
     target.z + Math.cos(time * 0.19 + u.phase) * 4,
   );
   g.rotation.y = Math.atan2(target.x - g.position.x, target.z - g.position.z);
-  // aim the beam straight down at the target
+  // aim the beam straight down at the target; the beam is a 26 m cone,
+  // so scale it to the hover altitude and its tip lands on the ground
+  // under the heli instead of poking through it
+  const bs = alt / 26;
+  u.beam.scale.set(1, bs, 1);
+  u.beam.position.y = -13.4 * bs;
   const dx = target.x - g.position.x;
   const dz = target.z - g.position.z;
-  u.beam.rotation.z = Math.atan2(dx, 26) * 0.9;
-  u.beam.rotation.x = -Math.atan2(dz, 26) * 0.9;
+  u.beam.rotation.z = Math.atan2(dx, alt) * 0.9;
+  u.beam.rotation.x = -Math.atan2(dz, alt) * 0.9;
   u.pool.position.set(target.x, 0.06, target.z);
   const s = 1 + Math.sin(time * 2.1) * 0.05;
   u.pool.scale.set(s, s, 1);

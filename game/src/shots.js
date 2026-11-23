@@ -18,7 +18,10 @@ function stageCover(game) {
   game.setWanted(3);
   game.teleportCar(12, 34, Math.PI); // facing north, up the boulevard
   game.placeCoverTraffic();
-  game.setCameraMode('chase', { x: 2.2, y: 3.1, z: 7.5 }, { x: -0.5, y: 1.6, z: -30 });
+  // street-level chase cam: low behind the hero (south of it, looking
+  // north up the boulevard), hero big at bottom-right, cruisers ahead,
+  // sun and heli in the top of the frame — the v17 composition
+  game.setCameraMode('chase', { x: 2.2, y: 2.6, z: -8.5 }, { x: -0.5, y: 3.0, z: 30 });
   game.hud.showHud(true);
   game.hud.showTitle(false);
   game.hud.showMap(false);
@@ -36,7 +39,10 @@ function stageShootout(game) {
   game.setClock(SUNSET_CLOCK);
   game.setWanted(3);
   game.placeShootoutScene();
-  game.setCameraMode('foot', { x: 0, y: 2.3, z: 6.5 }, { x: 0.5, y: 1.4, z: -8 });
+  // foot cam south of the player, looking north AT the staged scene
+  // (officers x 110-122, van, fallen) — the old aim looked south at
+  // empty sand while the whole cast stood behind the camera
+  game.setCameraMode('foot', { x: 0, y: 2.3, z: -6.5 }, { x: 0.5, y: 1.4, z: 8 });
   game.hud.showHud(true);
   game.hud.showTitle(false);
   game.hud.showMap(false);
@@ -69,9 +75,12 @@ function stageTitle(game) {
   game.setClock(SUNSET_CLOCK);
   game.teleportCar(94, 62, Math.PI * 0.92);
   game.placeTitleTraffic();
+  // fixed camera on the boulevard, clear of the sidewalk palms, looking
+  // north-west up the avenue: hero car left-foreground, sun centre,
+  // hotel row ahead — the v17 title composition
   game.setCameraMode('fixed',
-    { x: 101, y: 3.6, z: 82 },
-    { x: 62, y: 6, z: -30 });
+    { x: 99, y: 3.0, z: 70 },
+    { x: 58, y: 8, z: -50 });
   game.hud.showHud(false);
   game.hud.showMap(false);
   game.hud.showTitle(true);
