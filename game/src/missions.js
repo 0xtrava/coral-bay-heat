@@ -1,7 +1,7 @@
 // Missions for Coral Bay Heat: eight jobs from Mara Voss, the fixer.
 // Payouts add up to the $44,050 VICTORY. Steps are plain data — the
 // game turns them into waypoints, and the autopilot drives them.
-export const MISSION_PAYOUTS = [2000, 3000, 4000, 5000, 6000, 7000, 8000, 8550];
+export const MISSION_PAYOUTS = [2000, 3000, 4000, 5000, 6000, 7000, 8000, 9050];
 export const VICTORY_CASH = MISSION_PAYOUTS.reduce((a, b) => a + b, 0); // 44050
 
 // Step types: drive (reach a point in the car), collect (pick up a

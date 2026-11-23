@@ -116,10 +116,12 @@ async function runSides(page) {
   }
   await ev(`window.__GAME__.setAutopilot(false)`);
   check('packages-4-4', missionDone || maxPkgs === 4, `packages ${maxPkgs}/4${missionDone ? ' (M3 complete)' : ''}`);
-  // fresh page for the remaining checks
+  // fresh page for the remaining checks (and startPlay: a fresh page
+  // loads in title mode, and toggleVehicle/damage refuse to run there)
   await ev(`window.__READY__ = false`);
   await page.navigate(BASE);
   await page.waitForReady(60000);
+  await ev(`window.__GAME__.startPlay()`);
 
   // 5. gun store: SMG costs $200, ammo +120
   await ev(`window.__GAME__.setCash(5000); window.__GAME__.teleport(12, -42, 0)`);
