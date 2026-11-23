@@ -254,6 +254,15 @@ function drive(dt) {
   let throttle = 0, steer = 0;
   if (autopilotOn) {
     const out = pilot.update({ x: state.pos.x, z: state.pos.z, heading: state.heading, speed: state.speed, topSpeed: top }, dt);
+    // the pilot can ask for a nudge when the car is hopelessly wedged
+    // inside a block: put it back on the nearest road point and stop
+    if (out.nudgeTo) {
+      state.pos.x = out.nudgeTo[0];
+      state.pos.z = out.nudgeTo[1];
+      state.speed = 0;
+      hero.position.set(state.pos.x, 0, state.pos.z);
+      return;
+    }
     throttle = out.throttle; steer = out.steer;
   } else {
     if (keys.KeyW || keys.ArrowUp) throttle = 1;

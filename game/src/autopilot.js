@@ -112,8 +112,20 @@ export function createPilot() {
       }
       this.lastX = car.x; this.lastZ = car.z;
       if (this.stuckTime > 3) {
-        this.recovering = 1.4;
         this.stuckTime = 0;
+        // a wedged car is usually aiming at a stale waypoint through a
+        // building — throw the route away so the next plan starts from
+        // where the car actually ends up after reversing out
+        this.route = [];
+        this.stuckCount = (this.stuckCount || 0) + 1;
+        if (this.stuckCount >= 3) {
+          // hopelessly wedged: ask the game to put the car back on the
+          // nearest road point instead of grinding against the wall
+          this.stuckCount = 0;
+          const [nx, nz] = nearestRoadPoint(car.x, car.z);
+          return { throttle: 0, steer: 0, nudgeTo: [nx, nz] };
+        }
+        this.recovering = 1.4;
       }
       if (this.recovering > 0) {
         this.recovering -= dt;
@@ -122,7 +134,7 @@ export function createPilot() {
       // advance along the route
       while (this.idx < this.route.length) {
         const [wx, wz] = this.route[this.idx];
-        if (Math.hypot(wx - car.x, wz - car.z) < 6) this.idx++;
+        if (Math.hypot(wx - car.x, wz - car.z) < 6) { this.idx++; this.stuckCount = 0; }
         else break;
       }
       if (this.idx >= this.route.length) {
@@ -144,7 +156,7 @@ export function createPilot() {
       const distToWp = Math.hypot(cwx - car.x, cwz - car.z);
       if (!isLast && offGrid > 4 && distToWp > 15) {
         this.route = [];
-        return { throttle: 0, steer: 0 };
+        return { throttle: -0.7, steer: 0 };
       }
       const [wx, wz] = this.route[this.idx];
       const dx = wx - car.x, dz = wz - car.z;
