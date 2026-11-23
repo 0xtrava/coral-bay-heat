@@ -368,7 +368,7 @@ export class Game {
   // ---- main loop ----
   loop() {
     const dt0 = 1 / 60;
-    const steps = Math.max(1, Math.min(8, this.ff));
+    const steps = Math.max(1, Math.min(60, this.ff));
     for (let i = 0; i < steps; i++) {
       if (this.mode !== 'map') this._step(dt0);
     }

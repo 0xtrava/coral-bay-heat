@@ -51,7 +51,7 @@ try {
     await page.navigate(url);
     await page.waitForReady(60000);
     // one extra beat so the settle frames and the heli drift land
-    await sleep(1200);
+    await sleep(3000);
     const outFile = path.join(ROOT, 'out', 'screenshots', s.file);
     await page.screenshot(outFile);
     const finalFile = path.join(ROOT, 'screenshots', s.file);

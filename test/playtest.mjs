@@ -11,7 +11,7 @@ import { launchChrome, connectPage } from './cdp.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 8092;
 const CDP_PORT = 9334;
-const BASE = `http://localhost:${PORT}/game/index.html?seed=1&ff=6`;
+const BASE = `http://localhost:${PORT}/game/index.html?seed=1&ff=60`;
 const VICTORY_CASH = 44050;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -186,7 +186,7 @@ let chrome = null;
 let exitCode = 0;
 try {
   await waitForServer(`http://localhost:${PORT}/game/index.html`);
-  const launched = await launchChrome(CDP_PORT);
+  const launched = await launchChrome(CDP_PORT, { width: 640, height: 360 });
   chrome = launched.chrome;
   const page = await connectPage(CDP_PORT);
   await page.open();

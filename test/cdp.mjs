@@ -11,7 +11,7 @@ export const VIEWPORT = { width: 1280, height: 720 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-export async function launchChrome(port) {
+export async function launchChrome(port, viewport = VIEWPORT) {
   const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'coral-bay-chrome-'));
   const chrome = spawn(CHROME, [
     '--headless=new',
@@ -23,7 +23,7 @@ export async function launchChrome(port) {
     '--enable-unsafe-swiftshader',
     `--remote-debugging-port=${port}`,
     `--user-data-dir=${userDataDir}`,
-    `--window-size=${VIEWPORT.width},${VIEWPORT.height}`,
+    `--window-size=${viewport.width},${viewport.height}`,
   ], { stdio: 'ignore' });
   for (let i = 0; i < 60; i++) {
     try {
