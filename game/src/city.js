@@ -221,9 +221,11 @@ export function buildBlocks(state) {
   // the garage: low and wide, signed
   addBuilding(group, colliders, rng, -32, 102, 16, 12, 7, PALETTE.wallTerra,
     { text: "LIO'S GARAGE", sub: 'TUNE · REPAIR', w: 13, h: 3 });
-  // the gun store: small shop with a dark sign
-  addBuilding(group, colliders, rng, 18, -36, 12, 10, 6, PALETTE.wallLavender,
-    { text: 'AMMU-NATION', sub: 'GUNS · AMMO', w: 11, h: 2.8 });
+  // the gun store: small shop with a dark sign. Narrow (w=8) so it
+  // clears both avenues' centrelines — at w=12 it walled off avenue
+  // 12's west lane and a car driving up it wedged on the shop face.
+  addBuilding(group, colliders, rng, 18, -36, 8, 10, 6, PALETTE.wallLavender,
+    { text: 'AMMU-NATION', sub: 'GUNS · AMMO', w: 8, h: 2.8 });
 
   // fill the remaining blocks with varied buildings
   for (let ai = 0; ai < AVENUES.length - 1; ai++) {

@@ -485,7 +485,13 @@ export class Game {
     c.speed = clamp(c.speed, -9, top);
     if (Math.abs(c.speed) < 0.05 && throttle === 0) c.speed = 0;
     const steerRate = 1.9 / (1 + Math.abs(c.speed) * 0.045);
-    c.heading += steer * steerRate * dt * Math.sign(c.speed || 1);
+    // Steer in the direction of travel. When (near-)stationary, use
+    // the throttle's direction: the old Math.sign(speed||1) flipped
+    // every step as braking pushed speed through zero, so the heading
+    // jittered instead of turning and the car could never turn around
+    // from a standstill — the autopilot looped reverse/replan forever.
+    const travelDir = Math.abs(c.speed) > 0.5 ? Math.sign(c.speed) : (throttle < 0 ? -1 : 1);
+    c.heading += steer * steerRate * dt * travelDir;
     c.x += Math.sin(c.heading) * c.speed * dt;
     c.z += Math.cos(c.heading) * c.speed * dt;
     this._collideCircle(c, 1.35);
@@ -506,7 +512,11 @@ export class Game {
     if (brake > 0) b.speed -= 12 * brake * dt;
     b.speed -= b.speed * 0.2 * dt;
     b.speed = clamp(b.speed, -4, 16);
-    b.heading += steer * 1.1 * dt * Math.sign(b.speed || 1);
+    // Same standstill-steering fix as the car: steer by the throttle's
+    // direction when near-stationary, or the heading flips as speed
+    // crosses zero and the boat can never turn toward the exit.
+    const boatDir = Math.abs(b.speed) > 0.5 ? Math.sign(b.speed) : (throttle < 0 ? -1 : 1);
+    b.heading += steer * 1.1 * dt * boatDir;
     b.x += Math.sin(b.heading) * b.speed * dt;
     b.z += Math.cos(b.heading) * b.speed * dt;
     if (this.sailboat) {
