@@ -695,7 +695,10 @@ export class Game {
     } else if (step.type === 'board') {
       if (this.vehicle === 'car') {
         const d = Math.hypot(step.x - pos.x, step.z - pos.z);
-        if (d < 12) this._boardBoat();
+        // Boarding alone never advanced the step: _boardBoat() swaps the
+        // vehicle but the mission sat on 'board' while the boat sailed
+        // to the exit, so M8 could never complete. Advance here.
+        if (d < 12) { this._boardBoat(); this._advanceStep(); }
       }
     } else if (step.type === 'sail') {
       if (this.vehicle === 'boat') {

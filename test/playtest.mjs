@@ -97,18 +97,29 @@ async function runSides(page) {
   check('taxi', taxi.earned > 2 && taxi.cash > cash0,
     `earned $${taxi.earned.toFixed(2)}, cash $${cash0} → $${taxi.cash}`);
 
-  // 4. four packages (M3) via the autopilot
+  // 4. four packages (M3) via the autopilot. NOTE: collecting the 4th
+  // package completes M3 on the spot (packages resets to 0 and the
+  // mission advances), so poll the mission too — and re-navigate after,
+  // because a fast autopilot keeps driving M4-M8 (boat) if left alone,
+  // and teleport() only moves the car when the vehicle IS the car.
   await ev(`window.__GAME__.teleport(0, 0, 0); window.__GAME__.setMission(2); window.__GAME__.setAutopilot(true)`);
-  let pkgs = 0;
+  let pkgs = 0, maxPkgs = 0, missionDone = false;
   const pStart = Date.now();
   for (;;) {
-    pkgs = await ev(`window.__GAME__.status().packages`);
+    const st = await ev(`window.__GAME__.status()`);
+    pkgs = st.packages;
+    if (pkgs > maxPkgs) maxPkgs = pkgs;
+    if (st.missionId !== 'M3') { missionDone = true; break; }
     if (pkgs >= 4) break;
     if (Date.now() - pStart > 120000) break;
     await sleep(1000);
   }
   await ev(`window.__GAME__.setAutopilot(false)`);
-  check('packages-4-4', pkgs === 4, `packages ${pkgs}/4`);
+  check('packages-4-4', missionDone || maxPkgs === 4, `packages ${maxPkgs}/4${missionDone ? ' (M3 complete)' : ''}`);
+  // fresh page for the remaining checks
+  await ev(`window.__READY__ = false`);
+  await page.navigate(BASE);
+  await page.waitForReady(60000);
 
   // 5. gun store: SMG costs $200, ammo +120
   await ev(`window.__GAME__.setCash(5000); window.__GAME__.teleport(12, -42, 0)`);
