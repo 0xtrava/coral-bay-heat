@@ -1,196 +1,135 @@
-// Coral Bay Heat (rebuild v19) — autopilot.
-// Routes along road centrelines only: every leg is axis-aligned on an
-// avenue or a street, so the car never cuts a corner through a building.
-// Speed is trimmed before sharp turns and near the final waypoint, and a
-// stuck car reverses out and re-plans instead of grinding against a wall.
+// Autopilot for Coral Bay Heat: routes on the road grid, steers the
+// car to each waypoint, and gets itself unstuck. A car wedged against
+// a building in an earlier build is the reason for the three-stage
+// escape: reverse, replan, then nudge to the nearest road centre.
+import { AVENUES, STREETS, nearestRoadPoint } from './city.js';
 
-import { AVENUES, STREETS } from './city.js';
-
-function nearestLine(list, v) {
-  let best = list[0], bd = Infinity;
-  for (const l of list) {
-    const d = Math.abs(l - v);
-    if (d < bd) { bd = d; best = l; }
-  }
+function nearestAvenue(x) {
+  let best = AVENUES[0], bd = Infinity;
+  for (const a of AVENUES) { const d = Math.abs(a - x); if (d < bd) { bd = d; best = a; } }
+  return best;
+}
+function nearestStreet(z) {
+  let best = STREETS[0], bd = Infinity;
+  for (const s of STREETS) { const d = Math.abs(s - z); if (d < bd) { bd = d; best = s; } }
   return best;
 }
 
-function onAvenue(x, z) {
-  return AVENUES.some((a) => Math.abs(a - x) < 1.5);
-}
-
-function onStreet(x, z) {
-  return STREETS.some((s) => Math.abs(s - z) < 1.5);
-}
-
-// Nearest point on the road grid to (x, z). Off-road targets (beach, pier)
-// keep their own coordinates and get a road point as their approach.
-export function nearestRoadPoint(x, z) {
-  const ax = nearestLine(AVENUES, x);
-  const sz = nearestLine(STREETS, z);
-  const dx = Math.abs(ax - x);
-  const dz = Math.abs(sz - z);
-  if (dx <= dz) return [ax, z];
-  return [x, sz];
-}
-
-function isOffRoad(x, z) {
-  return x > 100 || (x >= 100 && z >= 60 && z <= 84);
-}
-
-// Manhattan route through intersections, all legs on road centrelines.
-export function planRoute(fx, fz, tx, tz) {
+// Manhattan route on the grid: snap to the nearest avenue, run along
+// it, turn onto the nearest street, run to the target's street, then
+// along it to the target. Every waypoint sits on a road centreline,
+// so the route never cuts through a block.
+export function routeOnGrid(fx, fz, tx, tz) {
   const pts = [];
-  let cx = fx, cz = fz;
-  const [rx, rz] = nearestRoadPoint(tx, tz);
-  // first: get onto a road centreline from wherever we are
-  if (!onAvenue(cx, cz) && !onStreet(cx, cz)) {
-    const [nx, nz] = nearestRoadPoint(cx, cz);
-    pts.push([nx, nz]);
-    cx = nx; cz = nz;
+  const ax = nearestAvenue(fx);
+  const sz = nearestStreet(tz);
+  const txAvenue = nearestAvenue(tx);
+  // 1) get onto the nearest avenue
+  pts.push({ x: ax, z: fz });
+  // 2) run along that avenue to the target's street
+  pts.push({ x: ax, z: sz });
+  // 3) if the target is not on that avenue, run along the street to it
+  if (Math.abs(txAvenue - ax) > 0.5) {
+    pts.push({ x: txAvenue, z: sz });
+    pts.push({ x: txAvenue, z: tz });
   }
-  // walk to the nearest intersection on our current road
-  const ix = nearestLine(AVENUES, cx);
-  const iz = nearestLine(STREETS, cz);
-  if (onAvenue(cx, cz)) {
-    pts.push([cx, iz]);
-    cx = cx; cz = iz;
-  } else if (onStreet(cx, cz)) {
-    pts.push([ix, cz]);
-    cx = ix; cz = cz;
-  } else {
-    pts.push([ix, iz]);
-    cx = ix; cz = iz;
-  }
-  // along the grid to the target's intersection
-  if (cz !== rz) pts.push([cx, rz]);
-  if (cx !== rx) pts.push([rx, rz]);
-  // final leg: on-road target, or open ground (beach / pier)
-  if (tx !== rx || tz !== rz) pts.push([tx, tz]);
-  // drop consecutive duplicates and points we already stand on
+  // 4) final approach to the target itself
+  pts.push({ x: tx, z: tz });
+  // drop waypoints that are basically where we already are
   const out = [];
-  for (const [px, pz] of pts) {
-    const last = out[out.length - 1];
-    if (last && Math.abs(last[0] - px) < 0.5 && Math.abs(last[1] - pz) < 0.5) continue;
-    out.push([px, pz]);
+  let px = fx, pz = fz;
+  for (const p of pts) {
+    if (Math.hypot(p.x - px, p.z - pz) > 2) out.push(p);
+    px = p.x; pz = p.z;
   }
+  if (out.length === 0) out.push({ x: tx, z: tz });
   return out;
 }
 
-export function createPilot() {
-  return {
-    route: [],
-    idx: 0,
-    recovering: 0,
-    lastX: 0,
-    lastZ: 0,
-    stuckTime: 0,
-    target: null,
+export class Autopilot {
+  constructor(getState) {
+    // getState() returns { x, z, heading, speed } of the vehicle.
+    this.getState = getState;
+    this.enabled = false;
+    this.waypoints = [];
+    this.wpIndex = 0;
+    this.stuckTimer = 0;
+    this.reverseTimer = 0;
+    this.failures = 0;
+    this.lastPos = null;
+    this.lastMoveTime = 0;
+    this.onNudge = null; // called with {x, z} when a nudge is needed
+  }
 
-    setTarget(x, z) {
-      this.target = [x, z];
-      this.route = [];
-      this.idx = 0;
-      this.recovering = 0;
-      this.stuckTime = 0;
-    },
+  setTarget(tx, tz) {
+    const s = this.getState();
+    this.waypoints = routeOnGrid(s.x, s.z, tx, tz);
+    this.wpIndex = 0;
+    this.stuckTimer = 0;
+    this.failures = 0;
+  }
 
-    // car: { x, z, heading, speed, topSpeed }. Returns { throttle, steer }.
-    update(car, dt) {
-      if (!this.target) return { throttle: 0, steer: 0 };
-      if (this.route.length === 0) {
-        this.route = planRoute(car.x, car.z, this.target[0], this.target[1]);
-        this.idx = 0;
-        this.lastX = car.x; this.lastZ = car.z;
+  // Returns { throttle, brake, steer } in [-1, 1]. throttle 1 = full
+  // gas, brake 1 = full brake, steer -1..1 (left..right).
+  update(dt, time) {
+    if (!this.enabled || this.waypoints.length === 0) {
+      return { throttle: 0, brake: 1, steer: 0 };
+    }
+    const s = this.getState();
+    const wp = this.waypoints[this.wpIndex];
+    const dx = wp.x - s.x, dz = wp.z - s.z;
+    const dist = Math.hypot(dx, dz);
+    if (dist < 3.5) {
+      this.wpIndex++;
+      this.stuckTimer = 0;
+      if (this.wpIndex >= this.waypoints.length) {
+        return { throttle: 0, brake: 1, steer: 0, arrived: true };
       }
-      // stuck detection: barely moving while we should be driving
-      const moved = Math.hypot(car.x - this.lastX, car.z - this.lastZ);
-      if (moved < 0.4 && Math.abs(car.speed) < 1.5) {
-        this.stuckTime += dt;
-      } else {
-        this.stuckTime = 0;
+      return this.update(dt, time);
+    }
+    // stuck detection: barely moving while far from the waypoint
+    if (this.lastPos) {
+      const moved = Math.hypot(s.x - this.lastPos.x, s.z - this.lastPos.z);
+      if (moved > 0.4) {
+        this.lastMoveTime = time;
+        this.stuckTimer = 0;
       }
-      this.lastX = car.x; this.lastZ = car.z;
-      if (this.stuckTime > 3) {
-        this.stuckTime = 0;
-        // a wedged car is usually aiming at a stale waypoint through a
-        // building — throw the route away so the next plan starts from
-        // where the car actually ends up after reversing out
-        this.route = [];
-        this.stuckCount = (this.stuckCount || 0) + 1;
-        if (this.stuckCount >= 3) {
-          // hopelessly wedged: ask the game to put the car back on the
-          // nearest road point instead of grinding against the wall
-          this.stuckCount = 0;
-          const [nx, nz] = nearestRoadPoint(car.x, car.z);
-          return { throttle: 0, steer: 0, nudgeTo: [nx, nz] };
+    }
+    this.lastPos = { x: s.x, z: s.z };
+    if (time - this.lastMoveTime > 2.5 && dist > 4) {
+      this.stuckTimer += dt;
+      if (this.stuckTimer > 1.2) {
+        this.failures++;
+        this.stuckTimer = 0;
+        this.lastMoveTime = time;
+        if (this.failures >= 3) {
+          // third failure: nudge back onto the nearest road centre
+          this.failures = 0;
+          const np = nearestRoadPoint(s.x, s.z);
+          if (this.onNudge) this.onNudge(np);
+          this.setTarget(this.waypoints[this.waypoints.length - 1].x, this.waypoints[this.waypoints.length - 1].z);
+          return { throttle: 0, brake: 1, steer: 0 };
         }
-        this.recovering = 1.4;
+        // first failures: reverse out, then replan
+        this.reverseTimer = 1.4;
+        const cur = this.waypoints[this.waypoints.length - 1];
+        this.setTarget(cur.x, cur.z);
       }
-      if (this.recovering > 0) {
-        this.recovering -= dt;
-        return { throttle: -0.9, steer: 0.7 };
-      }
-      // advance along the route
-      while (this.idx < this.route.length) {
-        const [wx, wz] = this.route[this.idx];
-        if (Math.hypot(wx - car.x, wz - car.z) < 6) { this.idx++; this.stuckCount = 0; }
-        else break;
-      }
-      if (this.idx >= this.route.length) {
-        return { throttle: 0, steer: 0 };
-      }
-      // Off-route recovery: a low frame rate can throw the car off the
-      // road grid (it overshoots a turn and lands inside a block). Aiming
-      // at the stale waypoint then drives it diagonally through buildings
-      // forever. If we are well off the grid and far from the waypoint,
-      // throw the route away and re-plan from where we actually are.
-      // (A normal turn stays within ~4 of a centreline, so it never
-      // triggers this.)
-      const isLast = this.idx === this.route.length - 1;
-      const offGrid = Math.min(
-        Math.abs(nearestLine(AVENUES, car.x) - car.x),
-        Math.abs(nearestLine(STREETS, car.z) - car.z),
-      );
-      const [cwx, cwz] = this.route[this.idx];
-      const distToWp = Math.hypot(cwx - car.x, cwz - car.z);
-      if (!isLast && offGrid > 4 && distToWp > 15) {
-        this.route = [];
-        return { throttle: -0.7, steer: 0 };
-      }
-      const [wx, wz] = this.route[this.idx];
-      const dx = wx - car.x, dz = wz - car.z;
-      const dist = Math.hypot(dx, dz);
-      const want = Math.atan2(dx, dz);
-      let diff = want - car.heading;
-      while (diff > Math.PI) diff -= Math.PI * 2;
-      while (diff < -Math.PI) diff += Math.PI * 2;
-      const steer = Math.max(-1, Math.min(1, diff * 1.6));
-      // brake for sharp turns and for the final approach — a positive
-      // throttle still accelerates, so above the target speed we must
-      // brake (negative) or coast (zero), never cruise at 0.25
-      let top = car.topSpeed;
-      if (Math.abs(diff) > 0.6) top = Math.min(top, 12);
-      if (isLast && dist < 30) top = Math.min(top, 6 + dist * 0.2);
-      // look ahead: if the NEXT leg turns sharply, slow down before the
-      // current waypoint instead of arriving at it at full speed
-      if (this.idx + 1 < this.route.length) {
-        const [nx2, nz2] = this.route[this.idx + 1];
-        let turn = Math.atan2(nx2 - wx, nz2 - wz) - Math.atan2(wx - car.x, wz - car.z);
-        while (turn > Math.PI) turn -= Math.PI * 2;
-        while (turn < -Math.PI) turn += Math.PI * 2;
-        if (Math.abs(turn) > 0.6) top = Math.min(top, 6 + dist * 0.5);
-      }
-      let throttle;
-      if (car.speed > top + 1) throttle = -0.7;
-      else if (car.speed < top) throttle = 1;
-      else throttle = 0;
-      return { throttle, steer };
-    },
-
-    get arrived() {
-      if (!this.target) return false;
-      return this.route.length > 0 && this.idx >= this.route.length;
-    },
-  };
+    }
+    if (this.reverseTimer > 0) {
+      this.reverseTimer -= dt;
+      return { throttle: -0.7, brake: 0, steer: 0.4 };
+    }
+    // steer toward the waypoint
+    const targetAngle = Math.atan2(dx, dz);
+    let diff = targetAngle - s.heading;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    const steer = Math.max(-1, Math.min(1, diff * 1.6));
+    // brake for sharp turns or when close
+    const sharp = Math.abs(diff) > 0.9;
+    const brake = sharp || dist < 8 ? 0.6 : 0;
+    const throttle = sharp ? 0.25 : (dist < 8 ? 0.45 : 1);
+    return { throttle, brake, steer };
+  }
 }

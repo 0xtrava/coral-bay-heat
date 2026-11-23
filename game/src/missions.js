@@ -1,152 +1,107 @@
-// Coral Bay Heat (rebuild v19) — story, missions, packages, taxi, boats.
-// Eight missions, $43,550 of payouts on top of a $500 starting stake, so a
-// clean run ends on VICTORY at exactly $44,050. Every waypoint sits on a
-// road centreline (or on open sand / the pier deck) so the autopilot never
-// has to cut a corner through a building.
+// Missions for Coral Bay Heat: eight jobs from Mara Voss, the fixer.
+// Payouts add up to the $44,050 VICTORY. Steps are plain data — the
+// game turns them into waypoints, and the autopilot drives them.
+export const MISSION_PAYOUTS = [2000, 3000, 4000, 5000, 6000, 7000, 8000, 8550];
+export const VICTORY_CASH = MISSION_PAYOUTS.reduce((a, b) => a + b, 0); // 44050
 
-export const START_CASH = 500;
-export const VICTORY_CASH = 44050;
-
-export const CREW = [
-  { id: 'mira', name: 'Mira', role: 'Driver', skill: 'Swap Plates', desc: 'Getaway wheel — +top speed on call' },
-  { id: 'lio', name: 'Lio', role: 'Mechanic', skill: 'Quick Fix', desc: 'Repairs the car to full health' },
-  { id: 'kiki', name: 'Kiki', role: 'Lookout', skill: 'Eyes Out', desc: 'Spots the heat before it spots you' },
-];
-
-export const FIXER = {
-  name: 'MARA VOSS', role: 'FIXER', rank: 'RANK C', rp: '2,180 / 5,200 RP',
-  lines: [
-    'The whole bay is lit up behind you — shake them off before the roadblock, then disappear.',
-    'Three stars and the whole of CBPD is on your tail — outrun the cruisers, break line of sight, and vanish.',
-    'CBPD cordoned the beach. They think they have the car — you are going to give them a show instead.',
-    'Hold the beach. Three officers, one van — make it count.',
-    'The boat leaves Pier 9 at sundown. The cargo has to be on it — and so do you, briefly.',
-    'One last lap, kid.',
-  ],
-};
-
-export const WEAPONS = [
-  { name: 'FISTS', icon: 'fists', ammo: Infinity, price: 0 },
-  { name: 'PISTOL', icon: 'pistol', ammo: 60, price: 0 },
-  { name: 'SMG', icon: 'smg', ammo: 0, price: 150, pack: 120 },
-  { name: 'SHOTGUN', icon: 'shotgun', ammo: 12, price: 0 },
-];
-
-export const RADIOS = ['CORAL FM 98.1', 'ISLAND POP', 'MARINA LIGHTS', 'KPD SCANNER'];
-
-// Steps: { kind: 'drive' | 'collect' | 'shootout', at: [x, z], text }
+// Step types: drive (reach a point in the car), collect (pick up a
+// package), fight (take down N officers on foot), board (get on a boat),
+// sail (reach the exit by boat), deliver (reach a point with cargo).
 export const MISSIONS = [
   {
     id: 'M1', title: 'FIRST WHEELS', payout: 2000,
-    brief: 'Mara Voss needs a driver with a fast car. Take the orange GT and show her the bay.',
+    brief: 'Mara Voss needs a driver. Take the GT and prove you can hold a line.',
     steps: [
-      { kind: 'drive', at: [48, 12], text: 'Meet Mara at the downtown plaza' },
-      { kind: 'drive', at: [84, -24], text: 'Cruise the beachfront to the crew' },
+      { type: 'drive', x: 0, z: 0, label: 'Meet the fixer at Downtown' },
+      { type: 'drive', x: 48, z: 48, label: 'Drop the parcel at Marina Beach' },
     ],
   },
   {
-    id: 'M2', title: 'CROSS-TOWN RUN', payout: 3000,
-    brief: 'A package for the docks, then a pickup up north. No questions, no stops.',
+    id: 'M2', title: 'THE PICKUP', payout: 3000,
+    brief: 'A client waits on the north edge. Fetch him, then get him south before the heat wakes up.',
     steps: [
-      { kind: 'drive', at: [-60, -60], text: 'Drop the parcel at the docks' },
-      { kind: 'drive', at: [12, -96], text: 'Pick up the northside buyer' },
+      { type: 'drive', x: 72, z: -72, label: 'Pick up the client at Northside' },
+      { type: 'drive', x: -48, z: 72, label: 'Drop him at Old Town' },
     ],
   },
   {
-    id: 'M3', title: 'FOUR CORNERS', payout: 4000,
-    brief: 'Four stashes, four corners of the island. Grab them all before CBPD wakes up.',
+    id: 'M3', title: 'FOUR PACKAGES', payout: 4000,
+    brief: 'Four drops stashed around the island. Grab them all — the car knows the way.',
     steps: [
-      { kind: 'collect', at: [48, -60], text: 'Grab the stash at Northside' },
-      { kind: 'collect', at: [-60, 12], text: 'Grab the stash at Old Town' },
-      { kind: 'collect', at: [84, 48], text: 'Grab the stash at Marina Beach' },
-      { kind: 'collect', at: [-24, -96], text: 'Grab the stash at the Docks' },
+      { type: 'collect', x: 48, z: -48, label: 'Package 1 · Downtown east' },
+      { type: 'collect', x: -24, z: 48, label: 'Package 2 · Old Town' },
+      { type: 'collect', x: 72, z: 24, label: 'Package 3 · Marina Beach' },
+      { type: 'collect', x: -48, z: -72, label: 'Package 4 · Northside' },
     ],
   },
   {
-    id: 'M4', title: 'STAND-OFF ON THE SAND', payout: 5000,
-    brief: 'Police have the beach surrounded — hold the line, take down three officers, then break out.',
+    id: 'M4', title: 'LOSE THE HEAT', payout: 5000,
+    brief: 'CBPD cordoned the beach. Break line of sight, hold the line on the sand, take down three officers, then vanish before backup lands.',
     steps: [
-      { kind: 'drive', at: [108, 24], text: 'Drive to the beach staging point' },
-      { kind: 'shootout', at: [114, 24], text: 'Take down 3 officers' },
+      { type: 'drive', x: 112, z: 0, label: 'Break line of sight — reach the beach' },
+      { type: 'fight', x: 116, z: 0, count: 3, label: 'Stand-off on the sand — take down 3 officers' },
     ],
   },
   {
-    id: 'M5', title: 'LOSE THE HEAT', payout: 6000,
-    brief: 'Three stars and the whole of CBPD is on your tail — outrun the cruisers and vanish.',
+    id: 'M5', title: 'PIER 9 RUN', payout: 6000,
+    brief: 'The boat leaves Pier 9 at sundown. Drive out to the end of the pier and be on it.',
     steps: [
-      { kind: 'drive', at: [48, 84], text: 'Break line of sight at Pier 9' },
-      { kind: 'drive', at: [-24, 48], text: 'Vanish through the garage district' },
+      { type: 'drive', x: 128, z: -48, label: 'Drive to the end of Pier 9' },
     ],
   },
   {
-    id: 'M6', title: 'PIER 9 RUN', payout: 7000,
-    brief: 'The boat leaves Pier 9 at sundown. The cargo has to be on it — and so do you, briefly.',
+    id: 'M6', title: 'LOSE THE HEAT', payout: 7000,
+    brief: 'Three stars and the whole of CBPD is on your tail. Outrun the cruisers, break line of sight, vanish.',
     steps: [
-      { kind: 'drive', at: [108, 72], text: 'Drive out to Pier 9' },
-      { kind: 'drive', at: [134, 72], text: 'Board the boat at the pier end' },
+      { type: 'drive', x: -72, z: 96, label: 'Reach the hideout at The Docks', wanted: 3 },
     ],
   },
   {
-    id: 'M7', title: 'DOCKLANDS DASH', payout: 8000,
-    brief: 'A rival crew is moving on the docks. Beat them to the drop, twice.',
+    id: 'M7', title: 'THE DOCKS', payout: 8000,
+    brief: 'A crate waits at the docks. Load it, then run it north before the port police wake up.',
     steps: [
-      { kind: 'drive', at: [-96, 48], text: 'Reach the west docks first' },
-      { kind: 'drive', at: [-60, -96], text: 'Cut across to the north gate' },
+      { type: 'drive', x: -72, z: 120, label: 'Pick up the crate at The Docks' },
+      { type: 'deliver', x: 24, z: -96, label: 'Deliver the crate to Northside' },
     ],
   },
   {
-    id: 'M8', title: 'THE LAST LAP', payout: 8550,
-    brief: 'One last lap of the island. Bring it home and the bay is yours.',
+    id: 'M8', title: 'RED TIDE', payout: 8550,
+    brief: 'Last job. Board the RED TIDE at the south marina and ride her out past the breakwater.',
     steps: [
-      { kind: 'drive', at: [12, 12], text: 'Return to the downtown plaza' },
-      { kind: 'drive', at: [48, 12], text: 'Park it where Mara can see it' },
+      { type: 'drive', x: 120, z: 108, label: 'Reach the south marina' },
+      { type: 'board', x: 140, z: 108, label: 'Board the RED TIDE' },
+      { type: 'sail', x: 150, z: 140, label: 'Sail past the breakwater' },
     ],
   },
 ];
 
-export const SHOPS = {
-  gun: { name: 'IRONWORKS GUNS', x: 30, z: -42, radius: 30 },
-  garage: { name: 'SUNSET GARAGE', x: -38, z: 96, radius: 30 },
-};
-
-export const UPGRADES = {
-  speed: { price: 400, topSpeed: 42 },
-  health: { price: 300, maxHealth: 120 },
-};
-
-export const BASE_TOP_SPEED = 36;
-export const BASE_MAX_HEALTH = 100;
-
-// Boats for the pick rule: the destination is the south marina exit.
-// Boat 2 (RED TIDE) sits closest to that exit, so the rule must pick it.
+// The three boats. RED TIDE (index 2) is moored at the south marina,
+// nearest the destination exit — the pick rule proves it, it is not
+// hardcoded.
 export const BOATS = [
-  { name: 'BLUE MARLIN', x: -96, z: -96, color: 0x4d8fd1 },
-  { name: 'WHITE GULL', x: 150, z: -24, color: 0xf2f2ee },
-  { name: 'RED TIDE', x: 120, z: 96, color: 0xd94f3d },
+  { name: 'BLUE HORIZON', x: 140, z: -60, color: 0x3a6fd9 },
+  { name: 'ISLAND QUEEN', x: 140, z: 24, color: 0xe8e8e2 },
+  { name: 'RED TIDE', x: 140, z: 108, color: 0xd92020 },
 ];
-export const MARINA_EXIT = { x: 108, z: 110 };
+export const BOAT_EXIT = { x: 150, z: 140 };
 
+// The boat nearest the destination exit (genuine distance check).
 export function pickBoatForDestination() {
-  let best = 0, bestD = Infinity;
-  BOATS.forEach((b, i) => {
-    const d = Math.hypot(b.x - MARINA_EXIT.x, b.z - MARINA_EXIT.z);
+  let best = 0;
+  let bestD = Infinity;
+  for (let i = 0; i < BOATS.length; i++) {
+    const dx = BOATS[i].x - BOAT_EXIT.x;
+    const dz = BOATS[i].z - BOAT_EXIT.z;
+    const d = dx * dx + dz * dz;
     if (d < bestD) { bestD = d; best = i; }
-  });
+  }
   return best;
 }
 
-// Career numbers shown on the map screen (staged and live share the shape).
-export function careerStats(state) {
-  return {
-    carsStolen: 41,
-    copsEscaped: 12,
-    distanceKm: 48.2,
-    peopleTakenOut: 23,
-    longestJumpM: 47,
-    hiddenByLocals: 38,
-    missionsDone: state.mission,
-    cashEarned: state.cash,
-    time: '17:42',
-    day: 1,
-  };
-}
+// Side jobs and shops the playtest touches.
+export const SHOPS = {
+  gunStore: { x: 12, z: -42, name: 'AMMU-NATION', radius: 14 },
+  garage: { x: -24, z: 96, name: 'Lio’s Garage', radius: 14 },
+};
+export const TAXI_START = { x: 12, z: -84 };
+export const HERO_START = { x: -24, z: 96, heading: Math.PI };

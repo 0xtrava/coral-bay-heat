@@ -3,164 +3,273 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CORAL BAY HEAT</title>
+<title>CORAL BAY HEAT — an open-world crime story</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #1a0f2e; }
-  body { font-family: Arial, Helvetica, sans-serif; color: #f2f2ee; }
-  #game, #game canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #fff; }
+  #gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  .panel { background: rgba(18, 14, 28, 0.78); border: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 10px; padding: 10px 12px; }
   #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
-  .panel { background: rgba(12, 12, 28, 0.72); border: 1px solid rgba(255,255,255,0.14);
-    border-radius: 10px; padding: 10px 12px; backdrop-filter: blur(2px); }
-  .bar { height: 8px; background: rgba(255,255,255,0.16); border-radius: 4px; overflow: hidden; flex: 1; }
-  .bar-fill { height: 100%; border-radius: 4px; }
-  .bar-fill.green { background: #5ec85e; } .bar-fill.amber { background: #ffb347; }
-  .bar-fill.red { background: #ff5e5e; } .bar-fill.blue { background: #4d8fd1; }
-
-  .hud-tl { position: absolute; top: 14px; left: 14px; }
-  .hud-cash { font-size: 30px; font-weight: bold; color: #7dff8a; text-shadow: 0 2px 6px rgba(0,0,0,0.7); }
-  .hud-clock { font-size: 13px; color: #e8e4d8; margin-top: 2px; }
-  .hud-tr { position: absolute; top: 14px; right: 14px; text-align: right; }
-  .hud-stars { font-size: 22px; letter-spacing: 3px; text-shadow: 0 2px 6px rgba(0,0,0,0.8); }
-  .hud-wanted { margin-top: 6px; font-size: 11px; font-weight: bold; letter-spacing: 1px;
-    color: #ff8a8a; background: rgba(60,10,10,0.7); border: 1px solid rgba(255,90,90,0.4);
-    padding: 4px 8px; border-radius: 6px; }
-
-  .hud-left { position: absolute; top: 92px; left: 14px; width: 300px; display: flex; flex-direction: column; gap: 10px; }
-  .mp-kicker { font-size: 11px; letter-spacing: 2px; color: #ffd24d; }
-  .mp-title { font-size: 19px; font-weight: bold; color: #ffb347; margin-top: 2px; }
-  .mp-stage { display: inline-block; font-size: 12px; font-weight: bold; background: #ffb347; color: #20140a;
-    border-radius: 4px; padding: 2px 7px; margin-top: 5px; }
-  .mp-brief { font-size: 12.5px; line-height: 1.45; color: #e8e4d8; margin-top: 7px; }
-  .mp-next { font-size: 12px; color: #7dff8a; margin-top: 6px; }
-  .cbpd-head { font-size: 12px; font-weight: bold; letter-spacing: 1px; color: #ff8a8a;
-    display: flex; justify-content: space-between; }
-  .cbpd-row { display: flex; justify-content: space-between; font-size: 12.5px; padding: 3px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.07); }
-  .cbpd-row:last-child { border-bottom: none; }
-  .cbpd-role { color: #9fd8ff; font-size: 11px; }
-  .dp-name { font-size: 16px; font-weight: bold; color: #ffd24d; }
-  .dp-sub { font-size: 11.5px; color: #c9c2b2; margin-top: 2px; }
-  .dp-respect { font-size: 11.5px; margin-top: 7px; }
-  .dp-packages { font-size: 11.5px; margin-top: 5px; color: #9fd8ff; }
-  .district-panel .bar { margin-top: 4px; }
-
-  .hud-right { position: absolute; top: 92px; right: 14px; width: 268px; display: flex; flex-direction: column; gap: 10px; }
-  .fx-kicker { font-size: 11px; letter-spacing: 2px; color: #7dff8a; }
-  .fx-name { font-size: 18px; font-weight: bold; }
-  .fx-rank { font-size: 11.5px; color: #c9c2b2; margin-top: 2px; }
-  .fixer-card .bar { margin-top: 6px; }
-  .fx-row { display: flex; gap: 10px; margin-top: 8px; align-items: flex-start; }
-  .fx-row img { width: 56px; height: 56px; border-radius: 8px; border: 2px solid rgba(255,210,77,0.6); }
-  .fx-quote { font-size: 12px; line-height: 1.4; color: #e8e4d8; font-style: italic; }
-  .weapons { display: flex; gap: 6px; }
-  .weapon-slot { flex: 1; background: rgba(12,12,28,0.72); border: 1px solid rgba(255,255,255,0.14);
-    border-radius: 8px; padding: 6px 4px 5px; text-align: center; position: relative; }
-  .weapon-slot.active { border-color: #ffb347; box-shadow: 0 0 0 2px rgba(255,179,71,0.55); }
-  .weapon-slot img { width: 34px; height: 34px; }
-  .ws-num { position: absolute; top: 2px; left: 5px; font-size: 10px; color: #c9c2b2; }
-  .ws-label { font-size: 10px; letter-spacing: 1px; color: #e8e4d8; }
-  .ws-ammo { font-size: 13px; font-weight: bold; color: #ffd24d; }
-  .crew-card { display: flex; gap: 10px; align-items: center; padding: 8px 10px; }
-  .crew-card img { width: 44px; height: 44px; border-radius: 50%; border: 2px solid rgba(125,255,138,0.5); }
-  .cc-name { font-size: 13px; }
-  .cc-skill { font-size: 11px; color: #9fd8ff; margin-top: 2px; }
-
-  .hud-bl { position: absolute; left: 14px; bottom: 14px; }
-  .health-panel { padding: 8px 12px; }
-  .hp-row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
-  .hp-label { font-size: 11px; letter-spacing: 1px; width: 52px; }
-  .hp-val { font-size: 12px; font-weight: bold; width: 26px; text-align: right; }
-  .hud-br { position: absolute; right: 14px; bottom: 14px; text-align: right; }
-  .speedo { font-size: 15px; color: #e8e4d8; text-shadow: 0 2px 6px rgba(0,0,0,0.8); }
-  .speedo b { font-size: 34px; color: #fff; }
-  .car-name { font-size: 12px; font-weight: bold; color: #ffd24d; margin-top: 2px; }
-  .car-cond { font-size: 11px; color: #ff9a9a; }
-  .radio-line { font-size: 11.5px; color: #9fd8ff; margin-top: 4px; }
-
-  .hud-br { position: absolute; right: 14px; bottom: 14px; text-align: right; }
-  .minimap-wrap { position: relative; width: 180px; height: 180px; border-radius: 50%;
-    border: 3px solid #2fd8c8; overflow: hidden; box-shadow: 0 0 0 3px rgba(0,0,0,0.45), 0 4px 18px rgba(0,0,0,0.5); }
-  .minimap-wrap canvas { width: 100%; height: 100%; display: block; }
-  .minimap-label { position: absolute; left: 0; right: 0; bottom: 8px; text-align: center;
-    font-size: 11px; font-weight: bold; letter-spacing: 2px; color: #fff; text-shadow: 0 1px 4px #000; }
-
-  .dialogue { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%);
-    max-width: 560px; background: rgba(12,12,28,0.8); border: 1px solid rgba(255,255,255,0.14);
-    border-radius: 10px; padding: 10px 16px; font-size: 13.5px; line-height: 1.45; }
-  .dialogue b { color: #7dff8a; }
-
-  /* ---- map screen ---- */
-  #map-screen { position: fixed; inset: 0; z-index: 20; background: rgba(8,8,20,0.96); padding: 18px 26px; display: none; }
-  .ms-top { display: flex; justify-content: space-between; align-items: baseline; }
-  .ms-title { font-size: 22px; letter-spacing: 2px; } .ms-title b { color: #ffb347; }
-  .ms-tabs { font-size: 13px; letter-spacing: 2px; color: #9a93a8; }
-  .ms-cash { font-size: 24px; font-weight: bold; color: #7dff8a; }
-  .ms-body { display: flex; gap: 22px; margin-top: 14px; }
-  .ms-mapwrap { flex: 0 0 560px; }
-  #ms-map { width: 560px; height: 420px; border: 3px solid #2fd8c8; border-radius: 6px; }
-  .ms-mapfoot { text-align: center; font-size: 11px; letter-spacing: 2px; color: #9a93a8; margin-top: 8px; }
-  .ms-side { flex: 1; }
-  .ms-ring { font-size: 34px; font-weight: bold; color: #ffb347; }
-  .ms-ring small { display: block; font-size: 11px; letter-spacing: 2px; color: #9a93a8; }
-  .ms-sec { font-size: 12px; font-weight: bold; letter-spacing: 2px; color: #7dff8a; margin: 14px 0 6px; }
-  .ms-ratings { display: flex; gap: 8px; }
-  .medal { width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
-    font-weight: bold; font-size: 15px; }
-  .medal.g { background: #ffd24d; color: #20140a; } .medal.s { background: #cfd6dd; color: #20242a; }
-  .medal.b { background: #c07a3e; color: #fff; } .medal.empty { background: #33333d; color: #777; }
-  .prog-row { display: flex; align-items: center; gap: 10px; font-size: 12px; margin: 4px 0; }
-  .prog-row span { width: 150px; color: #c9c2b2; } .prog-row b { width: 44px; text-align: right; color: #ffd24d; }
-  .career-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 18px; font-size: 12px; color: #c9c2b2; }
-  .career-grid b { color: #fff; float: right; }
-  .career-line { font-size: 12px; color: #9fd8ff; margin-top: 8px; }
-  #ms-crew { font-size: 12px; color: #c9c2b2; line-height: 1.7; }
-  .ms-slots { display: flex; gap: 14px; margin-top: 16px; }
-  .save-slot { flex: 1; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14);
-    border-radius: 8px; padding: 10px 12px; font-size: 13px; }
-  .save-slot.filled { border-color: #ffb347; }
-  .save-slot span { font-size: 11.5px; color: #9fd8ff; }
-
-  /* ---- title screen ---- */
-  #title-screen { position: fixed; inset: 0; z-index: 15; display: none; pointer-events: none;
-    background: linear-gradient(to bottom, rgba(20,8,32,0.25), rgba(20,8,32,0) 40%, rgba(20,8,32,0) 70%, rgba(20,8,32,0.55)); }
-  .ts-left { position: absolute; left: 48px; top: 56px; width: 640px; }
-  .ts-title { font-size: 84px; line-height: 0.95; font-weight: 900; letter-spacing: 2px;
-    background: linear-gradient(180deg, #ffe9a8 0%, #ffb347 45%, #ff5e8a 100%);
+  /* ---- left column ---- */
+  #left-col { position: absolute; left: 14px; top: 12px; width: 330px; display: flex; flex-direction: column; gap: 8px; }
+  #mission-card .m-id { color: #ffb347; font-size: 11px; letter-spacing: 1px; font-weight: bold; }
+  #mission-card #m-title { font-size: 21px; font-weight: bold; color: #fff; letter-spacing: 0.5px; }
+  #mission-card .m-stage { display: inline-block; background: #ffb347; color: #231303; font-weight: bold;
+    font-size: 11px; border-radius: 4px; padding: 1px 7px; margin: 4px 6px 4px 0; }
+  #mission-card #m-objective, #mission-card #m-next { font-size: 12.5px; line-height: 1.45; color: #e8e0f0; }
+  #mission-card #m-next b { color: #7fd9d9; }
+  #cbpd-card .cbpd-head { display: flex; justify-content: space-between; color: #ff7a7a; font-weight: bold; font-size: 11px; letter-spacing: 1px; }
+  .cbpd-row { display: flex; justify-content: space-between; font-size: 12px; padding: 2px 0; color: #e8e0f0; }
+  .cbpd-row span:nth-child(2) { color: #9fb6d9; }
+  #district-card #d-name { font-size: 17px; font-weight: bold; color: #ffb347; }
+  #district-card #d-sub { font-size: 11.5px; color: #cfc4de; margin-bottom: 5px; }
+  .mini-bar { height: 6px; background: rgba(255,255,255,0.16); border-radius: 3px; overflow: hidden; margin: 3px 0; }
+  .mini-bar > div { height: 100%; background: #7fd94f; border-radius: 3px; }
+  #district-card #d-packages { font-size: 11px; color: #cfc4de; }
+  #health-card { font-size: 11px; }
+  #health-card .hrow { display: flex; align-items: center; gap: 8px; margin: 2px 0; }
+  #health-card .hlabel { width: 58px; color: #cfc4de; }
+  #health-card .bar { flex: 1; height: 8px; background: rgba(255,255,255,0.16); border-radius: 4px; overflow: hidden; }
+  #health-bar { height: 100%; background: #7fd94f; }
+  #armour-bar { height: 100%; background: #5a8ad9; }
+  #health-num { width: 26px; text-align: right; }
+  /* ---- minimap ---- */
+  #minimap-wrap { position: absolute; left: 14px; bottom: 14px; width: 196px; height: 196px; }
+  #minimap { width: 196px; height: 196px; border-radius: 50%; border: 3px solid #2fd9c9; background: #22402a; }
+  /* ---- right column ---- */
+  #right-col { position: absolute; right: 14px; top: 12px; width: 300px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
+  #cash-row { text-align: right; }
+  #cash { font-size: 30px; font-weight: bold; color: #7dff8a; text-shadow: 0 2px 6px rgba(0,0,0,0.6); }
+  #clock { font-size: 13px; color: #fff; }
+  #stars { font-size: 20px; letter-spacing: 2px; }
+  #stars span { color: rgba(255,255,255,0.25); }
+  #stars span.on { color: #ffb347; text-shadow: 0 0 8px rgba(255,180,60,0.9); }
+  #fixer-card { width: 100%; }
+  #fixer-card .f-label { color: #7fd9d9; font-size: 11px; letter-spacing: 1px; font-weight: bold; }
+  #fixer-card .f-name { font-size: 19px; font-weight: bold; }
+  #fixer-card .f-rank { font-size: 12px; color: #cfc4de; }
+  #weapons { display: flex; gap: 6px; width: 100%; }
+  .wslot { flex: 1; background: rgba(18,14,28,0.78); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
+    padding: 6px 2px 5px; text-align: center; }
+  .wslot.active { border-color: #ffb347; box-shadow: 0 0 0 1px #ffb347; }
+  .wslot .w-ico { font-size: 17px; }
+  .wslot .w-name { font-size: 10px; font-weight: bold; }
+  .wslot .w-ammo { font-size: 11px; color: #ffb347; }
+  .crew-card { width: 100%; display: flex; gap: 8px; align-items: center; }
+  .crew-card .c-ico { width: 30px; height: 30px; border-radius: 50%; background: #ffb347; color: #231303;
+    display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 15px; }
+  .crew-card .c-name { font-weight: bold; font-size: 13px; }
+  .crew-card .c-role { font-size: 11px; color: #cfc4de; }
+  /* ---- bottom right ---- */
+  #speed-block { position: absolute; right: 16px; bottom: 14px; text-align: right; }
+  #speed { font-size: 46px; font-weight: bold; line-height: 1; text-shadow: 0 2px 8px rgba(0,0,0,0.7); }
+  #speed-block .kmh { font-size: 13px; color: #e8e0f0; }
+  #car-name { font-size: 14px; font-weight: bold; color: #ffb347; }
+  #car-cond { font-size: 11.5px; color: #ffb347; }
+  #radio-line { font-size: 11.5px; color: #e8e0f0; margin-top: 2px; }
+  /* ---- dialogue ---- */
+  #dialogue { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); width: 520px;
+    background: rgba(18,14,28,0.82); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 9px 14px; }
+  #dlg-name { color: #7fd9d9; font-weight: bold; font-size: 12px; }
+  #dlg-text { font-size: 13.5px; color: #fff; font-style: italic; }
+  /* ---- overlays ---- */
+  .screen { position: fixed; inset: 0; display: none; z-index: 10; }
+  #title-screen { flex-direction: column; justify-content: center; padding: 0 6%;
+    background: linear-gradient(180deg, rgba(20,8,40,0.25) 0%, rgba(20,8,40,0.05) 45%, rgba(20,8,40,0.55) 100%); }
+  #title-screen h1 { font-size: 92px; line-height: 0.95; font-weight: 900; letter-spacing: 2px;
+    background: linear-gradient(180deg, #fff3c4 0%, #ffb347 45%, #ff6a5e 100%);
     -webkit-background-clip: text; background-clip: text; color: transparent;
-    text-shadow: 0 4px 24px rgba(0,0,0,0.35); }
-  .ts-title span { color: #fff; -webkit-text-fill-color: #fff; }
-  .ts-tag { margin-top: 12px; font-size: 13px; letter-spacing: 3px; color: #ffe9a8; text-shadow: 0 2px 6px #000; }
-  .ts-menu { margin-top: 34px; font-size: 26px; font-weight: bold; letter-spacing: 1px; }
-  .ts-item { padding: 7px 0; color: #e8e4d8; text-shadow: 0 2px 8px #000; }
-  .ts-item.sel { color: #ffb347; }
-  .ts-right { position: absolute; right: 48px; top: 120px; width: 380px; display: flex; flex-direction: column; gap: 12px; }
-  .ts-right .save-slot { background: rgba(12,12,28,0.78); }
-  .ts-foot { position: absolute; left: 0; right: 0; bottom: 26px; text-align: center;
-    font-size: 17px; letter-spacing: 6px; color: #ffd24d; text-shadow: 0 2px 8px #000; }
-  .ts-foot small { display: block; margin-top: 6px; font-size: 11px; letter-spacing: 2px; color: #e8e4d8; }
-
-  /* ---- fail / victory ---- */
-  #fail, #victory { position: fixed; inset: 0; z-index: 30; display: none; align-items: center; justify-content: center; }
-  #fail { background: rgba(40,4,4,0.72); }
-  #victory { background: rgba(20,30,4,0.66); }
-  .fail-box, .vic-box { text-align: center; }
-  .fail-title { font-size: 72px; font-weight: 900; letter-spacing: 6px; color: #ff5e5e; text-shadow: 0 4px 24px #000; }
-  .vic-title { font-size: 72px; font-weight: 900; letter-spacing: 6px; color: #ffd24d; text-shadow: 0 4px 24px #000; }
-  .fail-sub, .vic-sub { font-size: 18px; margin-top: 10px; }
-  .fail-hint, .vic-hint { font-size: 13px; color: #c9c2b2; margin-top: 14px; }
+    text-shadow: 0 4px 30px rgba(255,120,60,0.35); }
+  #title-screen .tagline { font-size: 15px; letter-spacing: 3px; color: #ffe9a8; margin: 10px 0 26px; }
+  #title-screen .menu { display: flex; flex-direction: column; gap: 6px; width: 300px; }
+  #title-screen .menu button, #title-screen .menu div { background: none; border: none; color: #fff; font-size: 24px;
+    text-align: left; padding: 4px 0; cursor: pointer; font-family: inherit; }
+  #title-screen .menu button:hover { color: #ffb347; }
+  #title-screen .menu button.sel { color: #ffb347; }
+  #title-screen .menu button.sel::before { content: '▶ '; }
+  #title-saves { position: absolute; right: 6%; top: 34%; width: 340px; display: flex; flex-direction: column; gap: 10px; }
+  .save-slot { background: rgba(18,14,28,0.8); border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; padding: 10px 12px; }
+  .save-slot b { display: block; color: #ffb347; font-size: 12px; }
+  .save-slot span { font-size: 13px; color: #e8e0f0; white-space: pre-line; }
+  #title-screen .foot { position: absolute; bottom: 26px; left: 0; right: 0; text-align: center; }
+  #title-screen .foot .big { font-size: 22px; letter-spacing: 8px; color: #ffe9a8; font-weight: bold; }
+  #title-screen .foot .small { font-size: 12px; color: #cfc4de; letter-spacing: 2px; margin-top: 4px; }
+  #map-screen { background: rgba(10, 8, 22, 0.94); flex-direction: column; padding: 18px 26px; color: #fff; }
+  #map-screen .tabs { display: flex; gap: 22px; font-size: 15px; letter-spacing: 1px; margin-bottom: 12px; align-items: center; }
+  #map-screen .tabs b { color: #ff6a5e; font-size: 20px; }
+  #map-screen .tabs .on { color: #ffb347; border-bottom: 3px solid #ffb347; padding-bottom: 3px; }
+  #map-screen .tabs .cash { margin-left: auto; color: #7dff8a; font-size: 22px; font-weight: bold; }
+  #map-body { display: flex; gap: 20px; flex: 1; min-height: 0; }
+  #bigmap-wrap { flex: 1.4; }
+  #bigmap { width: 100%; height: 100%; border-radius: 8px; background: #0e2a3a; }
+  #map-side { flex: 1; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+  #map-ring-line { display: flex; gap: 14px; align-items: center; }
+  #map-ring { font-size: 34px; font-weight: bold; color: #ffb347; }
+  .bar-row { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 3px 0; }
+  .bar-row span:first-child { width: 150px; color: #cfc4de; }
+  .bar-row .bar { flex: 1; height: 7px; background: rgba(255,255,255,0.14); border-radius: 4px; overflow: hidden; }
+  .bar-row .bar-fill { height: 100%; background: #7fd94f; }
+  .bar-row span:last-child { width: 44px; text-align: right; color: #ffb347; }
+  .stat { display: flex; justify-content: space-between; font-size: 12.5px; padding: 2px 0; color: #cfc4de; }
+  .stat b { color: #fff; }
+  .medal { display: inline-block; width: 26px; height: 26px; line-height: 26px; text-align: center; border-radius: 50%;
+    font-weight: bold; font-size: 13px; margin-right: 5px; background: #3a3a44; color: #888; }
+  .medal.G { background: #ffd34d; color: #231303; }
+  .medal.S { background: #cfd8dc; color: #222; }
+  .medal.B { background: #d98a5f; color: #231303; }
+  #map-saves { display: flex; gap: 10px; }
+  #map-saves .save-slot { flex: 1; }
+  #map-close { position: absolute; top: 14px; right: 20px; background: #ffb347; color: #231303; border: none;
+    border-radius: 6px; padding: 6px 14px; font-weight: bold; cursor: pointer; }
+  #fail-screen, #victory-screen { background: rgba(10, 5, 15, 0.72); align-items: center; justify-content: center; flex-direction: column; text-align: center; }
+  #fail-screen h2 { font-size: 54px; color: #ff5a5a; letter-spacing: 3px; }
+  #fail-screen p, #victory-screen p { font-size: 16px; color: #e8e0f0; margin: 10px 0 20px; }
+  #fail-retry { background: #ffb347; color: #231303; border: none; border-radius: 8px; padding: 12px 30px; font-size: 18px; font-weight: bold; cursor: pointer; }
+  #victory-screen h2 { font-size: 54px; color: #7dff8a; letter-spacing: 3px; }
+  #victory-cash { font-size: 40px; color: #ffd34d; font-weight: bold; }
 </style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div id="hud">
+  <div id="left-col">
+    <div id="mission-card" class="panel">
+      <div class="m-id" id="m-id">MISSION M1 · FIRST WHEELS</div>
+      <div id="m-title">FIRST WHEELS</div>
+      <span class="m-stage" id="m-stage">STAGE 1/2</span>
+      <span class="m-stage" style="background:#7fd94f" id="m-pay">$2,000</span>
+      <div id="m-objective">Meet the fixer at Downtown</div>
+      <div id="m-next"><b>NEXT</b> Drop the parcel at Marina Beach</div>
+    </div>
+    <div id="cbpd-card" class="panel">
+      <div class="cbpd-head"><span>▲ CBPD RESPONSE</span><span id="cbpd-count">0 UNITS</span></div>
+      <div id="cbpd-rows"></div>
+    </div>
+    <div id="district-card" class="panel">
+      <div id="d-name">DOWNTOWN</div>
+      <div id="d-sub">Coral Bay · Strand Boulevard</div>
+      <div class="mini-bar"><div id="d-respect" style="width:58%"></div></div>
+      <div id="d-packages">RESPECT Lv 1 · PACKAGES 0/4</div>
+    </div>
+    <div id="health-card" class="panel">
+      <div class="hrow"><span class="hlabel">HEALTH</span><div class="bar"><div id="health-bar" style="width:100%"></div></div><span id="health-num">100</span></div>
+      <div class="hrow"><span class="hlabel">ARMOUR</span><div class="bar"><div id="armour-bar" style="width:0%"></div></div></div>
+    </div>
+  </div>
+  <div id="minimap-wrap"><canvas id="minimap" width="196" height="196"></canvas></div>
+  <div id="right-col">
+    <div id="cash-row">
+      <div id="cash">$0</div>
+      <div id="clock">17:42 · DAY 1</div>
+      <div id="stars"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>
+    </div>
+    <div id="fixer-card" class="panel">
+      <div class="f-label">FIXER</div>
+      <div class="f-name">MARA VOSS</div>
+      <div class="f-rank">RANK C · <span id="fixer-rp">2,180 / 5,200 RP</span></div>
+      <div class="mini-bar"><div id="fixer-rp-bar" style="width:42%"></div></div>
+    </div>
+    <div id="weapons">
+      <div class="wslot" id="wslot-0"></div>
+      <div class="wslot active" id="wslot-1"></div>
+      <div class="wslot" id="wslot-2"></div>
+      <div class="wslot" id="wslot-3"></div>
+    </div>
+    <div class="crew-card panel"><div class="c-ico">M</div><div><div class="c-name">SWAP PLATES</div><div class="c-role">Mira · Driver</div></div></div>
+    <div class="crew-card panel"><div class="c-ico">L</div><div><div class="c-name">QUICK FIX</div><div class="c-role">Lio · Mechanic</div></div></div>
+    <div class="crew-card panel"><div class="c-ico">K</div><div><div class="c-name">EYES OUT</div><div class="c-role">Kiki · Lookout</div></div></div>
+  </div>
+  <div id="speed-block">
+    <div><span id="speed">0</span> <span class="kmh">KM/H</span></div>
+    <div id="car-name">CORAL GT · VELOCE</div>
+    <div id="car-cond">CONDITION 88% · DENTED</div>
+    <div id="radio-line">♪ CORAL FM 98.4 — Island Pop</div>
+  </div>
+  <div id="dialogue">
+    <div id="dlg-name">MARA VOSS · FIXER</div>
+    <div id="dlg-text">First job, kid. Take the GT, meet the fixer downtown, drop the parcel at Marina. Easy money.</div>
+  </div>
+</div>
+
+<div id="title-screen" class="screen">
+  <h1>CORAL BAY<br>HEAT</h1>
+  <div class="tagline">AN OPEN-WORLD CRIME STORY — ON AN ISLAND THAT NEVER EXISTED</div>
+  <div class="menu">
+    <button class="sel" id="title-play">CONTINUE</button>
+    <button id="title-new">NEW GAME</button>
+    <button id="title-load">LOAD GAME</button>
+    <button id="title-settings">SETTINGS</button>
+  </div>
+  <div id="title-saves">
+    <div class="save-slot"><b>SAVE SLOT 1</b><span>ACT 2 · 66% COMPLETE
+MARINA BEACH · $18,450 · 17:42</span></div>
+    <div class="save-slot"><b>SAVE SLOT 2</b><span>EMPTY
+NO SAVE YET</span></div>
+    <div class="save-slot"><b>SAVE SLOT 3</b><span>EMPTY
+NO SAVE YET</span></div>
+  </div>
+  <div class="foot">
+    <div class="big">THE CITY IS YOURS</div>
+    <div class="small">CORAL BAY HEAT · 2026 · PRESS ANY KEY TO PLAY</div>
+  </div>
+</div>
+
+<div id="map-screen" class="screen">
+  <button id="map-close">ESC — CLOSE</button>
+  <div class="tabs">
+    <b>CORAL BAY HEAT</b>
+    <span class="on">MAP</span><span>STORY</span><span>STATS</span><span>CREW</span><span>SETTINGS</span><span>CONTROLS</span><span>SAVE</span>
+    <span class="cash" id="map-cash">$18,450</span>
+  </div>
+  <div id="map-body">
+    <div id="bigmap-wrap"><canvas id="bigmap" width="640" height="420"></canvas></div>
+    <div id="map-side">
+      <div id="map-ring-line">
+        <div id="map-ring">66.1%</div>
+        <div>
+          <div style="font-size:13px;color:#ffb347;font-weight:bold">MISSION RATINGS</div>
+          <div style="font-size:12px;color:#cfc4de">★ GOLD · 5 &nbsp; ★ SILVER · 2 &nbsp; ★ BRONZE · 1</div>
+          <div id="map-mission-line" style="font-size:12px;color:#cfc4de">ACT 2 · MARINA BEACH · DAY 1 · 17:42</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:13px;color:#7fd9d9;font-weight:bold;margin-bottom:4px">PROGRESS</div>
+        <div id="map-bars"></div>
+      </div>
+      <div>
+        <div style="font-size:13px;color:#7fd9d9;font-weight:bold;margin-bottom:4px">CAREER STATS</div>
+        <div id="map-stats"></div>
+      </div>
+      <div>
+        <div style="font-size:13px;color:#7fd9d9;font-weight:bold;margin-bottom:4px">CREW</div>
+        <div style="font-size:12.5px;color:#e8e0f0">MIRA · DRIVER — SWAP PLATES &nbsp;&nbsp; LIO · MECHANIC — QUICK FIX &nbsp;&nbsp; KIKI · LOOKOUT — EYES OUT</div>
+      </div>
+      <div id="map-medals"></div>
+      <div id="map-saves"></div>
+    </div>
+  </div>
+  <div style="text-align:center;font-size:12px;color:#cfc4de;margin-top:10px">CORAL BAY · ISLAND MAP · PRESS M TO CLOSE</div>
+</div>
+
+<div id="fail-screen" class="screen">
+  <h2>WRECKED</h2>
+  <p id="fail-reason">WRECKED — the GT is scrap. Mara’s not paying for the tow.</p>
+  <button id="fail-retry">RETRY — BACK TO THE GARAGE</button>
+</div>
+
+<div id="victory-screen" class="screen">
+  <h2>VICTORY</h2>
+  <p>All eight jobs done. The RED TIDE is past the breakwater — the city is yours.</p>
+  <div id="victory-cash">$44,050</div>
+  <p>CORAL BAY HEAT · 2026</p>
+</div>
+
 <script type="importmap">
 { "imports": { "three": "./vendor/three.module.js" } }
 </script>
-</head>
-<body>
-<div id="game"></div>
-<div id="hud"></div>
-<div id="map-screen"></div>
-<div id="title-screen"></div>
-<div id="fail"></div>
-<div id="victory"></div>
 <script type="module" src="./src/game.js"></script>
 </body>
 </html>

@@ -1,141 +1,98 @@
-// Coral Bay Heat (rebuild v19) — palette + procedural canvas textures.
-// Every texture is painted in code so the city ships with zero image assets.
-// The look: warm dusk pastels, lit windows, hand-painted signs.
-
+// Shared look for Coral Bay Heat: the sunset palette and every canvas
+// texture the city paints with. All art is generated here at runtime from
+// plain canvas 2D, so the game ships no image files and loads nothing
+// over the network.
 import * as THREE from 'three';
 
+// The island at dusk: warm walls, teal glass, orange sun, violet sky.
 export const PALETTE = {
+  skyTop: '#5b2a86',
+  skyMid: '#c65b7c',
+  skyLow: '#ff9e57',
+  sun: '#ffd97a',
+  sunCore: '#fff3c4',
+  sea: '#1e7fa8',
+  seaDeep: '#14607f',
+  sand: '#e8c88f',
+  sandDark: '#d9b478',
+  road: '#3a3a44',
+  roadLine: '#ffd34d',
+  sidewalk: '#8a7f72',
+  grass: '#3f7d4e',
+  wallPink: '#e88ca0',
+  wallPeach: '#f2b28c',
+  wallCream: '#f4e3c2',
+  wallTerra: '#d98a5f',
+  wallTeal: '#7fb5a8',
+  wallLavender: '#b9a7d6',
+  wallYellow: '#f2d38c',
+  glassDay: '#9fd8e8',
+  glassLit: '#ffd98a',
   heroOrange: 0xff6a00,
-  sunGold: 0xffb347,
-  duskPink: 0xff5e8a,
-  duskPurple: 0x7b2fbe,
-  duskDeep: 0x2c1445,
-  roadDark: 0x33313d,
-  roadLine: 0xf5d76e,
-  walkLight: 0x9a8f7a,
-  sandWarm: 0xe8c98f,
-  seaBlue: 0x1f7fa8,
-  seaDeep: 0x155a7d,
-  grassGreen: 0x4d7a4a,
-  policeWhite: 0xf2f2ee,
-  policeNavy: 0x1d2f55,
+  policeWhite: '#f2f2ee',
+  policeBlue: '#1c3a6e',
 };
-
-export const FACADE_COLORS = [
-  0xe8a87c, 0xf2c48d, 0xd98c7a, 0x8fb8a8, 0xc9a0c8,
-  0xe6b8a2, 0x9ab8d9, 0xf0d9a8, 0xb98a6e, 0x7fb3a3,
-];
 
 function makeCanvas(w, h) {
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
-  return [c, c.getContext('2d')];
+  return c;
 }
 
-function toTexture(canvas, repeatX = 1, repeatY = 1) {
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.wrapS = THREE.RepeatWrapping;
-  tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(repeatX, repeatY);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
+export function canvasTexture(canvas) {
+  const t = new THREE.CanvasTexture(canvas);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
 }
 
-// A building face: warm plaster, a grid of windows, some glowing amber.
-export function facadeTexture(baseHex, rng, litRatio = 0.45) {
-  const [c, g] = makeCanvas(128, 256);
-  const base = '#' + baseHex.toString(16).padStart(6, '0');
+// A building face: warm plaster, a grid of windows (some lit gold, some
+// cool glass), a darker ground floor with a shopfront band.
+export function facadeTexture(base, litRatio, rng) {
+  const c = makeCanvas(256, 256);
+  const g = c.getContext('2d');
   g.fillStyle = base;
-  g.fillRect(0, 0, 128, 256);
-  // subtle plaster shading
+  g.fillRect(0, 0, 256, 256);
+  // faint plaster variation
   for (let i = 0; i < 40; i++) {
-    g.fillStyle = `rgba(0,0,0,${0.02 + rng() * 0.05})`;
-    g.fillRect(rng() * 128, rng() * 256, 6 + rng() * 20, 4 + rng() * 10);
+    g.fillStyle = rng.chance(0.5) ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+    g.fillRect(rng.range(0, 256), rng.range(0, 256), rng.range(8, 40), rng.range(8, 40));
   }
-  // cornice + base band
-  g.fillStyle = 'rgba(0,0,0,0.18)';
-  g.fillRect(0, 0, 128, 10);
-  g.fillStyle = 'rgba(255,255,255,0.10)';
-  g.fillRect(0, 246, 128, 10);
-  // windows: few, widely spaced, high-contrast — they must read as a grid,
-  // not merge into horizontal bands at street distance
-  const cols = 4, rows = 6;
-  const cw = 128 / cols, ch = 256 / rows;
-  for (let r = 0; r < rows; r++) {
-    for (let col = 0; col < cols; col++) {
-      const x = col * cw + 8, y = r * ch + 10;
-      const lit = rng() < litRatio;
-      // dark frame, then the pane
-      g.fillStyle = '#10131a';
-      g.fillRect(x - 2, y - 2, cw - 12, ch - 16);
-      g.fillStyle = lit ? '#ffe9a8' : '#1a2030';
-      if (lit) {
-        g.shadowColor = '#ffb347'; g.shadowBlur = 12;
+  // window grid
+  const cols = 5, rows = 7;
+  const cw = 256 / cols, ch = 256 / rows;
+  for (let x = 0; x < cols; x++) {
+    for (let y = 0; y < rows; y++) {
+      const lit = rng.chance(litRatio);
+      g.fillStyle = lit ? PALETTE.glassLit : PALETTE.glassDay;
+      g.fillRect(x * cw + 9, y * ch + 10, cw - 18, ch - 20);
+      g.fillStyle = 'rgba(0,0,0,0.35)';
+      g.fillRect(x * cw + 9, y * ch + 10, cw - 18, 3);
+      if (lit && rng.chance(0.4)) {
+        g.fillStyle = 'rgba(120,60,20,0.5)';
+        g.fillRect(x * cw + 9, y * ch + ch - 22, cw - 18, 4);
       }
-      g.fillRect(x, y, cw - 16, ch - 20);
-      g.shadowBlur = 0;
-      // white sill under every window — the grid reads even unlit
-      g.fillStyle = 'rgba(255,255,255,0.35)';
-      g.fillRect(x, y + ch - 20, cw - 16, 2);
     }
   }
-  // top light: the dusk sun catches the upper floors
-  const topGrad = g.createLinearGradient(0, 0, 0, 90);
-  topGrad.addColorStop(0, 'rgba(255,200,120,0.20)');
-  topGrad.addColorStop(1, 'rgba(255,200,120,0)');
-  g.fillStyle = topGrad;
-  g.fillRect(0, 0, 128, 90);
-  return toTexture(c);
+  // ground floor shopfront band
+  g.fillStyle = 'rgba(30,20,30,0.55)';
+  g.fillRect(0, 224, 256, 32);
+  g.fillStyle = '#ffd98a';
+  g.fillRect(12, 232, 60, 16);
+  g.fillRect(180, 232, 64, 16);
+  return canvasTexture(c);
 }
 
-// Asphalt with a dashed centre line and worn edges.
-export function roadTexture() {
-  const [c, g] = makeCanvas(128, 128);
-  g.fillStyle = '#33313d';
-  g.fillRect(0, 0, 128, 128);
-  for (let i = 0; i < 220; i++) {
-    g.fillStyle = `rgba(255,255,255,${0.015 + Math.random() * 0.03})`;
-    g.fillRect(Math.random() * 128, Math.random() * 128, 2, 2);
-  }
-  g.fillStyle = '#f5d76e';
-  g.fillRect(61, 0, 5, 28);
-  g.fillRect(61, 100, 5, 28);
-  g.fillStyle = 'rgba(255,255,255,0.35)';
-  g.fillRect(4, 0, 3, 128);
-  g.fillRect(121, 0, 3, 128);
-  return toTexture(c, 1, 6);
-}
-
-// Warm sand with speckles and soft ripples.
-export function sandTexture() {
-  const [c, g] = makeCanvas(128, 128);
-  g.fillStyle = '#e8c98f';
-  g.fillRect(0, 0, 128, 128);
-  for (let i = 0; i < 500; i++) {
-    const warm = Math.random() < 0.5;
-    g.fillStyle = warm ? 'rgba(190,140,80,0.25)' : 'rgba(255,240,200,0.3)';
-    g.fillRect(Math.random() * 128, Math.random() * 128, 2, 2);
-  }
-  g.strokeStyle = 'rgba(190,140,80,0.18)';
-  for (let i = 0; i < 8; i++) {
-    g.beginPath();
-    const y = Math.random() * 128;
-    g.moveTo(0, y);
-    g.bezierCurveTo(40, y + 8, 80, y - 8, 128, y + 4);
-    g.stroke();
-  }
-  return toTexture(c, 8, 8);
-}
-
-// A lit shop / hotel sign board. Text is painted big and crisp.
-export function signTexture(text, sub, bgHex, fgHex) {
-  const [c, g] = makeCanvas(512, 128);
-  g.fillStyle = bgHex;
+// A rooftop / wall sign: big readable letters on a dark board.
+export function signTexture(text, sub, fg, bg) {
+  const c = makeCanvas(512, 128);
+  const g = c.getContext('2d');
+  g.fillStyle = bg;
   g.fillRect(0, 0, 512, 128);
-  g.strokeStyle = fgHex;
+  g.strokeStyle = fg;
   g.lineWidth = 6;
   g.strokeRect(6, 6, 500, 116);
-  g.fillStyle = fgHex;
+  g.fillStyle = fg;
   g.font = 'bold 56px Arial, sans-serif';
   g.textAlign = 'center';
   g.textBaseline = 'middle';
@@ -144,102 +101,129 @@ export function signTexture(text, sub, bgHex, fgHex) {
     g.font = 'bold 26px Arial, sans-serif';
     g.fillText(sub, 256, 100);
   }
-  return toTexture(c);
+  return canvasTexture(c);
 }
 
-// Soft radial glow used for the sun halo, lamp glows and the heli light pool.
+// Striped awning (market stalls, beach bars).
+export function awningTexture(colorA, colorB) {
+  const c = makeCanvas(128, 64);
+  const g = c.getContext('2d');
+  for (let i = 0; i < 8; i++) {
+    g.fillStyle = i % 2 === 0 ? colorA : colorB;
+    g.fillRect(i * 16, 0, 16, 64);
+  }
+  g.fillStyle = 'rgba(0,0,0,0.18)';
+  for (let i = 0; i < 8; i += 2) g.fillRect(i * 16, 0, 3, 64);
+  return canvasTexture(c);
+}
+
+// Asphalt with a dashed centre line, tiled along a road segment.
+export function roadTexture() {
+  const c = makeCanvas(128, 128);
+  const g = c.getContext('2d');
+  g.fillStyle = PALETTE.road;
+  g.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 200; i++) {
+    g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)';
+    g.fillRect(Math.random() * 128, Math.random() * 128, 2, 2);
+  }
+  g.fillStyle = PALETTE.roadLine;
+  g.fillRect(60, 8, 8, 44);
+  g.fillRect(60, 76, 8, 44);
+  const t = canvasTexture(c);
+  t.wrapS = THREE.RepeatWrapping;
+  t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+// Sand with speckles and a few darker patches.
+export function sandTexture() {
+  const c = makeCanvas(256, 256);
+  const g = c.getContext('2d');
+  g.fillStyle = PALETTE.sand;
+  g.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 900; i++) {
+    g.fillStyle = Math.random() < 0.5 ? 'rgba(180,140,80,0.25)' : 'rgba(255,240,200,0.25)';
+    g.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
+  }
+  for (let i = 0; i < 12; i++) {
+    g.fillStyle = 'rgba(160,120,70,0.12)';
+    g.beginPath();
+    g.ellipse(Math.random() * 256, Math.random() * 256, 18 + Math.random() * 30, 8 + Math.random() * 14, Math.random() * 3, 0, 7);
+    g.fill();
+  }
+  const t = canvasTexture(c);
+  t.wrapS = THREE.RepeatWrapping;
+  t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+// Sea: deep blue with pale wave streaks.
+export function seaTexture() {
+  const c = makeCanvas(256, 256);
+  const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0, 0, 256, 256);
+  grad.addColorStop(0, PALETTE.sea);
+  grad.addColorStop(1, PALETTE.seaDeep);
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 256, 256);
+  g.strokeStyle = 'rgba(255,255,255,0.16)';
+  g.lineWidth = 2;
+  for (let i = 0; i < 26; i++) {
+    const y = Math.random() * 256;
+    g.beginPath();
+    g.moveTo(Math.random() * 120, y);
+    g.lineTo(120 + Math.random() * 136, y + (Math.random() * 10 - 5));
+    g.stroke();
+  }
+  const t = canvasTexture(c);
+  t.wrapS = THREE.RepeatWrapping;
+  t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+// The sunset sky: vertical gradient purple -> rose -> orange, painted
+// once and wrapped around a big dome.
+export function skyTexture() {
+  const c = makeCanvas(64, 512);
+  const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0, 0, 0, 512);
+  grad.addColorStop(0.0, '#3d1a63');
+  grad.addColorStop(0.35, PALETTE.skyTop);
+  grad.addColorStop(0.62, PALETTE.skyMid);
+  grad.addColorStop(0.82, PALETTE.skyLow);
+  grad.addColorStop(1.0, '#ffb26b');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 64, 512);
+  return canvasTexture(c);
+}
+
+// A soft round glow (sun halo, light pool, muzzle flash sprite).
 export function glowTexture(inner, outer) {
-  const [c, g] = makeCanvas(128, 128);
+  const c = makeCanvas(128, 128);
+  const g = c.getContext('2d');
   const grad = g.createRadialGradient(64, 64, 4, 64, 64, 62);
   grad.addColorStop(0, inner);
-  grad.addColorStop(0.45, outer);
-  grad.addColorStop(1, 'rgba(255,180,80,0)');
+  grad.addColorStop(0.55, outer);
+  grad.addColorStop(1, 'rgba(255,180,90,0)');
   g.fillStyle = grad;
   g.fillRect(0, 0, 128, 128);
-  return toTexture(c);
+  return canvasTexture(c);
 }
 
-// A puffy dusk cloud, painted soft so it reads at a distance.
-export function cloudTexture(rng) {
-  const [c, g] = makeCanvas(256, 128);
-  for (let i = 0; i < 14; i++) {
-    const x = 30 + rng() * 196, y = 45 + rng() * 40, r = 18 + rng() * 26;
-    const grad = g.createRadialGradient(x, y, 2, x, y, r);
-    grad.addColorStop(0, 'rgba(255,205,220,0.55)');
-    grad.addColorStop(1, 'rgba(255,205,220,0)');
-    g.fillStyle = grad;
-    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
-  }
-  return toTexture(c);
-}
-
-// Small painted portrait for crew / fixer cards (canvas face, no photo assets).
-export function portraitTexture(kind) {
-  const [c, g] = makeCanvas(96, 96);
-  const skins = { mara: '#f0c8a0', mira: '#e8b88a', lio: '#d9a06f', kiki: '#f0c8a0' };
-  const hairs = { mara: '#20222e', mira: '#3a2418', lio: '#101014', kiki: '#7a3b1e' };
-  g.fillStyle = '#2c1445';
-  g.fillRect(0, 0, 96, 96);
-  g.fillStyle = skins[kind] || '#e8b88a';
-  g.beginPath(); g.arc(48, 46, 24, 0, Math.PI * 2); g.fill();
-  g.fillStyle = hairs[kind] || '#20222e';
-  g.beginPath(); g.arc(48, 36, 24, Math.PI, 0); g.fill();
-  if (kind === 'mara') {
-    g.fillStyle = '#c02040';
-    g.fillRect(24, 30, 48, 8);
-  }
-  if (kind === 'kiki') {
-    g.fillStyle = '#ffd24d';
-    g.beginPath(); g.arc(48, 18, 8, 0, Math.PI * 2); g.fill();
-  }
-  if (kind === 'lio') {
-    g.fillStyle = '#3a3f4a';
-    g.fillRect(26, 40, 44, 6);
-  }
-  g.fillStyle = '#20222e';
-  g.beginPath(); g.arc(39, 46, 3, 0, Math.PI * 2); g.fill();
-  g.beginPath(); g.arc(57, 46, 3, 0, Math.PI * 2); g.fill();
-  g.strokeStyle = '#a05a3a';
-  g.lineWidth = 2;
-  g.beginPath(); g.arc(48, 58, 8, 0.15 * Math.PI, 0.85 * Math.PI); g.stroke();
-  // shoulders / jacket
-  g.fillStyle = kind === 'mira' ? '#2f6fb2' : kind === 'lio' ? '#3f7a4a' : '#7a2f5e';
-  g.beginPath(); g.moveTo(14, 96); g.quadraticCurveTo(48, 62, 82, 96); g.closePath(); g.fill();
-  return toTexture(c);
-}
-
-// Tiny weapon pictograms drawn as canvas sprites for the HUD slots.
-export function weaponIconTexture(kind) {
-  const [c, g] = makeCanvas(64, 64);
-  g.clearRect(0, 0, 64, 64);
-  g.strokeStyle = '#f2f2ee';
-  g.fillStyle = '#f2f2ee';
-  g.lineWidth = 5;
-  g.lineCap = 'round';
-  if (kind === 'fists') {
-    g.beginPath(); g.arc(24, 34, 12, 0, Math.PI * 2); g.stroke();
-    g.beginPath(); g.arc(42, 30, 11, 0, Math.PI * 2); g.stroke();
-  } else if (kind === 'pistol') {
-    g.beginPath();
-    g.moveTo(12, 26); g.lineTo(48, 26); g.lineTo(48, 34); g.lineTo(26, 34);
-    g.lineTo(24, 48); g.lineTo(16, 48); g.lineTo(18, 34); g.closePath();
-    g.fill();
-  } else if (kind === 'smg') {
-    g.fillRect(8, 26, 44, 8);
-    g.fillRect(20, 34, 8, 16);
-    g.fillRect(40, 30, 14, 5);
-  } else {
-    g.fillRect(8, 24, 40, 10);
-    g.fillRect(44, 27, 12, 4);
-    g.fillRect(20, 34, 9, 16);
-  }
-  return toTexture(c);
-}
-
-export function lambert(color, opts = {}) {
-  return new THREE.MeshLambertMaterial({ color, ...opts });
-}
-
-export function lambertMap(map, opts = {}) {
-  return new THREE.MeshLambertMaterial({ map, ...opts });
+// A licence plate: white board, dark letters.
+export function plateTexture(text) {
+  const c = makeCanvas(256, 64);
+  const g = c.getContext('2d');
+  g.fillStyle = '#f4f0e2';
+  g.fillRect(0, 0, 256, 64);
+  g.strokeStyle = '#222';
+  g.lineWidth = 4;
+  g.strokeRect(3, 3, 250, 58);
+  g.fillStyle = '#1a2a6e';
+  g.font = 'bold 34px Arial, sans-serif';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(text, 128, 34);
+  return canvasTexture(c);
 }

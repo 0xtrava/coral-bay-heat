@@ -1,9 +1,8 @@
-// Seeded random helpers for Coral Bay Heat (rebuild v19).
-// One tiny deterministic generator so every run with the same seed
-// builds the same city, the same crowds and the same traffic.
-
-export function makeRng(seed) {
-  let a = (seed >>> 0) || 1;
+// Seeded random numbers for Coral Bay Heat. Every random choice in the
+// city, traffic and pedestrians flows through one of these, so a fixed
+// seed always builds the same island. No network, no Date in the stream.
+export function mulberry32(seed) {
+  let a = seed >>> 0;
   return function next() {
     a |= 0; a = (a + 0x6d2b79f5) | 0;
     let t = Math.imul(a ^ (a >>> 15), 1 | a);
@@ -12,32 +11,37 @@ export function makeRng(seed) {
   };
 }
 
-export function pick(rng, list) {
-  return list[Math.floor(rng() * list.length) % list.length];
-}
-
-export function between(rng, lo, hi) {
-  return lo + rng() * (hi - lo);
-}
-
-export function whole(rng, lo, hi) {
-  return lo + Math.floor(rng() * (hi - lo + 1));
-}
-
-export function chance(rng, p) {
-  return rng() < p;
-}
-
-export function shuffle(rng, arr) {
-  const out = arr.slice();
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    const tmp = out[i]; out[i] = out[j]; out[j] = tmp;
+export function hashSeed(text) {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
   }
-  return out;
+  return h >>> 0;
 }
 
-// Smooth wobble used for bobbing, flames and the sun halo shimmer.
-export function wobble(t, speed, amp) {
-  return Math.sin(t * speed) * amp;
+// A small helper object so callers do not repeat the same arithmetic.
+export class Rng {
+  constructor(seed) {
+    this.next = mulberry32(seed);
+  }
+  // float in [0, 1)
+  float() { return this.next(); }
+  // float in [min, max)
+  range(min, max) { return min + this.next() * (max - min); }
+  // integer in [min, max] inclusive
+  int(min, max) { return Math.floor(this.range(min, max + 1)); }
+  // one item from an array
+  pick(list) { return list[Math.floor(this.next() * list.length)]; }
+  // true with probability p
+  chance(p) { return this.next() < p; }
+  // a shuffled copy of an array (Fisher-Yates)
+  shuffle(list) {
+    const out = list.slice();
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(this.next() * (i + 1));
+      const t = out[i]; out[i] = out[j]; out[j] = t;
+    }
+    return out;
+  }
 }
