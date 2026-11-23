@@ -65,7 +65,7 @@ export const MISSIONS = [
     ],
   },
   {
-    id: 'M8', title: 'RED TIDE', payout: 8550,
+    id: 'M8', title: 'RED TIDE', payout: 9050,
     brief: 'Last job. Board the RED TIDE at the south marina and ride her out past the breakwater.',
     steps: [
       { type: 'drive', x: 120, z: 108, label: 'Reach the south marina' },
