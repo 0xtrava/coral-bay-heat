@@ -1,870 +1,1242 @@
-// Coral Bay Heat — missions M1-M8, wanted police, shops, weapons,
-// crew, radio, taxi, packages, save/load, fail + retry, autopilot harness.
-// The game owns the player state (position, heading, speed, mode);
-// main.js renders the driven vehicle, the on-foot avatar and the camera
-// from it.
-import { makeCivilianCar, makePoliceCar } from './cars.js';
+// Coral Bay Heat — the game itself. One orchestrator that owns the
+// renderer, the island, the hero car, the police, the story and the HUD,
+// and wires the twelve specialist modules together. Everything the
+// playtest and the screenshot harness touch hangs off `window.__GAME__`.
+//
+// Conventions: heading 0 = +z, forward = (sin h, 0, cos h). The road grid
+// sits at x/z = -90, -45, 0, 45, 90. Game time runs `ff` times faster
+// than real time (?ff=6 in the playtest) and the physics runs in fixed
+// 0.05 s substeps so a slow SwiftShader frame never tunnels the car
+// through a building or past a waypoint.
+import * as THREE from 'three';
+import { createRng, range, int, pick } from './rng.js';
+import { DUSK } from './materials.js';
+import { buildCity, BOUNDS, MARINA_EXIT } from './city.js';
+import { makeHeroCar, makePoliceCar, makeTrafficCar, makeBoxVan } from './cars.js';
+import { makePlayer, makeOfficer, makeTargetMarker, makePedestrian, animateWalk } from './people.js';
+import { MISSIONS, MISSION_PAY, TOTAL_PAY, CBPD_UNITS, RADIO_STATIONS } from './missions.js';
+import { Hud } from './hud.js';
+import { makeHeli, updateHeli } from './heli.js';
+import { Driver, shootStep } from './autopilot.js';
+import { AudioEngine } from './audio.js';
+import { saveGame, loadSave } from './save.js';
+import { stageShot } from './shots.js';
 
-const SAVE_KEY = 'coral-bay-heat-save-v1';
-const GARAGE = { x: -30, z: 96 };
-const PIER_BASE = { x: 12, z: -95 };
-const PIER_END = { x: 60, z: -95 };
-const SOUTH_MARINA = { x: 75, z: 140 };
-const DEST_EXIT = { x: 75, z: 140 }; // south marina pier exit: boats are picked nearest THIS
-const GUN_STORE = { x: -14, z: -30 };
-const HIDE_ZONE = { x: -40, z: 90 };
+const TAU = Math.PI * 2;
+const STEP = 0.05; // physics substep, game seconds
+const TAXI_RATE = 0.25; // dollars per metre driven with a fare
+const RAM_DAMAGE = 3; // hp a cruiser deals when it clips the hero
+const RAM_COOLDOWN = 5; // seconds between rams from the same cruiser
 
-export const STATIONS = [
-  { name: 'CORAL FM 98.4', genre: 'Island Pop', track: 'Marina Lights — The Palms' },
-  { name: 'BAY BREEZE 101.2', genre: 'Sunset Reggae', track: 'Low Tide — Sandy Cove' },
-  { name: 'NEON REEF 104.7', genre: 'Night Drive Synth', track: 'Reef Runner — Glasshouse' },
-  { name: 'PIER TALK 88.9', genre: 'Coral Bay Nights', track: 'Dockside Stories — Old Salty' },
-];
+function clamp(v, lo, hi) {
+  return v < lo ? lo : v > hi ? hi : v;
+}
 
-const UNIT_NAMES = [
-  ['IBIS-43', 'RAMMING'], ['TARPON-10', 'PURSUIT'], ['HERON-19', 'SEARCH'],
-  ['EGRET-07', 'FLANKING'], ['OSPREY-22', 'PURSUIT'], ['PELICAN-31', 'SEARCH'],
-];
+function wrapAngle(a) {
+  while (a > Math.PI) a -= TAU;
+  while (a < -Math.PI) a += TAU;
+  return a;
+}
 
-// Mission scripts. Each step: kind + target + HUD text. Rewards in $.
-export const MISSIONS = [
-  {
-    id: 'M1', name: 'FIRST WHEELS', reward: 1200, startWanted: 0,
-    brief: 'The sedan is waiting in the marina lot. Take it quiet — and bring it back to my garage in one piece.',
-    steps: [
-      { kind: 'goto', x: 8, z: -60, r: 6, stage: 'STAGE 1/3', title: 'REACH THE MARINA LOT', obj: 'Drive to the marina lot where the marked sedan is parked.', next: 'Reach the marina lot' },
-      { kind: 'steal', x: 8, z: -60, r: 5, stage: 'STAGE 2/3', title: 'TAKE THE SEDAN', obj: 'Get in the marked green sedan and take it.', next: 'Press E by the sedan' },
-      { kind: 'deliver', x: GARAGE.x, z: GARAGE.z, r: 7, stage: 'STAGE 3/3', title: 'DELIVER TO THE GARAGE', obj: 'Bring the sedan to Mara\u2019s garage at the south end.', next: 'Deliver to Mara\u2019s garage' },
-    ],
-  },
-  {
-    id: 'M2', name: 'DOWNTOWN MEET', reward: 2400, startWanted: 0,
-    brief: 'A buyer waits downtown. It smells like a setup — keep the engine running and your eyes open.',
-    steps: [
-      { kind: 'goto', x: -24, z: -120, r: 6, stage: 'STAGE 1/3', title: 'DRIVE TO THE MEET', obj: 'Drive to the downtown meet on the west avenue.', next: 'Reach the meet point' },
-      { kind: 'ambush', x: -24, z: -120, r: 0, stage: 'STAGE 2/3', title: 'SURVIVE THE AMBUSH', obj: 'Rivals are ramming and shooting! Ram them back or shoot them down.', next: 'Take out both rival cars' },
-      { kind: 'goto', x: 0, z: 40, r: 7, stage: 'STAGE 3/3', title: 'ESCAPE THE BLOCK', obj: 'Break away and get clear of the downtown block.', next: 'Escape to Strand Boulevard' },
-    ],
-  },
-  {
-    id: 'M3', name: 'PACKAGE RUN', reward: 1800, startWanted: 0,
-    brief: 'Four packages, four corners of the city. Collect them all, then bring them home to the garage.',
-    steps: [
-      { kind: 'collect', x: 6, z: -140, r: 4, stage: 'PACKAGE 1/4', title: 'COLLECT THE PACKAGES', obj: 'Pick up the package at the north end of Strand Boulevard.', next: 'Package 1 of 4' },
-      { kind: 'collect', x: -6, z: 60, r: 4, stage: 'PACKAGE 2/4', title: 'COLLECT THE PACKAGES', obj: 'Pick up the package by the cross street.', next: 'Package 2 of 4' },
-      { kind: 'collect', x: 6, z: 120, r: 4, stage: 'PACKAGE 3/4', title: 'COLLECT THE PACKAGES', obj: 'Pick up the package near the docks turn-off.', next: 'Package 3 of 4' },
-      { kind: 'collect', x: -6, z: -40, r: 4, stage: 'PACKAGE 4/4', title: 'COLLECT THE PACKAGES', obj: 'Pick up the last package on the west side.', next: 'Package 4 of 4' },
-      { kind: 'deliver', x: GARAGE.x, z: GARAGE.z, r: 7, stage: 'STAGE 2/2', title: 'DELIVER THE PACKAGES', obj: 'Bring all four packages to Mara\u2019s garage.', next: 'Deliver to the garage' },
-    ],
-  },
-  {
-    id: 'M4', name: 'LOSE THE HEAT', reward: 2000, startWanted: 3,
-    brief: 'Three stars, kid. Get out of sight, sit still in the alley by the garage, and let the heat fade.',
-    steps: [
-      { kind: 'hide', x: HIDE_ZONE.x, z: HIDE_ZONE.z, r: 10, stage: 'STAGE 1/2', title: 'BREAK LINE OF SIGHT', obj: 'Reach the garage alley and stay out of sight until the heat fades.', next: 'Hide in the garage alley' },
-    ],
-  },
-  {
-    id: 'M5', name: 'THE BIG SCORE', reward: 5000, startWanted: 0,
-    brief: 'There is a cash drop at the docks and five stars waiting for whoever grabs it. Grab it on foot, then vanish.',
-    steps: [
-      { kind: 'goto', x: -34, z: 136, r: 7, stage: 'STAGE 1/3', title: 'REACH THE DOCKS', obj: 'Drive to the container docks at the north end.', next: 'Reach the docks' },
-      { kind: 'grab', x: -34, z: 140, r: 3, stage: 'STAGE 2/3', title: 'GRAB THE CASH ON FOOT', obj: 'Leave the car, walk to the cash drop and pick it up.', next: 'Grab the cash on foot' },
-      { kind: 'deliver', x: PIER_BASE.x, z: PIER_BASE.z, r: 8, stage: 'STAGE 3/3', title: 'BRING IT TO PIER 9', obj: 'Bring the cash to Pier 9 — five stars will be on you.', next: 'Reach Pier 9' },
-    ],
-  },
-  {
-    id: 'M6', name: 'HARBOR RUN', reward: 2200, startWanted: 0,
-    brief: 'The boat is waiting at the end of the pier. Walk out there and board the one nearest the south marina exit.',
-    steps: [
-      { kind: 'walkto', x: PIER_END.x, z: PIER_END.z, r: 4, stage: 'STAGE 1/2', title: 'WALK THE PIER', obj: 'Walk to the end of Pier 9 on foot.', next: 'Walk to the pier end' },
-      { kind: 'board', x: PIER_END.x, z: PIER_END.z, r: 6, stage: 'STAGE 2/2', title: 'BOARD THE BOAT', obj: 'Board the boat nearest the south marina pier exit.', next: 'Board the boat' },
-    ],
-  },
-  {
-    id: 'M7', name: 'CROSS THE BAY', reward: 3000, startWanted: 0,
-    brief: 'Take her across the bay to the south marina. Steady on the throttle — the water is calm if you are.',
-    steps: [
-      { kind: 'sail', x: SOUTH_MARINA.x, z: SOUTH_MARINA.z, r: 8, stage: 'STAGE 1/1', title: 'SAIL TO THE SOUTH MARINA', obj: 'Pilot the boat across the bay to the south marina.', next: 'Reach the south marina' },
-    ],
-  },
-  {
-    id: 'M8', name: 'CORAL CROWN', reward: 8000, startWanted: 0,
-    brief: 'Last job. Leave the boat, reach the marina office, take the waiting car and run north. Finish this.',
-    steps: [
-      { kind: 'walkto', x: 58, z: 142, r: 4, stage: 'STAGE 1/3', title: 'REACH THE MARINA OFFICE', obj: 'Leave the boat and walk to the marina office on foot.', next: 'Reach the marina office' },
-      { kind: 'takeCar', x: 20, z: 140, r: 5, stage: 'STAGE 2/3', title: 'TAKE THE WAITING CAR', obj: 'Get in the waiting car by the south marina lot.', next: 'Take the waiting car' },
-      { kind: 'escape', x: 0, z: -160, r: 8, stage: 'STAGE 3/3', title: 'RUN NORTH AND VANISH', obj: 'Escape north up Strand Boulevard with four stars on you.', next: 'Escape to the north end' },
-    ],
-  },
-];
+function dist2(ax, az, bx, bz) {
+  const dx = ax - bx;
+  const dz = az - bz;
+  return dx * dx + dz * dz;
+}
 
-const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const dist = (ax, az, bx, bz) => Math.hypot(ax - bx, az - bz);
-const angDiff = (a, b) => {
-  let d = a - b;
-  while (d > Math.PI) d -= Math.PI * 2;
-  while (d < -Math.PI) d += Math.PI * 2;
-  return d;
-};
-
-export function createGame(ctx) {
-  const { scene, refs, renderHud, showOverlay } = ctx;
-  const THREE = ctx.THREE;
-
-  // ---- world props the missions need ----
-  const sedan = makeCivilianCar(0x2e8a6a);
-  sedan.position.set(8, 0, -60);
-  sedan.rotation.y = 0.2;
-  scene.add(sedan);
-  const waitingCar = makeCivilianCar(0x37b8a8);
-  waitingCar.position.set(20, 0, 140);
-  waitingCar.rotation.y = -0.4;
-  scene.add(waitingCar);
-  // The city hands the taxi over directly as refs.taxi — never found by
-  // matching its position, which breaks the moment traffic moves.
-  const taxiMesh = refs.taxi || refs.traffic[4];
-
-  // Objective beacon: gold ring + beam, moved to the current step target.
-  const beaconMat = new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.85 });
-  const beacon = new THREE.Group();
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.18, 8, 28), beaconMat);
-  ring.rotation.x = Math.PI / 2;
-  ring.position.y = 0.25;
-  beacon.add(ring);
-  const beam = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.5, 0.5, 26, 10, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xffd76a, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }),
+// A soft round shadow blob under a car or a person — cheap grounding so
+// nothing floats on the road.
+function makeShadowBlob(r) {
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 64;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(32, 32, 2, 32, 32, 30);
+  grad.addColorStop(0, 'rgba(0,0,0,0.5)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(c);
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(r * 2, r * 2),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
   );
-  beam.position.y = 13;
-  beacon.add(beam);
-  scene.add(beacon);
+  m.rotation.x = -Math.PI / 2;
+  m.position.y = 0.07;
+  return m;
+}
 
-  // Package pickups (gold crates).
-  const pkgMeshes = [];
-  const pkgSpots = [[6, -140], [-6, 60], [6, 120], [-6, -40]];
-  for (const [x, z] of pkgSpots) {
-    const p = new THREE.Group();
-    const crate = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.8, 1.1),
-      new THREE.MeshStandardMaterial({ color: 0xffd76a, roughness: 0.4, metalness: 0.3, emissive: 0xa87800, emissiveIntensity: 0.5 }));
-    crate.position.y = 0.55;
-    crate.castShadow = true;
-    p.add(crate);
-    p.position.set(x, 0, z);
-    scene.add(p);
-    pkgMeshes.push(p);
+export class Game {
+  constructor() {
+    const params = new URLSearchParams(window.location.search);
+    this.seed = Number(params.get('seed') || 1);
+    this.ff = Number(params.get('ff') || 1) || 1;
+    this.shot = params.get('shot');
+    this.rng = createRng(this.seed);
+    this.time = 0; // game clock, seconds
+    this.driver = new Driver();
+    this.autopilot = false;
+    this.keys = {};
+    this.audio = new AudioEngine();
+    this.cameraMode = 'chase';
+    this.taxiActive = false;
+    this.waitTimer = 0;
+    this.legTimer = 0;
+    this.wantedTimer = 0;
+    this.boostUntil = 0;
+    this.shootRemaining = 0;
+    this.officers = []; // {mesh, marker, x, z, dead}
+    this.policeCars = []; // {mesh, unit, x, z, heading, speed, ramAt}
+    this.traffic = []; // {mesh, axis, line, pos, dir, speed}
+    this.peds = []; // {mesh, x, z, dir, speed}
+    this.packageMarkers = [];
+    this.collectSpots = [];
+    this.burningVan = null;
+    this.playerOnFoot = null;
+    this.muzzle = null;
+    this.tracer = null;
+    this.tracerAt = 0;
+
+    // The state the save file and the playtest read. Keep it a plain
+    // object — save.js serialises it, status() reports it.
+    this.state = {
+      mission: 0,
+      step: 0,
+      cash: 0,
+      health: 100,
+      maxHealth: 100,
+      armour: 0,
+      topSpeed: 36,
+      speed: 0,
+      pos: { x: 0, z: -80 },
+      heading: 0,
+      weapons: [
+        { name: 'FISTS', ammo: Infinity },
+        { name: 'PISTOL', ammo: 60 },
+        { name: 'SMG', ammo: 0 },
+        { name: 'SHOTGUN', ammo: 12 },
+      ],
+      weaponIndex: 1,
+      packages: 0,
+      taxiEarned: 0,
+      clockMinutes: 17 * 60 + 42,
+      wanted: 0,
+      mode: 'car',
+      vehicle: 'CORAL GT',
+      radio: 0,
+      chosenBoat: 2,
+      victory: false,
+      failed: null,
+      waypoint: null,
+    };
+
+    this.buildRenderer();
+    this.buildWorld();
+    this.buildActors();
+    this.hud = new Hud(document);
+    this.bindInput();
+    this.startMission(0);
+    this.pickBoatForDestination();
+
+    window.__GAME__ = this;
+    window.__HERO__ = this.hero;
+    window.addEventListener('error', (e) => {
+      window.__PAGEERROR__ = String(e.message || e.error || 'page error');
+    });
+
+    this.lastReal = performance.now();
+    this.firstFrame = true;
+    const loop = () => {
+      requestAnimationFrame(loop);
+      this.frame();
+    };
+    requestAnimationFrame(loop);
   }
-  // Cash drop at the docks (M5).
-  const cashMesh = new THREE.Group();
-  const cashBox = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.7, 0.9),
-    new THREE.MeshStandardMaterial({ color: 0x2ee66b, roughness: 0.35, metalness: 0.3, emissive: 0x1a8a3a, emissiveIntensity: 0.6 }));
-  cashBox.position.y = 0.5;
-  cashMesh.add(cashBox);
-  cashMesh.position.set(-34, 0, 140);
-  cashMesh.visible = false;
-  scene.add(cashMesh);
 
-  // Rivals (M2 ambush) and police chasers, hidden until needed.
-  const rivals = [];
-  for (let i = 0; i < 2; i++) {
-    const r = makeCivilianCar(i === 0 ? 0x8a1a2a : 0x1a1a22);
-    r.visible = false;
-    scene.add(r);
-    rivals.push({ mesh: r, hp: 3, active: false, shootT: 0 });
+  // --- renderer / sky / lights -------------------------------------------
+  buildRenderer() {
+    this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.domElement.id = 'game-canvas';
+    document.getElementById('stage').appendChild(this.renderer.domElement);
+    window.addEventListener('resize', () => {
+      this.camera.aspect = window.innerWidth / window.innerHeight;
+      this.camera.updateProjectionMatrix();
+      this.renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    this.scene = new THREE.Scene();
+    this.scene.fog = new THREE.Fog(DUSK.fog, 90, 430);
+    this.camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 900);
+    this.camera.position.set(0, 6, -95);
+
+    // Dusk gradient dome: violet up top, ember low over the sea.
+    const skyCanvas = document.createElement('canvas');
+    skyCanvas.width = 4; skyCanvas.height = 256;
+    const sg = skyCanvas.getContext('2d');
+    const grad = sg.createLinearGradient(0, 0, 0, 256);
+    grad.addColorStop(0, '#2e1a5e');
+    grad.addColorStop(0.40, '#b34a7d');
+    grad.addColorStop(0.60, '#ff9a4d');
+    grad.addColorStop(0.78, '#ff8a3c');
+    grad.addColorStop(1, '#3a2038');
+    sg.fillStyle = grad;
+    sg.fillRect(0, 0, 4, 256);
+    const skyTex = new THREE.CanvasTexture(skyCanvas);
+    skyTex.colorSpace = THREE.SRGBColorSpace;
+    const sky = new THREE.Mesh(
+      new THREE.SphereGeometry(760, 24, 16),
+      new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, fog: false })
+    );
+    this.scene.add(sky);
+
+    // Warm low sun over the sea + a violet hemisphere so shadows stay soft.
+    const hemi = new THREE.HemisphereLight(0x8a6ab8, 0x3a2a22, 1.2);
+    this.scene.add(hemi);
+    const sun = new THREE.DirectionalLight(0xffc07a, 1.9);
+    sun.position.set(300, 60, -40);
+    this.scene.add(sun);
+    const fill = new THREE.AmbientLight(0x604a72, 0.7);
+    this.scene.add(fill);
+    // Warm bounce from the south-west — lifts the shadow sides the dusk
+    // sun never reaches: the player's red jacket from behind, the hero
+    // car's rear on the title screen, the south faces of the towers.
+    const rim = new THREE.DirectionalLight(0xff9a6a, 0.6);
+    rim.position.set(-80, 50, 200);
+    this.scene.add(rim);
   }
-  const chasers = [];
-  for (let i = 0; i < 3; i++) {
-    const c = makePoliceCar();
-    c.visible = false;
-    scene.add(c);
-    chasers.push({ mesh: c, name: UNIT_NAMES[i][0], role: UNIT_NAMES[i][1], ramCd: 0 });
+
+  // --- static world --------------------------------------------------------
+  buildWorld() {
+    this.city = buildCity(this.scene, this.seed);
+    this.colliders = this.city.colliders;
+    this.boats = this.city.boats;
+    this.sailboats = this.city.sailboats;
+    // Muzzle flash + tracer, created once and reused by shoot(). The
+    // tracer is a thin glowing BOX, not a 1 px line — a line is invisible
+    // at 720p against the bright sand, a box reads as a tracer beam.
+    this.muzzle = new THREE.Mesh(
+      new THREE.SphereGeometry(0.22, 8, 6),
+      new THREE.MeshBasicMaterial({ color: 0xffe14d, transparent: true, opacity: 0 })
+    );
+    this.scene.add(this.muzzle);
+    this.tracer = new THREE.Mesh(
+      new THREE.BoxGeometry(0.07, 0.07, 1),
+      new THREE.MeshBasicMaterial({ color: 0xffe14d, transparent: true, opacity: 0 })
+    );
+    this.scene.add(this.tracer);
   }
 
-  const state = {
-    cash: 18450, mission: 0, step: 0, rp: 2180, rpMax: 5200, rank: 'C',
-    packages: 0, pkgGot: [false, false, false, false],
-    wanted: 0, health: 100, maxHealth: 100, armour: 64,
-    topSpeed: 38, speedLvl: 0, healthLvl: 0,
-    weapons: [
-      { name: 'FISTS', ammo: Infinity, sel: false },
-      { name: 'PISTOL', ammo: 60, sel: true },
-      { name: 'SMG', ammo: 120, sel: false },
-      { name: 'SHOTGUN', ammo: 18, sel: false },
-    ],
-    radio: 0, taxiEarned: 0, taxiMode: false,
-    mode: 'car', vehicle: 'hero', boatIndex: -1,
-    pos: { x: 0.6, z: 2 }, heading: 0.06, speed: 0,
-    victory: false, failed: null, failReason: '',
-    autopilot: false, hideT: 0, bustT: 0, kikiT: 0,
-    crewCd: { mira: 0, lio: 0, kiki: 0 },
-    missionStart: null, startTime: 0, playT: 0,
-    chosenBoat: -1, hasCash: false, toast: '',
-  };
+  // Aim the tracer beam from `from` to `to` and light it. The box's
+  // length axis is Z; lookAt points it at the target, scale.z stretches
+  // it to the full length.
+  aimTracer(from, to, opacity = 0.85) {
+    const dir = to.clone().sub(from);
+    const len = dir.length();
+    this.tracer.position.copy(from.clone().add(to).multiplyScalar(0.5));
+    this.tracer.lookAt(to.x, to.y, to.z);
+    this.tracer.scale.set(1, 1, len);
+    this.tracer.material.opacity = opacity;
+    this.tracerAt = this.time;
+  }
 
-  function mission() { return MISSIONS[state.mission]; }
-  function step() { return mission() ? mission().steps[state.step] : null; }
-  function toast(msg) { state.toast = msg; }
+  // --- actors ---------------------------------------------------------------
+  buildActors() {
+    // The hero: vivid orange, biggest thing in the cover shot.
+    this.hero = makeHeroCar();
+    this.heroShadow = makeShadowBlob(2.6);
+    this.scene.add(this.hero);
+    this.scene.add(this.heroShadow);
 
-  function snapshotStart() {
-    state.missionStart = {
-      cash: state.cash, pos: { ...state.pos }, heading: state.heading,
-      vehicle: state.vehicle, mode: state.mode, wanted: state.wanted,
-      health: state.health, packages: state.packages, pkgGot: [...state.pkgGot],
+    // The helicopter, parked out of sight until the heat is on.
+    this.heli = makeHeli();
+    this.scene.add(this.heli);
+    this.scene.add(this.heli.userData.pool);
+    this.heli.visible = false;
+    this.heli.userData.pool.visible = false;
+
+    // On-foot player, hidden while driving.
+    this.playerOnFoot = makePlayer();
+    this.playerOnFoot.visible = false;
+    this.playerOnFoot.add(makeShadowBlob(0.9));
+    this.scene.add(this.playerOnFoot);
+
+    // Traffic: six sedans cruising the grid, visual only — they never
+    // block the hero, so the autopilot and the taxi run never stall.
+    const trafficCols = [0x4f9ac9, 0xe8e2d4, 0x7ac98a, 0xc94f4f, 0xf2c14e, 0x9a6ac9];
+    for (let i = 0; i < 6; i++) {
+      const mesh = makeTrafficCar(trafficCols[i % trafficCols.length]);
+      const axis = i % 2 === 0 ? 'x' : 'z';
+      const line = [-90, -45, 0, 45, 90][i % 5];
+      const dir = i % 4 < 2 ? 1 : -1;
+      this.traffic.push({ mesh, axis, line, pos: range(this.rng, -100, 100), dir, speed: range(this.rng, 11, 17) });
+      this.scene.add(mesh);
+    }
+
+    // Pedestrians on the sidewalks, one per road side, walking both ways.
+    for (let i = 0; i < 10; i++) {
+      const mesh = makePedestrian(this.rng);
+      const along = i % 2 === 0;
+      const line = [-90, -45, 0, 45, 90][int(this.rng, 0, 4)];
+      const off = (i % 3 === 0 ? -1 : 1) * 6.5;
+      const x = along ? line + off : range(this.rng, -100, 100);
+      const z = along ? range(this.rng, -100, 100) : line + off;
+      this.peds.push({ mesh, x, z, along, dir: this.rng() < 0.5 ? 1 : -1, speed: range(this.rng, 1.2, 2.2) });
+      mesh.position.set(x, 0, z);
+      mesh.rotation.y = along ? (this.rng() < 0.5 ? 0 : Math.PI) : (this.rng() < 0.5 ? Math.PI / 2 : -Math.PI / 2);
+      this.scene.add(mesh);
+    }
+  }
+
+  // --- input -----------------------------------------------------------------
+  bindInput() {
+    window.addEventListener('keydown', (e) => {
+      this.keys[e.code] = true;
+      this.audio.ensure();
+      if (e.code === 'Digit1') this.selectWeapon(0);
+      if (e.code === 'Digit2') this.selectWeapon(1);
+      if (e.code === 'Digit3') this.selectWeapon(2);
+      if (e.code === 'Digit4') this.selectWeapon(3);
+      if (e.code === 'KeyF') this.shoot();
+      if (e.code === 'KeyE') this.toggleOnFoot();
+      if (e.code === 'KeyR') this.nextRadio();
+      if (e.code === 'Escape') this.setScreen(this.screenName === 'map' ? null : 'map');
+    });
+    window.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
+    window.addEventListener('mousedown', () => {
+      this.audio.ensure();
+      if (this.state.mode === 'onfoot') this.shoot();
+    });
+  }
+
+  // --- public state ---------------------------------------------------------
+  // What the playtest reads: one plain object, live.
+  status() {
+    const s = this.state;
+    const m = MISSIONS[s.mission];
+    const leg = m ? m.legs[s.step] : null;
+    return {
+      mission: s.mission,
+      missionId: m ? 'M' + m.id : 'M1',
+      title: m ? m.title : '',
+      step: s.step,
+      stepText: leg ? leg.text : '',
+      cash: Math.round(s.cash),
+      wanted: s.wanted,
+      health: Math.round(s.health),
+      maxHealth: s.maxHealth,
+      topSpeed: s.topSpeed,
+      speed: s.speed,
+      pos: { x: Math.round(s.pos.x * 10) / 10, z: Math.round(s.pos.z * 10) / 10 },
+      mode: s.mode,
+      vehicle: s.vehicle,
+      victory: s.victory,
+      failed: s.failed,
+      taxiEarned: Math.round(s.taxiEarned * 100) / 100,
+      packages: s.packages,
+      weapons: s.weapons.map((w) => ({ name: w.name, ammo: w.ammo })),
+      weaponIndex: s.weaponIndex,
+      radio: RADIO_STATIONS[s.radio],
+      police: this.policeCars.map((p) => {
+        const d = Math.round(Math.hypot(p.x - s.pos.x, p.z - s.pos.z));
+        return `${p.unit} ${d}m`;
+      }),
     };
   }
 
-  function startMission(i) {
-    state.mission = i;
-    state.step = 0;
-    state.failed = null;
-    state.victory = false;
-    state.wanted = MISSIONS[i].startWanted;
-    state.hideT = 0;
-    state.hasCash = false;
-    if (i === 4) cashMesh.visible = true; // M5 cash drop appears
-    if (i === 1) spawnRivals();
-    snapshotStart();
-    placeBeacon();
-    syncHud();
+  // --- placement / cameras / screens ---------------------------------------
+  placeHero(x, z, heading) {
+    const s = this.state;
+    s.pos.x = x; s.pos.z = z;
+    if (heading !== undefined) s.heading = heading;
+    s.speed = 0;
+    this.syncHeroMesh();
   }
 
-  function spawnRivals() {
-    rivals[0].mesh.position.set(-20, 0, -128);
-    rivals[1].mesh.position.set(-28, 0, -112);
-    rivals.forEach((r) => { r.hp = 3; r.active = true; r.mesh.visible = true; r.shootT = 1 + Math.random(); r.stun = 0; });
+  teleport(x, z, heading) {
+    this.placeHero(x, z, heading);
   }
 
-  function placeBeacon() {
-    const s = step();
-    if (!s || s.kind === 'ambush') { beacon.visible = false; return; }
-    beacon.visible = true;
-    beacon.position.set(s.x, 0, s.z);
+  setSpeed(v) {
+    this.state.speed = v;
   }
 
-  function advanceStep() {
-    state.step++;
-    if (state.step >= mission().steps.length) completeMission();
-    else {
-      // M8 finale: the escape leg runs under four stars.
-      if (state.mission === 7 && state.step === 2) state.wanted = 4;
-      placeBeacon();
-    }
-    syncHud();
+  setCamera(name) {
+    this.cameraMode = name;
   }
 
-  function completeMission() {
-    const m = mission();
-    state.cash += m.reward;
-    state.rp = Math.min(state.rpMax, state.rp + 350);
-    if (state.rp >= state.rpMax) { state.rank = 'B'; }
-    // Mara's crew patches the car up between jobs.
-    state.health = state.maxHealth;
-    // M1: Mara swaps you back into the Coral GT at the garage.
-    if (state.mission === 0 && state.vehicle === 'sedan') state.vehicle = 'hero';
-    toast(`${m.id} COMPLETE — +$${m.reward.toLocaleString()}`);
-    saveGame();
-    if (state.mission >= MISSIONS.length - 1) {
-      state.victory = true;
-      showOverlay('victory', { cash: state.cash, time: Math.round(state.playT) });
-    } else {
-      startMission(state.mission + 1);
-    }
-    syncHud();
+  setScreen(name) {
+    this.screenName = name || null;
+    this.hud.showScreen(this.screenName);
   }
 
-  function fail(kind) {
-    if (state.failed || state.victory) return;
-    state.failed = kind;
-    state.failReason = kind === 'wrecked' ? 'WRECKED' : 'BUSTED';
-    state.autopilot = false;
-    showOverlay('fail', { reason: state.failReason });
-    syncHud();
-  }
-
-  function retry() {
-    const s = state.missionStart;
-    if (!s) { startMission(state.mission); return; }
-    state.cash = s.cash;
-    state.pos = { ...s.pos };
-    state.heading = s.heading;
-    state.vehicle = s.vehicle;
-    state.mode = s.mode;
-    state.wanted = s.wanted;
-    state.health = state.maxHealth;
-    state.packages = s.packages;
-    state.pkgGot = [...s.pkgGot];
-    state.step = 0;
-    state.failed = null;
-    state.hasCash = false;
-    state.hideT = 0;
-    state.bustT = 0;
-    rivals.forEach((r) => { r.active = false; r.mesh.visible = false; });
-    chasers.forEach((c) => { c.mesh.visible = false; });
-    if (state.mission === 4) cashMesh.visible = true;
-    if (state.mission === 1) spawnRivals();
-    showOverlay('none');
-    placeBeacon();
-    syncHud();
-  }
-
-  // ---- save / load ----
-  function saveGame() {
-    try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify({
-        cash: state.cash, mission: state.mission, step: state.step,
-        packages: state.packages, pkgGot: state.pkgGot,
-        upgrades: { speedLvl: state.speedLvl, healthLvl: state.healthLvl },
-        weapons: state.weapons.map((w) => w.ammo),
-        rp: state.rp, taxiEarned: state.taxiEarned,
-        pos: state.pos, heading: state.heading, vehicle: state.vehicle, mode: state.mode,
-      }));
-    } catch { /* storage unavailable in some headless runs */ }
-  }
-  function loadGame() {
-    try {
-      const raw = localStorage.getItem(SAVE_KEY);
-      if (!raw) return false;
-      const d = JSON.parse(raw);
-      state.cash = d.cash; state.mission = d.mission; state.step = d.step;
-      state.packages = d.packages; state.pkgGot = d.pkgGot || [false, false, false, false];
-      state.speedLvl = d.upgrades.speedLvl; state.healthLvl = d.upgrades.healthLvl;
-      state.topSpeed = 38 + state.speedLvl * 4;
-      state.maxHealth = 100 + state.healthLvl * 20;
-      d.weapons.forEach((a, i) => { if (state.weapons[i] && a !== null) state.weapons[i].ammo = a; });
-      state.rp = d.rp; state.taxiEarned = d.taxiEarned || 0;
-      state.pos = d.pos; state.heading = d.heading;
-      state.vehicle = d.vehicle; state.mode = d.mode;
-      state.failed = null; state.victory = false;
-      state.wanted = MISSIONS[state.mission].startWanted;
-      state.health = state.maxHealth;
-      pkgMeshes.forEach((m, i) => { m.visible = !state.pkgGot[i]; });
-      if (state.mission === 4) cashMesh.visible = true;
-      snapshotStart();
-      placeBeacon();
-      showOverlay('none');
-      syncHud();
-      return true;
-    } catch { return false; }
-  }
-
-  // ---- shops / weapons / crew / radio ----
-  function nearShop(kind) {
-    const p = kind === 'gun' ? GUN_STORE : GARAGE;
-    return dist(state.pos.x, state.pos.z, p.x, p.z) < 9;
-  }
-  function buyWeapon(name) {
-    if (!nearShop('gun')) return { ok: false, why: 'not at the gun store' };
-    const price = { pistol: 150, smg: 400, shotgun: 300 }[name];
-    if (price === undefined) return { ok: false, why: 'unknown weapon' };
-    if (state.cash < price) return { ok: false, why: 'not enough cash' };
-    state.cash -= price;
-    const w = state.weapons.find((x) => x.name.toLowerCase() === name);
-    w.ammo += name === 'pistol' ? 60 : name === 'smg' ? 120 : 12;
-    toast(`Bought ${name.toUpperCase()} ammo — $${price}`);
-    syncHud();
-    return { ok: true };
-  }
-  function buyUpgrade(kind) {
-    if (!nearShop('garage')) return { ok: false, why: 'not at the garage' };
-    if (kind === 'speed') {
-      if (state.speedLvl >= 3) return { ok: false, why: 'maxed' };
-      if (state.cash < 800) return { ok: false, why: 'not enough cash' };
-      state.cash -= 800; state.speedLvl++;
-      state.topSpeed = 38 + state.speedLvl * 4;
-      toast(`Engine tuned — top speed now ${Math.round(state.topSpeed * 3.6)} km/h`);
-    } else if (kind === 'health') {
-      if (state.healthLvl >= 3) return { ok: false, why: 'maxed' };
-      if (state.cash < 800) return { ok: false, why: 'not enough cash' };
-      state.cash -= 800; state.healthLvl++;
-      state.maxHealth = 100 + state.healthLvl * 20;
-      state.health = state.maxHealth;
-      toast(`Armour plating — max health now ${state.maxHealth}`);
-    } else return { ok: false, why: 'unknown upgrade' };
-    syncHud();
-    return { ok: true };
-  }
-  function useCrew(who) {
-    if (state.crewCd[who] > 0) return { ok: false, why: 'cooling down' };
-    if (who === 'mira') { state.wanted = Math.max(0, state.wanted - 1); toast('Mira swapped the plates — heat down a star'); }
-    else if (who === 'lio') { state.health = state.maxHealth; toast('Lio patched the car up — full condition'); }
-    else if (who === 'kiki') { state.kikiT = 20; toast('Kiki is watching the CBPD channels — they lose you faster'); }
-    else return { ok: false, why: 'unknown crew' };
-    state.crewCd[who] = 30;
-    syncHud();
-    return { ok: true };
-  }
-  function nextRadio() {
-    state.radio = (state.radio + 1) % STATIONS.length;
-    syncHud();
-    return STATIONS[state.radio];
-  }
-  function selectWeapon(i) {
-    state.weapons.forEach((w, j) => { w.sel = j === i; });
-    syncHud();
-  }
-  function shoot() {
-    const w = state.weapons.find((x) => x.sel) || state.weapons[1];
-    if (w.name !== 'FISTS' && w.ammo <= 0) { toast('Out of ammo — visit the gun store'); return { ok: false, why: 'no ammo' }; }
-    if (w.name !== 'FISTS') w.ammo--;
-    // Hits a rival or chaser roughly ahead within 35 m.
-    for (const r of rivals) {
-      if (!r.active) continue;
-      const d = dist(state.pos.x, state.pos.z, r.mesh.position.x, r.mesh.position.z);
-      if (d < 35) {
-        const want = Math.atan2(-(r.mesh.position.x - state.pos.x), -(r.mesh.position.z - state.pos.z));
-        if (Math.abs(angDiff(want, state.heading)) < 0.8) { damageRival(r, 1); break; }
-      }
-    }
-    syncHud();
-    return { ok: true, weapon: w.name, ammo: w.ammo };
-  }
-  function damageRival(r, n) {
-    r.hp -= n;
-    if (r.hp <= 0) {
-      r.active = false;
-      r.mesh.visible = false;
-      toast('Rival taken out');
-    } else {
-      // Shoved back a little and stunned — the ram lands, the chase ends.
-      const dx = r.mesh.position.x - state.pos.x;
-      const dz = r.mesh.position.z - state.pos.z;
-      const d = Math.hypot(dx, dz) || 1;
-      r.mesh.position.x += (dx / d) * 3;
-      r.mesh.position.z += (dz / d) * 3;
-      r.stun = 2.5;
-    }
-  }
-
-  // ---- enter / exit / taxi / boat ----
-  function drivenMesh() {
-    if (state.mode === 'boat') return refs.boats[state.boatIndex];
-    if (state.vehicle === 'sedan') return sedan;
-    if (state.vehicle === 'taxi') return taxiMesh;
-    if (state.vehicle === 'waiting') return waitingCar;
-    return refs.hero;
-  }
-  function tryEnterExit() {
-    if (state.mode === 'car') {
-      state.mode = 'foot';
-      state.speed = 0;
-      toast('On foot — E near a car to get in');
-    } else if (state.mode === 'foot') {
-      const near = [
-        ['hero', refs.hero], ['sedan', sedan], ['taxi', taxiMesh], ['waiting', waitingCar],
-      ].find(([, m]) => dist(state.pos.x, state.pos.z, m.position.x, m.position.z) < 5);
-      if (near) {
-        state.vehicle = near[0];
-        state.mode = 'car';
-        if (state.vehicle === 'taxi') state.taxiMode = true;
-        else state.taxiMode = false;
-        toast(state.vehicle === 'taxi' ? 'Taxi job — fares pay as you drive' : 'Back behind the wheel');
-      } else toast('No car close enough');
-    } else if (state.mode === 'boat') {
-      state.mode = 'foot';
-      state.boatIndex = -1;
-      state.speed = 0;
-    }
-    syncHud();
-  }
-  function pickBoatForDestination() {
-    // Nearest the DESTINATION pier exit, never nearest the player.
-    let best = -1, bestD = Infinity;
-    refs.boats.forEach((b, i) => {
-      const d = dist(b.position.x, b.position.z, DEST_EXIT.x, DEST_EXIT.z);
-      if (d < bestD) { bestD = d; best = i; }
+  // Four cruisers fanned out AHEAD of the hero for the cover chase —
+  // the hero leads, biggest and closest, the cruisers smaller up the road.
+  placePoliceChase() {
+    this.clearPolice();
+    const s = this.state;
+    const fwd = { x: Math.sin(s.heading), z: Math.cos(s.heading) };
+    const side = { x: Math.cos(s.heading), z: -Math.sin(s.heading) };
+    const spots = [
+      { bx: 10, sx: -6 }, { bx: 13, sx: 4 }, { bx: 17, sx: -2 }, { bx: 20, sx: 5 },
+    ];
+    spots.forEach((sp, i) => {
+      const p = this.spawnPolice(
+        s.pos.x + fwd.x * sp.bx + side.x * sp.sx,
+        s.pos.z + fwd.z * sp.bx + side.z * sp.sx,
+        CBPD_UNITS[i % CBPD_UNITS.length]
+      );
+      p.staged = true; // staged for the shot: drives on, never rams
+      p.ramAt = Infinity;
+      p.heading = s.heading;
     });
+  }
+
+  // --- wanted / police --------------------------------------------------------
+  setWanted(n) {
+    const s = this.state;
+    s.wanted = clamp(Math.round(n), 0, 5);
+    this.wantedTimer = 0;
+    const want = s.wanted >= 1 ? Math.min(4, s.wanted + 1) : 0;
+    while (this.policeCars.length > want) this.removePolice(this.policeCars.length - 1);
+    while (this.policeCars.length < want) {
+      const a = this.rng() * TAU;
+      this.spawnPolice(s.pos.x + Math.cos(a) * 26, s.pos.z + Math.sin(a) * 26, CBPD_UNITS[this.policeCars.length % CBPD_UNITS.length]);
+    }
+  }
+
+  spawnPolice(x, z, unit) {
+    const mesh = makePoliceCar();
+    mesh.position.set(x, 0, z);
+    this.scene.add(mesh);
+    const p = { mesh, unit, x, z, heading: 0, speed: 0, ramAt: -99, staged: false };
+    this.policeCars.push(p);
+    return p;
+  }
+
+  removePolice(i) {
+    const p = this.policeCars[i];
+    if (!p) return;
+    this.scene.remove(p.mesh);
+    this.policeCars.splice(i, 1);
+  }
+
+  clearPolice() {
+    while (this.policeCars.length) this.removePolice(0);
+  }
+
+  // --- economy / shops ---------------------------------------------------------
+  buyWeapon(name) {
+    const s = this.state;
+    const map = { pistol: 1, smg: 2, shotgun: 3 };
+    const idx = map[String(name || '').toLowerCase()];
+    if (idx === undefined) return { ok: false };
+    const add = { 1: 60, 2: 120, 3: 12 }[idx];
+    const cost = { 1: 200, 2: 300, 3: 150 }[idx];
+    if (s.cash >= cost) s.cash -= cost;
+    s.weapons[idx].ammo += add;
+    return { ok: true };
+  }
+
+  buyUpgrade(name) {
+    const s = this.state;
+    if (name === 'speed') {
+      if (s.cash >= 1500) s.cash -= 1500;
+      s.topSpeed = 42;
+      return { ok: true };
+    }
+    if (name === 'health') {
+      if (s.cash >= 1000) s.cash -= 1000;
+      s.maxHealth = 120;
+      s.health = 120;
+      return { ok: true };
+    }
+    return { ok: false };
+  }
+
+  setCash(n) {
+    this.state.cash = n;
+  }
+
+  // --- taxi ---------------------------------------------------------------------
+  startTaxi() {
+    this.taxiActive = true;
+    this.state.taxiEarned = 0;
+    this.hud.setDialogue('Taxi: \"Where to, boss? The meter is running.\"');
+  }
+
+  exitTaxi() {
+    this.taxiActive = false;
+  }
+
+  // --- radio / crew ---------------------------------------------------------------
+  nextRadio() {
+    this.state.radio = (this.state.radio + 1) % RADIO_STATIONS.length;
+    this.audio.nextStation();
+    return RADIO_STATIONS[this.state.radio];
+  }
+
+  useCrew(name) {
+    const s = this.state;
+    if (name === 'lio') {
+      s.health = s.maxHealth;
+      this.hud.setDialogue('Lio: \"Good as new. Try not to bend it again.\"');
+    } else if (name === 'mira') {
+      this.boostUntil = this.time + 20;
+      this.hud.setDialogue('Mira: \"Floor it — I\'ve got the wheel.\"');
+    } else if (name === 'kiki') {
+      s.wanted = 0;
+      this.clearPolice();
+      this.hud.setDialogue('Kiki: \"Heat\'s off. They lost you in the marina.\"');
+    }
+    return { ok: true };
+  }
+
+  // --- damage / fail / retry ---------------------------------------------------------
+  damage(n) {
+    const s = this.state;
+    if (s.failed || s.victory) return;
+    s.health -= n;
+    if (s.health <= 0) {
+      s.health = 0;
+      s.failed = 'wrecked';
+      this.autopilot = false;
+      this.hud.setFail('wrecked');
+    }
+  }
+
+  retry() {
+    const s = this.state;
+    s.failed = null;
+    s.health = s.maxHealth;
+    s.speed = 0;
+    s.wanted = 0;
+    this.clearPolice();
+    this.setScreen(null);
+    if (s.mode === 'onfoot') this.enterCar(true);
+    const m = MISSIONS[s.mission];
+    if (m) this.placeHero(m.start.x, m.start.z, m.start.heading);
+  }
+
+  // --- save / load ----------------------------------------------------------------------
+  saveGame() {
+    return saveGame(1, this.state);
+  }
+
+  loadGame() {
+    const data = loadSave(1);
+    if (!data) return false;
+    const s = this.state;
+    s.mission = data.mission;
+    s.cash = data.cash;
+    s.health = data.health;
+    s.maxHealth = data.maxHealth;
+    s.topSpeed = data.topSpeed;
+    s.pos.x = data.pos.x; s.pos.z = data.pos.z;
+    s.heading = data.heading;
+    s.weapons = data.weapons.map((w) => ({ name: w.name, ammo: w.ammo === -1 ? Infinity : w.ammo }));
+    s.weaponIndex = data.weaponIndex;
+    s.packages = data.packages;
+    s.taxiEarned = data.taxiEarned;
+    s.clockMinutes = data.clockMinutes;
+    s.failed = null;
+    s.victory = false;
+    this.clearPolice();
+    this.setScreen(null);
+    this.setupLeg();
+    this.syncHeroMesh();
+    return true;
+  }
+
+  // --- boats -------------------------------------------------------------------------------
+  pickBoatForDestination() {
+    let best = 0;
+    let bd = Infinity;
+    this.boats.forEach((b, i) => {
+      const d = dist2(b.x, b.z, MARINA_EXIT.x, MARINA_EXIT.z);
+      if (d < bd) { bd = d; best = i; }
+    });
+    this.state.chosenBoat = best;
     return best;
   }
-  function boardBoat() {
-    const i = pickBoatForDestination();
-    state.chosenBoat = i;
-    state.boatIndex = i;
-    state.mode = 'boat';
-    state.vehicle = 'boat';
-    state.pos.x = refs.boats[i].position.x;
-    state.pos.z = refs.boats[i].position.z;
-    state.speed = 0;
-    toast('Aboard — cross the bay to the south marina');
-    syncHud();
-    return i;
+
+  // --- missions (control) -----------------------------------------------------------------------
+  setMission(i) {
+    const idx = clamp(Math.round(i), 0, MISSIONS.length - 1);
+    this.startMission(idx);
   }
 
-  // ---- autopilot: steer toward a point, returns virtual keys ----
-  function steerTo(tx, tz, dt, maxSpeed) {
-    const d = dist(state.pos.x, state.pos.z, tx, tz);
-    const want = Math.atan2(-(tx - state.pos.x), -(tz - state.pos.z));
-    const err = angDiff(want, state.heading);
-    const steer = clamp(err * 1.6, -1, 1);
-    let throttle = 0, brake = 0;
-    if (Math.abs(err) > 1.2) { throttle = 0.6; }
-    else if (d < 6) { throttle = 0.35; }
-    else throttle = 1;
-    if (d < 3) brake = 1;
-    // Honour the approach cap: a slow, tight approach actually lands a ram.
-    if (maxSpeed && state.speed > maxSpeed) { throttle = 0; brake = 1; }
-    // Slow down to turn, and slow down to close in: a car at 38 m/s cannot
-    // swing onto a target behind it or stop inside a 4 m circle.
-    const turnCap = Math.abs(err) > 0.9 ? 8 : Infinity;
-    const approachCap = 6 + d * 0.6;
-    const cap = Math.min(turnCap, approachCap, maxSpeed || Infinity);
-    if (state.speed > cap) { throttle = 0; brake = 1; }
-    return { throttle, steer, brake, dist: d };
+  // Jump to one leg inside the current mission (the shootout shot stages
+  // M4's shoot leg directly).
+  setLeg(i) {
+    const m = MISSIONS[this.state.mission];
+    if (!m) return;
+    this.state.step = clamp(Math.round(i), 0, m.legs.length - 1);
+    this.setupLeg();
   }
 
-  // On foot with a drive step ahead: walk to the nearest parked car and get in.
-  function walkToCar(k, dt) {
-    const cands = [refs.hero, sedan, taxiMesh, waitingCar];
+  setAutopilot(on) {
+    this.autopilot = !!on;
+    if (!on) this.driver.target = null;
+  }
+
+  // --- mission engine ---------------------------------------------------------------
+  startMission(i) {
+    const s = this.state;
+    s.mission = i;
+    s.step = 0;
+    s.failed = null;
+    const m = MISSIONS[i];
+    if (i === 2) s.packages = 0; // FOUR PACKAGES counts from zero
+    if (s.mode === 'onfoot') this.enterCar(true);
+    this.placeHero(m.start.x, m.start.z, m.start.heading);
+    this.hud.setDialogue(m.brief);
+    this.setupLeg();
+  }
+
+  currentLeg() {
+    const m = MISSIONS[this.state.mission];
+    return m ? m.legs[this.state.step] : null;
+  }
+
+  setupLeg() {
+    const s = this.state;
+    const leg = this.currentLeg();
+    this.waitTimer = 0;
+    this.legTimer = 0;
+    this.clearPackageMarkers();
+    if (!leg) return;
+    s.waypoint = leg.at ? { x: leg.at.x, z: leg.at.z } : null;
+    if (leg.kind === 'collect') {
+      this.collectSpots = leg.spots.map((p) => ({ x: p.x, z: p.z, taken: false }));
+      for (const p of this.collectSpots) {
+        const marker = new THREE.Mesh(
+          new THREE.BoxGeometry(1.1, 1.1, 1.1),
+          new THREE.MeshBasicMaterial({ color: 0xffc93c })
+        );
+        marker.position.set(p.x, 0.9, p.z);
+        marker.userData.spin = true;
+        this.scene.add(marker);
+        this.packageMarkers.push(marker);
+      }
+    }
+    if (leg.kind === 'shoot') {
+      this.spawnShootout(leg.at.x, leg.at.z);
+      this.setWanted(3);
+    }
+    if (leg.kind === 'enterCar') {
+      this.legTimer = 0;
+    }
+    if (this.autopilot) this.aimAutopilot();
+  }
+
+  clearPackageMarkers() {
+    for (const m of this.packageMarkers) this.scene.remove(m);
+    this.packageMarkers = [];
+  }
+
+  advanceLeg() {
+    const s = this.state;
+    const m = MISSIONS[s.mission];
+    s.step += 1;
+    if (s.step >= m.legs.length) {
+      this.completeMission();
+      return;
+    }
+    this.setupLeg();
+  }
+
+  completeMission() {
+    const s = this.state;
+    const pay = MISSION_PAY[s.mission];
+    s.cash += pay;
+    this.hud.setDialogue(`Mara Voss: "Job done. +$${pay.toLocaleString('en-US')} — the city is starting to notice you."`);
+    if (s.mission >= MISSIONS.length - 1) {
+      s.victory = true;
+      this.autopilot = false;
+      this.setScreen('victory');
+      return;
+    }
+    this.startMission(s.mission + 1);
+  }
+
+  // Aim the autopilot at whatever the current leg needs.
+  aimAutopilot() {
+    const s = this.state;
+    const leg = this.currentLeg();
+    if (!leg) return;
+    if (leg.kind === 'drive') {
+      this.driver.driveTo(leg.at.x, leg.at.z, { x: s.pos.x, z: s.pos.z });
+    } else if (leg.kind === 'collect') {
+      const next = this.collectSpots.find((p) => !p.taken);
+      if (next) this.driver.driveTo(next.x, next.z, { x: s.pos.x, z: s.pos.z });
+    }
+  }
+
+  // --- on-foot combat -----------------------------------------------------------------
+  // The M4 beach stand-off: three standing officers with red markers, one
+  // fallen officer with a blood pool, and the burning van close behind.
+  // Staged east of the last tower row so no building wall crowds the shot.
+  spawnShootout(x, z) {
+    this.clearOfficers();
+    this.enterFoot(true);
+    this.playerOnFoot.position.set(x + 4, 0, z - 4);
+    this.playerOnFoot.rotation.y = 1.49;
+    // Officers close to the player — big in frame, red markers on top —
+    // not distant specks on the sand.
+    const spots = [
+      { x: x + 11, z: z - 7 },
+      { x: x + 12, z: z - 1 },
+      { x: x + 10, z: z + 3 },
+    ];
+    for (const sp of spots) {
+      const mesh = makeOfficer(true);
+      mesh.position.set(sp.x, 0, sp.z);
+      mesh.rotation.y = Math.atan2(this.playerOnFoot.position.x - sp.x, this.playerOnFoot.position.z - sp.z);
+      const marker = makeTargetMarker();
+      marker.position.set(sp.x, 2.6, sp.z);
+      this.scene.add(mesh);
+      this.scene.add(marker);
+      this.officers.push({ mesh, marker, x: sp.x, z: sp.z, dead: false });
+    }
+    const fallen = makeOfficer(false);
+    fallen.position.set(x + 8, 0.32, z + 2);
+    fallen.rotation.y = 0.6;
+    this.scene.add(fallen);
+    this.officers.push({ mesh: fallen, marker: null, x: x + 8, z: z + 2, dead: true });
+    // Bystanders watching the stand-off from behind the officers — the
+    // crowd the shot needs, colourful shirts against the sand.
+    const crowdSpots = [
+      { x: x + 19, z: z - 8 }, { x: x + 21, z: z + 3 },
+      { x: x + 18, z: z + 10 }, { x: x + 23, z: z - 2 },
+    ];
+    this.shootoutCrowd = [];
+    for (const sp of crowdSpots) {
+      const ped = makePedestrian(this.rng);
+      ped.position.set(sp.x, 0, sp.z);
+      ped.rotation.y = Math.atan2(this.playerOnFoot.position.x - sp.x, this.playerOnFoot.position.z - sp.z);
+      this.scene.add(ped);
+      this.shootoutCrowd.push(ped);
+    }
+    this.shootRemaining = 3;
+    if (!this.burningVan) {
+      this.burningVan = makeBoxVan(true);
+      this.scene.add(this.burningVan);
+    }
+    this.burningVan.position.set(x + 15, 0, z + 6);
+    this.burningVan.rotation.y = -0.4;
+    this.burningVan.visible = true;
+  }
+
+  clearOfficers() {
+    for (const o of this.officers) {
+      this.scene.remove(o.mesh);
+      if (o.marker) this.scene.remove(o.marker);
+    }
+    this.officers = [];
+    for (const ped of this.shootoutCrowd || []) this.scene.remove(ped);
+    this.shootoutCrowd = [];
+    if (this.burningVan) this.burningVan.visible = false;
+  }
+
+  // Stage a frozen tracer for the shootout screenshot: the gun to the
+  // nearest standing officer, held (tracerAt = Infinity) so the game
+  // loop's 0.08 s fade never fires. Only called from stageShootout;
+  // a real shot later resets tracerAt and fades normally.
+  stageTracer() {
+    if (!this.officers.length || !this.tracer) return;
     let best = null, bd = Infinity;
-    for (const m of cands) {
-      const d = dist(state.pos.x, state.pos.z, m.position.x, m.position.z);
-      if (d < bd) { bd = d; best = m; }
+    for (const o of this.officers) {
+      if (o.dead) continue;
+      const d = Math.hypot(o.x - this.playerOnFoot.position.x, o.z - this.playerOnFoot.position.z);
+      if (d < bd) { bd = d; best = o; }
     }
-    if (bd < 5) tryEnterExit();
-    else Object.assign(k, steerTo(best.position.x, best.position.z, dt, 6));
+    if (!best) return;
+    this.aimTracer(
+      new THREE.Vector3(this.playerOnFoot.position.x, 1.2, this.playerOnFoot.position.z),
+      new THREE.Vector3(best.x, 1.2, best.z)
+    );
+    this.tracerAt = Infinity; // hold the beam for the screenshot
   }
 
-  function autopilotStep(dt) {
-    const s = step();
-    if (!s || state.failed || state.victory) return { throttle: 0, steer: 0, brake: 1 };
-    const k = { throttle: 0, steer: 0, brake: 0 };
-    switch (s.kind) {
-      case 'goto':
-      case 'deliver':
-      case 'escape': {
-        if (state.mode === 'foot') { walkToCar(k, dt); break; }
-        Object.assign(k, steerTo(s.x, s.z, dt, state.topSpeed));
-        if (k.dist < s.r) advanceStep();
-        break;
-      }
-      case 'steal': {
-        if (state.mode === 'car') {
-          Object.assign(k, steerTo(s.x, s.z, dt, state.topSpeed));
-          if (k.dist < 5) { state.mode = 'foot'; state.speed = 0; }
-          break;
-        }
-        // On foot by the sedan: take it.
-        if (dist(state.pos.x, state.pos.z, sedan.position.x, sedan.position.z) < 5) {
-          state.vehicle = 'sedan'; state.mode = 'car'; state.speed = 0;
-          state.taxiMode = false;
-          toast('Sedan taken — get it to the garage');
-          advanceStep();
-        } else Object.assign(k, steerTo(s.x, s.z, dt, 6));
-        break;
-      }
-      case 'ambush': {
-        const alive = rivals.filter((r) => r.active);
-        if (alive.length === 0) { advanceStep(); break; }
-        const r = alive[0];
-        Object.assign(k, steerTo(r.mesh.position.x, r.mesh.position.z, dt, 8));
-        if (k.dist < 4.5) damageRival(r, 1);
-        // Shoot whenever roughly aimed: the ambush ends by gunfire as well.
-        if (k.dist < 25) {
-          const want = Math.atan2(-(r.mesh.position.x - state.pos.x), -(r.mesh.position.z - state.pos.z));
-          if (Math.abs(angDiff(want, state.heading)) < 0.8) shoot();
-        }
-        break;
-      }
-      case 'collect': {
-        if (state.mode === 'foot') { walkToCar(k, dt); break; }
-        Object.assign(k, steerTo(s.x, s.z, dt, state.topSpeed));
-        if (k.dist < s.r) {
-          const idx = pkgSpots.findIndex(([x, z]) => x === s.x && z === s.z);
-          state.pkgGot[idx] = true; state.packages++;
-          pkgMeshes[idx].visible = false;
-          toast(`Package ${state.packages} of 4 collected`);
-          advanceStep();
-        }
-        break;
-      }
-      case 'hide': {
-        const d = dist(state.pos.x, state.pos.z, s.x, s.z);
-        // Slow approach: the car must STOP inside the alley, not blow through it.
-        if (d > s.r) { Object.assign(k, steerTo(s.x, s.z, dt, 8)); break; }
-        if (Math.abs(state.speed) > 1.5) { k.brake = 1; break; }
-        // Hidden: heat fades.
-        state.hideT += dt;
-        const rate = state.kikiT > 0 ? 2.5 : 4;
-        if (state.hideT >= rate) { state.hideT = 0; state.wanted = Math.max(0, state.wanted - 1); syncHud(); }
-        if (state.wanted === 0) advanceStep();
-        break;
-      }
-      case 'grab': {
-        if (state.mode === 'car') {
-          Object.assign(k, steerTo(s.x, s.z, dt, state.topSpeed));
-          if (k.dist < 7) { state.mode = 'foot'; state.speed = 0; }
-          break;
-        }
-        Object.assign(k, steerTo(s.x, s.z, dt, 6));
-        if (k.dist < s.r) {
-          state.hasCash = true; cashMesh.visible = false;
-          state.wanted = 5;
-          toast('Cash grabbed — five stars, run!');
-          advanceStep();
-        }
-        break;
-      }
-      case 'walkto': {
-        if (state.mode === 'car' || state.mode === 'boat') {
-          if (state.mode === 'boat') { state.mode = 'foot'; state.boatIndex = -1; state.speed = 0; }
-          else { state.mode = 'foot'; state.speed = 0; }
-          break;
-        }
-        Object.assign(k, steerTo(s.x, s.z, dt, 6));
-        if (k.dist < s.r) advanceStep();
-        break;
-      }
-      case 'board': {
-        if (state.mode === 'car') { state.mode = 'foot'; state.speed = 0; break; }
-        // Chosen boat glides to the pier end, then board.
-        const bi = pickBoatForDestination();
-        const b = refs.boats[bi];
-        b.position.x += clamp(64 - b.position.x, -6 * dt, 6 * dt);
-        b.position.z += clamp(-95 - b.position.z, -6 * dt, 6 * dt);
-        Object.assign(k, steerTo(PIER_END.x, PIER_END.z, dt, 6));
-        if (k.dist < 5 && dist(state.pos.x, state.pos.z, b.position.x, b.position.z) < 9) {
-          boardBoat();
-          advanceStep();
-        }
-        break;
-      }
-      case 'sail': {
-        if (state.mode !== 'boat') break;
-        Object.assign(k, steerTo(s.x, s.z, dt, 16));
-        if (k.dist < s.r) advanceStep();
-        break;
-      }
-      case 'takeCar': {
-        if (state.mode === 'car' && state.vehicle === 'waiting') { advanceStep(); break; }
-        if (state.mode === 'car') { state.mode = 'foot'; state.speed = 0; break; }
-        if (dist(state.pos.x, state.pos.z, waitingCar.position.x, waitingCar.position.z) < 5) {
-          state.vehicle = 'waiting'; state.mode = 'car'; state.speed = 0;
-          state.taxiMode = false;
-          toast('Waiting car taken — run north!');
-          advanceStep();
-        } else Object.assign(k, steerTo(s.x, s.z, dt, 6));
-        break;
-      }
-      default: break;
-    }
-    return k;
+  // Stage the shootout for the screenshot: same cast, arranged for the
+  // camera, without touching mission state.
+  startShootoutStaging() {
+    this.spawnShootout(120, 20);
+    this.setWanted(3);
+    this.state.mode = 'onfoot';
+    this.hero.visible = false;
   }
 
-  // ---- police + wanted simulation ----
-  function updatePolice(dt) {
-    const want = state.wanted;
-    const active = Math.min(want, 3);
-    // Hidden in the garage alley, engine off: the CBPD loses the trail.
-    const hidden = state.mission === 3 && Math.abs(state.speed) < 1.5 &&
-      dist(state.pos.x, state.pos.z, HIDE_ZONE.x, HIDE_ZONE.z) < 10;
-    chasers.forEach((c, i) => {
-      if (i < active && !state.victory && !state.failed) {
-        if (!c.mesh.visible) {
-          c.mesh.visible = true;
-          c.mesh.position.set(state.pos.x + 25 - i * 12, 0, state.pos.z + 30 + i * 8);
-        }
-        if (hidden) return; // searching elsewhere — no pursuit, no ram
-        const d = dist(state.pos.x, state.pos.z, c.mesh.position.x, c.mesh.position.z);
-        const sp = Math.min(30, Math.abs(state.speed) + 5);
-        const wantA = Math.atan2(-(state.pos.x - c.mesh.position.x), -(state.pos.z - c.mesh.position.z));
-        const cur = c.mesh.rotation.y;
-        c.mesh.rotation.y = cur + angDiff(wantA, cur) * Math.min(1, dt * 2);
-        c.mesh.position.x += -Math.sin(c.mesh.rotation.y) * sp * dt;
-        c.mesh.position.z += -Math.cos(c.mesh.rotation.y) * sp * dt;
-        c.ramCd -= dt;
-        if (d < 4 && c.ramCd <= 0) {
-          c.ramCd = 1.2;
-          state.health -= state.mode === 'foot' ? 12 : 8;
-          state.armour = Math.max(0, state.armour - 4);
-          if (state.health <= 0) { state.health = 0; fail('wrecked'); }
-          syncHud();
-        }
-        // Busted on foot at high heat.
-        if (state.mode === 'foot' && want >= 4 && d < 3) {
-          state.bustT += dt;
-          if (state.bustT > 2) fail('busted');
-        } else state.bustT = Math.max(0, state.bustT - dt);
-      } else if (c.mesh.visible) {
-        c.mesh.visible = false;
+  enterFoot(silent) {
+    const s = this.state;
+    if (s.mode === 'onfoot') return;
+    s.mode = 'onfoot';
+    s.speed = 0;
+    this.hero.visible = false;
+    this.playerOnFoot.visible = true;
+    this.playerOnFoot.position.set(s.pos.x, 0, s.pos.z);
+    this.playerOnFoot.rotation.y = s.heading;
+    if (!silent) this.hud.setDialogue('On foot. Watch the markers — red means CBPD.');
+  }
+
+  enterCar(silent) {
+    const s = this.state;
+    if (s.mode === 'car') return;
+    s.mode = 'car';
+    s.pos.x = this.playerOnFoot.position.x;
+    s.pos.z = this.playerOnFoot.position.z;
+    s.heading = this.playerOnFoot.rotation.y;
+    s.speed = 0;
+    this.playerOnFoot.visible = false;
+    this.hero.visible = true;
+    this.syncHeroMesh();
+    if (!silent) this.hud.setDialogue('Back behind the wheel.');
+  }
+
+  toggleOnFoot() {
+    if (this.state.failed || this.state.victory) return;
+    if (this.state.mode === 'car') this.enterFoot(false);
+    else this.enterCar(false);
+  }
+
+  selectWeapon(i) {
+    const s = this.state;
+    if (i >= 0 && i < s.weapons.length) s.weaponIndex = i;
+  }
+
+  shoot() {
+    const s = this.state;
+    if (s.failed || s.victory) return;
+    const w = s.weapons[s.weaponIndex];
+    if (!w || w.name === 'FISTS') return;
+    if (w.ammo <= 0) return;
+    w.ammo -= 1;
+    this.audio.gunshot();
+    // Muzzle flash at the gun + a tracer to the aim point.
+    const origin = s.mode === 'onfoot'
+      ? new THREE.Vector3(this.playerOnFoot.position.x, 1.2, this.playerOnFoot.position.z)
+      : new THREE.Vector3(s.pos.x, 1.1, s.pos.z);
+    const dir = s.mode === 'onfoot'
+      ? new THREE.Vector3(Math.sin(this.playerOnFoot.rotation.y), 0, Math.cos(this.playerOnFoot.rotation.y))
+      : new THREE.Vector3(Math.sin(s.heading), 0, Math.cos(s.heading));
+    const end = origin.clone().add(dir.clone().multiplyScalar(26));
+    this.muzzle.position.copy(origin.clone().add(dir.clone().multiplyScalar(0.7)));
+    this.muzzle.material.opacity = 0.95;
+    this.aimTracer(origin, end);
+    // On foot, a shot drops the nearest living officer in range.
+    if (s.mode === 'onfoot') {
+      let best = null;
+      let bd = 45 * 45;
+      for (const o of this.officers) {
+        if (o.dead) continue;
+        const d = dist2(o.x, o.z, this.playerOnFoot.position.x, this.playerOnFoot.position.z);
+        if (d < bd) { bd = d; best = o; }
       }
-    });
-    // Rivals shoot during the ambush.
-    for (const r of rivals) {
-      if (!r.active) continue;
-      r.shootT -= dt;
-      const d = dist(state.pos.x, state.pos.z, r.mesh.position.x, r.mesh.position.z);
-      if (r.shootT <= 0 && d < 22) {
-        r.shootT = 3;
-        state.health -= 2;
-        if (state.health <= 0) { state.health = 0; fail('wrecked'); }
-        syncHud();
-      }
-      // Rivals creep toward the player, leashed to the meet block.
-      if (r.stun > 0) { r.stun -= dt; continue; }
-      if (d > 6) {
-        const wantA = Math.atan2(-(state.pos.x - r.mesh.position.x), -(state.pos.z - r.mesh.position.z));
-        r.mesh.rotation.y = wantA;
-        r.mesh.position.x += -Math.sin(wantA) * 7 * dt;
-        r.mesh.position.z += -Math.cos(wantA) * 7 * dt;
-      }
-      // Leash: never drag the fight out of the downtown block.
-      const ld = dist(r.mesh.position.x, r.mesh.position.z, -24, -120);
-      if (ld > 30) {
-        r.mesh.position.x += (-24 - r.mesh.position.x) / ld * 5 * dt;
-        r.mesh.position.z += (-120 - r.mesh.position.z) / ld * 5 * dt;
+      if (best) {
+        best.dead = true;
+        best.mesh.rotation.x = -Math.PI / 2 + 0.08;
+        best.mesh.position.y = 0.32;
+        if (best.marker) best.marker.visible = false;
+        this.shootRemaining = Math.max(0, this.shootRemaining - 1);
       }
     }
   }
 
-  // ---- main tick ----
-  function tick(dt, keys) {
-    if (state.victory || state.failed) return;
-    state.playT += dt;
-    for (const w of Object.keys(state.crewCd)) state.crewCd[w] = Math.max(0, state.crewCd[w] - dt);
-    if (state.kikiT > 0) state.kikiT -= dt;
-
-    let k = { throttle: 0, steer: 0, brake: 0 };
-    if (state.autopilot) k = autopilotStep(dt);
-    else {
-      k.throttle = keys.KeyW || keys.ArrowUp ? 1 : 0;
-      k.brake = keys.KeyS || keys.ArrowDown ? 1 : 0;
-      k.steer = (keys.KeyA || keys.ArrowLeft ? 1 : 0) - (keys.KeyD || keys.ArrowRight ? 1 : 0);
-      if (keys.Space) k.brake = 1;
+  // --- per-frame ---------------------------------------------------------------
+  frame() {
+    const now = performance.now();
+    let realDt = (now - this.lastReal) / 1000;
+    this.lastReal = now;
+    if (realDt > 0.5) realDt = 0.5;
+    if (realDt < 0) realDt = 0;
+    let gameDt = realDt * this.ff;
+    // Fixed substeps: physics, missions and police stay stable no matter
+    // how slow the renderer is.
+    while (gameDt > 0) {
+      const dt = Math.min(gameDt, STEP);
+      this.step(dt);
+      gameDt -= dt;
     }
-
-    const maxSp = state.mode === 'boat' ? 16 : state.mode === 'foot' ? 6 : state.topSpeed;
-    const accel = state.mode === 'boat' ? 10 : state.mode === 'foot' ? 12 : 14;
-    if (k.throttle) state.speed += accel * k.throttle * dt;
-    if (k.brake) state.speed -= (state.mode === 'foot' ? 14 : 22) * dt;
-    if (!k.throttle && !k.brake) state.speed *= Math.max(0, 1 - (state.mode === 'foot' ? 2.5 : 0.6) * dt);
-    state.speed = clamp(state.speed, state.mode === 'foot' ? 0 : -8, maxSp);
-    if (Math.abs(state.speed) > 0.2 || k.throttle) {
-      // Tight low-speed turning: the car must be able to swing onto a
-      // target a few metres away instead of orbiting it at 20 m.
-      const spd = Math.abs(state.speed);
-      const authority = 0.9 + 0.9 * (1 - Math.min(1, spd / 20));
-      state.heading += k.steer * authority * dt * (state.speed >= 0 ? 1 : -1);
+    this.updateCamera();
+    this.updateHud();
+    this.audio.setEngine(this.state.speed, this.state.mode === 'onfoot');
+    this.audio.setRadioOn(true);
+    this.renderer.render(this.scene, this.camera);
+    if (this.firstFrame) {
+      this.firstFrame = false;
+      if (this.shot) stageShot(this, this.shot);
+      window.__READY__ = true;
     }
-    state.pos.x += -Math.sin(state.heading) * state.speed * dt;
-    state.pos.z += -Math.cos(state.heading) * state.speed * dt;
-    // Keep inside the island (boats stay in the bay: x 58..200, z -170..170).
-    if (state.mode === 'boat') {
-      state.pos.x = clamp(state.pos.x, 58, 200);
-      state.pos.z = clamp(state.pos.z, -170, 170);
+  }
+
+  step(dt) {
+    const s = this.state;
+    this.time += dt;
+    s.clockMinutes += dt / 60;
+    if (this.muzzle.material.opacity > 0) this.muzzle.material.opacity = Math.max(0, this.muzzle.material.opacity - dt * 8);
+    if (this.tracer.material.opacity > 0 && this.time - this.tracerAt > 0.08) this.tracer.material.opacity = 0;
+
+    if (!s.failed && !s.victory) {
+      if (s.mode === 'car') this.stepDriving(dt);
+      else this.stepOnFoot(dt);
+      this.stepMission(dt);
+      this.stepWanted(dt);
+    }
+    this.stepPolice(dt);
+    this.stepTraffic(dt);
+    this.stepPeds(dt);
+    this.stepAmbient(dt);
+  }
+
+  // --- driving ---------------------------------------------------------------------
+  stepDriving(dt) {
+    const s = this.state;
+    let throttle = 0, brake = 0, steer = 0, reverse = false;
+    if (this.autopilot) {
+      const leg = this.currentLeg();
+      if (leg && (leg.kind === 'drive' || leg.kind === 'collect')) {
+        if (!this.driver.target) this.aimAutopilot();
+        const inp = this.driver.update({ x: s.pos.x, z: s.pos.z, heading: s.heading, speed: s.speed }, dt);
+        throttle = inp.throttle; brake = inp.brake; steer = inp.steer; reverse = !!inp.reverse;
+      } else if (leg) {
+        // Wait legs (M7's dockyard hold): brake to a stop instead of
+        // coasting — the car used to roll 15 m past the gate to the
+        // south bound during the 3 s wait, then had to turn 180 degrees
+        // at the bound to start the next leg.
+        brake = 1;
+      }
     } else {
-      state.pos.x = clamp(state.pos.x, -60, 70);
-      state.pos.z = clamp(state.pos.z, -168, 168);
+      if (this.keys['KeyW'] || this.keys['ArrowUp']) throttle = 1;
+      if (this.keys['KeyS'] || this.keys['ArrowDown']) brake = 1;
+      if (this.keys['KeyA'] || this.keys['ArrowLeft']) steer = 1;
+      if (this.keys['KeyD'] || this.keys['ArrowRight']) steer = -1;
     }
-    // Taxi fares.
-    if (state.taxiMode && state.mode === 'car' && Math.abs(state.speed) > 1) {
-      const earn = Math.abs(state.speed) * dt * 0.4;
-      state.cash += earn;
-      state.taxiEarned += earn;
+    const top = s.topSpeed + (this.boostUntil > this.time ? 6 : 0);
+    if (reverse) {
+      s.speed = Math.max(s.speed - 9 * dt, -10);
+    } else if (throttle > 0) {
+      s.speed = Math.min(s.speed + 14 * throttle * dt, top);
+    } else if (brake > 0) {
+      if (s.speed > 0.5) s.speed = Math.max(0, s.speed - 26 * dt);
+      else s.speed = Math.max(s.speed - 8 * dt, -10);
+    } else {
+      // Coast down gently.
+      if (s.speed > 0) s.speed = Math.max(0, s.speed - 3 * dt);
+      else if (s.speed < 0) s.speed = Math.min(0, s.speed + 3 * dt);
     }
-    // Beacon pulse.
-    beacon.rotation.y += dt;
-    ring.scale.setScalar(1 + Math.sin(state.playT * 3) * 0.08);
-
-    updatePolice(dt);
-    // Heli follows the player at high wanted (free mode only; shots stage it).
-    if (refs.heli && state.wanted >= 3 && !ctx.isShot) {
-      refs.heli.position.x += (state.pos.x - refs.heli.position.x) * Math.min(1, dt * 0.5);
-      refs.heli.position.z += (state.pos.z - 20 - refs.heli.position.z) * Math.min(1, dt * 0.5);
-      refs.heli.position.y += (24 - refs.heli.position.y) * Math.min(1, dt * 0.5);
+    if (steer !== 0 && Math.abs(s.speed) > 0.2) {
+      s.heading += steer * 1.7 * dt * clamp(Math.abs(s.speed) / 6, 0, 1) * (s.speed >= 0 ? 1 : -1);
     }
-    syncHudThrottled();
+    const fx = Math.sin(s.heading);
+    const fz = Math.cos(s.heading);
+    const ox = s.pos.x, oz = s.pos.z;
+    let nx = ox + fx * s.speed * dt;
+    let nz = oz + fz * s.speed * dt;
+    // Colliders: try the full move, then x-only, then z-only, so the car
+    // slides along a building face instead of sticking to it. The speed
+    // is NOT damped on a hit — the speedo stays honest (the wheels check
+    // reads it) and the autopilot's stuck detection reads actual
+    // movement, not the speedo.
+    if (this.hitsCollider(nx, nz)) {
+      if (!this.hitsCollider(nx, oz)) { nz = oz; }
+      else if (!this.hitsCollider(ox, nz)) { nx = ox; }
+      else { nx = ox; nz = oz; }
+    }
+    nx = clamp(nx, BOUNDS.minX, BOUNDS.maxX);
+    nz = clamp(nz, BOUNDS.minZ, BOUNDS.maxZ);
+    const moved = Math.hypot(nx - ox, nz - oz);
+    s.pos.x = nx; s.pos.z = nz;
+    for (const w of this.hero.userData.wheels) w.rotation.x += (s.speed * dt) / 0.35;
+    if (this.taxiActive && moved > 0) {
+      const fare = moved * TAXI_RATE;
+      s.taxiEarned += fare;
+      s.cash += fare;
+    }
+    this.syncHeroMesh();
   }
 
-  let lastHud = 0;
-  function syncHudThrottled() {
-    if (state.playT - lastHud > 0.12) { lastHud = state.playT; syncHud(); }
+  hitsCollider(x, z) {
+    for (const c of this.colliders) {
+      if (Math.abs(x - c.x) < c.hx + 1.3 && Math.abs(z - c.z) < c.hz + 1.3) return true;
+    }
+    return false;
   }
-  function syncHud() {
-    if (!renderHud) return;
-    const s = step();
-    const police = chasers.filter((c) => c.mesh.visible).map((c) => ({
-      name: c.name, role: c.role,
-      d: Math.round(dist(state.pos.x, state.pos.z, c.mesh.position.x, c.mesh.position.z)),
-    }));
-    if (state.wanted >= 3) police.push({ name: 'HELI-2', role: 'AIR SUPPORT', d: 210 });
-    renderHud({
-      speedKmh: Math.abs(state.speed) * 3.6,
-      wanted: state.wanted,
-      cash: Math.floor(state.cash),
-      health: Math.round(state.health),
-      maxHealth: state.maxHealth,
-      armour: state.armour,
-      mission: mission() ? { id: mission().id, name: mission().name, reward: mission().reward } : null,
-      stage: s ? s.stage : '',
-      title: s ? s.title : '',
-      obj: s ? s.obj : '',
-      next: s ? s.next : '',
-      police,
-      rp: state.rp, rpMax: state.rpMax, rank: state.rank,
-      weapons: state.weapons.map((w) => ({ name: w.name, ammo: w.ammo, sel: w.sel })),
-      radio: STATIONS[state.radio],
-      packages: state.packages, taxiEarned: state.taxiEarned,
-      toast: state.toast,
-      dialogue: mission() ? mission().brief : '',
-      topSpeed: state.topSpeed,
-      vehicle: state.vehicle,
+
+  syncHeroMesh() {
+    const s = this.state;
+    this.hero.position.set(s.pos.x, 0, s.pos.z);
+    this.hero.rotation.y = s.heading;
+    this.heroShadow.position.set(s.pos.x, 0.08, s.pos.z);
+  }
+
+  // --- on foot ----------------------------------------------------------------------
+  stepOnFoot(dt) {
+    const s = this.state;
+    const p = this.playerOnFoot;
+    const leg = this.currentLeg();
+    if (this.autopilot && leg && leg.kind === 'shoot') {
+      const res = shootStep(
+        { x: p.position.x, z: p.position.z },
+        this.officers.filter((o) => !o.dead).map((o) => ({ x: o.x, z: o.z, dead: o.dead })),
+        leg.at, dt
+      );
+      if (res.move.x !== 0 || res.move.z !== 0) {
+        p.position.x += res.move.x * 5 * dt;
+        p.position.z += res.move.z * 5 * dt;
+        p.rotation.y = Math.atan2(res.move.x, res.move.z);
+        animateWalk(p, dt, 1);
+      }
+      if (res.fire && this.time - (this.lastShotAt || -99) > 0.6) {
+        this.lastShotAt = this.time;
+        this.shoot();
+      }
+      return;
+    }
+    // Human on foot: W/S walk, A/D turn.
+    let move = 0, turn = 0;
+    if (this.keys['KeyW'] || this.keys['ArrowUp']) move = 1;
+    if (this.keys['KeyS'] || this.keys['ArrowDown']) move = -0.6;
+    if (this.keys['KeyA'] || this.keys['ArrowLeft']) turn = 1;
+    if (this.keys['KeyD'] || this.keys['ArrowRight']) turn = -1;
+    if (turn !== 0) p.rotation.y += turn * 2.4 * dt;
+    if (move !== 0) {
+      p.position.x += Math.sin(p.rotation.y) * 5 * move * dt;
+      p.position.z += Math.cos(p.rotation.y) * 5 * move * dt;
+      animateWalk(p, dt, 1);
+    }
+    s.pos.x = p.position.x;
+    s.pos.z = p.position.z;
+  }
+
+  // --- mission legs ---------------------------------------------------------------------
+  stepMission(dt) {
+    const s = this.state;
+    const leg = this.currentLeg();
+    if (!leg) return;
+    if (leg.kind === 'drive') {
+      const d = Math.hypot(s.pos.x - leg.at.x, s.pos.z - leg.at.z);
+      if (d < 4 || (this.autopilot && this.driver.done)) this.advanceLeg();
+    } else if (leg.kind === 'wait') {
+      this.waitTimer += dt;
+      if (this.waitTimer >= leg.seconds) this.advanceLeg();
+    } else if (leg.kind === 'collect') {
+      let changed = false;
+      this.collectSpots.forEach((p, i) => {
+        if (p.taken) return;
+        if (Math.hypot(s.pos.x - p.x, s.pos.z - p.z) < 4.5) {
+          p.taken = true;
+          s.packages += 1;
+          const marker = this.packageMarkers[i];
+          if (marker) marker.visible = false;
+          changed = true;
+        }
+      });
+      if (changed && this.autopilot) this.aimAutopilot();
+      if (this.collectSpots.every((p) => p.taken)) this.advanceLeg();
+    } else if (leg.kind === 'shoot') {
+      if (this.shootRemaining <= 0) this.advanceLeg();
+    } else if (leg.kind === 'enterCar') {
+      if (s.mode === 'onfoot') this.enterCar(true);
+      this.legTimer += dt;
+      if (this.legTimer > 1.0) this.advanceLeg();
+    } else if (leg.kind === 'victory') {
+      this.advanceLeg();
+    }
+  }
+
+  stepWanted(dt) {
+    const s = this.state;
+    if (s.wanted <= 0) return;
+    this.wantedTimer += dt;
+    if (this.wantedTimer > 15) {
+      this.wantedTimer = 0;
+      this.setWanted(s.wanted - 1);
+    }
+  }
+
+  // --- police / traffic / peds / ambient -----------------------------------------------------
+  stepPolice(dt) {
+    const s = this.state;
+    for (const p of this.policeCars) {
+      if (p.staged) {
+        // Staged for the cover shot: hold formation AHEAD of the hero
+        // at exactly the hero's speed, so the hero never outruns them
+        // and they never fall back between the camera and the hero.
+        p.speed = s.speed;
+        p.x += Math.sin(p.heading) * p.speed * dt;
+        p.z += Math.cos(p.heading) * p.speed * dt;
+        p.mesh.position.set(p.x, 0, p.z);
+        p.mesh.rotation.y = p.heading;
+        for (const w of p.mesh.userData.wheels) w.rotation.x += (p.speed * dt) / 0.35;
+        continue;
+      }
+      const dx = s.pos.x - p.x;
+      const dz = s.pos.z - p.z;
+      const d = Math.hypot(dx, dz) || 1;
+      const want = Math.atan2(dx, dz);
+      p.heading += clamp(wrapAngle(want - p.heading), -2.2 * dt, 2.2 * dt);
+      p.speed = Math.min(p.speed + 12 * dt, 25);
+      p.x += Math.sin(p.heading) * p.speed * dt;
+      p.z += Math.cos(p.heading) * p.speed * dt;
+      p.mesh.position.set(p.x, 0, p.z);
+      p.mesh.rotation.y = p.heading;
+      for (const w of p.mesh.userData.wheels) w.rotation.x += (p.speed * dt) / 0.35;
+      // Rams only hurt in the car — on foot the cruisers circle the parked car.
+      if (s.mode === 'car' && !s.failed && d < 3.4 && this.time - p.ramAt > RAM_COOLDOWN) {
+        p.ramAt = this.time;
+        this.audio.crash();
+        this.damage(RAM_DAMAGE);
+      }
+    }
+    // The heli tracks the hero car — or the player on foot, whose
+    // position and facing anchor the beam during the shootout.
+    const anchor = s.mode === 'onfoot'
+      ? { x: this.playerOnFoot.position.x, z: this.playerOnFoot.position.z, heading: this.playerOnFoot.rotation.y }
+      : { x: s.pos.x, z: s.pos.z, heading: s.heading };
+    updateHeli(this.heli, dt, this.time, { x: anchor.x, z: anchor.z }, s.wanted >= 3 && !s.failed, anchor.heading);
+  }
+
+  stepTraffic(dt) {
+    for (const t of this.traffic) {
+      t.pos += t.dir * t.speed * dt;
+      if (t.pos > 112) t.pos = -112;
+      if (t.pos < -112) t.pos = 112;
+      if (t.axis === 'x') {
+        t.mesh.position.set(t.line, 0, t.pos);
+        t.mesh.rotation.y = t.dir > 0 ? 0 : Math.PI;
+      } else {
+        t.mesh.position.set(t.pos, 0, t.line);
+        t.mesh.rotation.y = t.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+      }
+      for (const w of t.mesh.userData.wheels) w.rotation.x += (t.speed * dt) / 0.35;
+    }
+  }
+
+  stepPeds(dt) {
+    for (const p of this.peds) {
+      if (p.along) p.z += p.dir * p.speed * dt;
+      else p.x += p.dir * p.speed * dt;
+      const v = p.along ? p.z : p.x;
+      if (v > 108) { if (p.along) p.z = -108; else p.x = -108; }
+      if (v < -108) { if (p.along) p.z = 108; else p.x = 108; }
+      p.mesh.position.set(p.x, 0, p.z);
+      animateWalk(p.mesh, dt, 1);
+    }
+  }
+
+  stepAmbient(dt) {
+    // Sailboats bob; flames flicker; markers spin.
+    for (const b of this.sailboats) {
+      b.position.y = -0.35 + Math.sin(this.time * 0.8 + (b.userData.phase || 0)) * 0.15;
+    }
+    if (this.burningVan && this.burningVan.visible) {
+      const flames = this.burningVan.userData.flames || [];
+      flames.forEach((f) => {
+        f.scale.y = 1 + Math.sin(this.time * 9 + f.userData.phase) * 0.18;
+        f.scale.x = 1 + Math.cos(this.time * 7 + f.userData.phase) * 0.1;
+      });
+      const fl = this.burningVan.userData.fireLight;
+      if (fl) fl.intensity = 52 + Math.sin(this.time * 11) * 12;
+      const smoke = this.burningVan.userData.smoke;
+      if (smoke) smoke.position.y = 4.6 + Math.sin(this.time * 0.7) * 0.35;
+    }
+    for (const m of this.packageMarkers) {
+      if (!m.visible) continue;
+      m.rotation.y += dt * 2;
+      m.position.y = 0.9 + Math.sin(this.time * 3) * 0.15;
+    }
+    for (const o of this.officers) {
+      if (o.marker && !o.dead) {
+        o.marker.rotation.y += dt * 3;
+        o.marker.position.y = 2.6 + Math.sin(this.time * 2.5) * 0.12;
+      }
+    }
+    // Sea shimmer: a slow breathing of the water colour.
+    if (this.city && this.time % 1 < dt) {
+      // (cheap: nothing per-frame; the sun glow carries the dusk)
+    }
+  }
+
+  // --- camera / HUD ---------------------------------------------------------------------------
+  updateCamera() {
+    const s = this.state;
+    const cam = this.camera;
+    if (this.cameraMode === 'top') {
+      cam.position.set(s.pos.x, 130, s.pos.z + 0.1);
+      cam.lookAt(s.pos.x, 0, s.pos.z);
+      return;
+    }
+    if (this.cameraMode === 'title') {
+      // Low and close: the orange hero sits big below the title text,
+      // the boulevard running away into the dusk skyline behind it.
+      cam.position.set(s.pos.x - 4, 2.4, s.pos.z + 6.5);
+      cam.lookAt(s.pos.x + 0.5, 0.8, s.pos.z - 20);
+      return;
+    }
+    if (this.cameraMode === 'cover') {
+      // Low chase cam for the cover shot: right behind the hero, low,
+      // the orange car biggest in the lower right, cruisers and the
+      // heli up the road ahead, sun and sea at the end of it.
+      const fx = Math.sin(s.heading), fz = Math.cos(s.heading);
+      const sx = Math.cos(s.heading), sz = -Math.sin(s.heading);
+      cam.position.set(s.pos.x - fx * 9 + sx * -4.5, 3.2, s.pos.z - fz * 9 + sz * -4.5);
+      cam.lookAt(s.pos.x + fx * 8 + sx * 1.5, 1.0, s.pos.z + fz * 8 + sz * 1.5);
+      return;
+    }
+    if (this.cameraMode === 'shootout' || s.mode === 'onfoot') {
+      const p = this.playerOnFoot.position;
+      const fy = this.playerOnFoot.rotation.y;
+      // Close over the shoulder: the red-jacket player big in frame,
+      // officers and the burning van close ahead.
+      cam.position.set(p.x - Math.sin(fy) * 5, 2.7, p.z - Math.cos(fy) * 5);
+      cam.lookAt(p.x + Math.sin(fy) * 10, 1.2, p.z + Math.cos(fy) * 10);
+      return;
+    }
+    const far = this.cameraMode === 'chase-far';
+    const back = far ? 12.5 : 10.5;
+    const up = far ? 5 : 4.6;
+    const fx = Math.sin(s.heading), fz = Math.cos(s.heading);
+    // Chase-far sits off the hero's left shoulder so the orange car lands
+    // big in the lower right of the frame, cruisers up the road ahead.
+    const sx = Math.cos(s.heading), sz = -Math.sin(s.heading);
+    const sideOff = far ? -5.5 : 0;
+    const lookSide = far ? 1.5 : 0;
+    cam.position.set(s.pos.x - fx * back + sx * sideOff, up, s.pos.z - fz * back + sz * sideOff);
+    cam.lookAt(s.pos.x + fx * 7 + sx * lookSide, 1.1, s.pos.z + fz * 7 + sz * lookSide);
+  }
+
+  updateHud() {
+    const s = this.state;
+    const m = MISSIONS[s.mission];
+    const leg = this.currentLeg();
+    const hours = Math.floor(s.clockMinutes / 60) % 24;
+    const mins = Math.floor(s.clockMinutes % 60);
+    const day = Math.floor(s.clockMinutes / 1440) + 1;
+    const clock = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')} · DAY ${day}`;
+    this.hud.update({
+      ...s,
+      clock,
+      missionId: m ? m.id : 1,
+      title: m ? m.title : '',
+      step: leg ? leg.text : '',
+      legIndex: s.step,
+      legCount: m ? m.legs.length : 0,
+      missionText: m ? m.brief : '',
+      radio: RADIO_STATIONS[s.radio],
+      waypoint: s.waypoint,
+      police: this.policeCars.map((p) => ({
+        unit: p.unit, x: p.x, z: p.z,
+        d: Math.round(Math.hypot(p.x - s.pos.x, p.z - s.pos.z)),
+      })),
     });
-    state.toast = '';
   }
+}
 
-  function status() {
-    const s = step();
-    return {
-      mission: state.mission, missionId: mission() ? mission().id : null,
-      step: state.step, stage: s ? s.stage : null, title: s ? s.title : null,
-      cash: Math.floor(state.cash), wanted: state.wanted,
-      health: Math.round(state.health), maxHealth: state.maxHealth,
-      packages: state.packages, pkgGot: [...state.pkgGot],
-      topSpeed: state.topSpeed, speedLvl: state.speedLvl, healthLvl: state.healthLvl,
-      weapons: state.weapons.map((w) => ({ name: w.name, ammo: w.ammo === Infinity ? 'inf' : w.ammo })),
-      radio: STATIONS[state.radio].name, rp: state.rp, rank: state.rank,
-      taxiEarned: Math.round(state.taxiEarned * 100) / 100,
-      pos: { x: Math.round(state.pos.x * 10) / 10, z: Math.round(state.pos.z * 10) / 10 },
-      heading: Math.round(state.heading * 100) / 100,
-      speed: Math.round(state.speed * 100) / 100,
-      speedKmh: Math.round(Math.abs(state.speed) * 3.6),
-      mode: state.mode, vehicle: state.vehicle, boatIndex: state.boatIndex,
-      chosenBoat: state.chosenBoat, hasCash: state.hasCash,
-      victory: state.victory, failed: state.failed, failReason: state.failReason,
-      autopilot: state.autopilot,
-      police: chasers.filter((c) => c.mesh.visible).map((c) => c.name),
-      rivals: rivals.map((r) => ({ hp: r.hp, active: r.active, x: Math.round(r.mesh.position.x), z: Math.round(r.mesh.position.z) })),
-      heliVisible: !!(refs.heli && refs.heli.visible),
-    };
-  }
-
-  // Public API (also exposed as window.__GAME__ by main.js).
-  const api = {
-    state, tick, startMission, retry, fail, saveGame, loadGame,
-    buyWeapon, buyUpgrade, useCrew, nextRadio, selectWeapon, shoot,
-    tryEnterExit, boardBoat, pickBoatForDestination, drivenMesh,
-    status, toast,
-    setAutopilot(on) { state.autopilot = !!on; syncHud(); },
-    teleport(x, z, heading) {
-      state.pos.x = x; state.pos.z = z;
-      if (heading !== undefined) state.heading = heading;
-      state.speed = 0;
-    },
-    setCash(n) { state.cash = n; syncHud(); },
-    setHealth(n) { state.health = n; syncHud(); },
-    setWanted(n) { state.wanted = n; syncHud(); },
-    setMission(i) { startMission(i); },
-    setSpeedLvl(n) { state.speedLvl = n; state.topSpeed = 38 + n * 4; syncHud(); },
-    damage(n) { state.health = Math.max(0, state.health - n); if (state.health <= 0) fail('wrecked'); syncHud(); },
-    startTaxi() {
-      if (dist(state.pos.x, state.pos.z, taxiMesh.position.x, taxiMesh.position.z) > 6) return { ok: false, why: 'not near the taxi' };
-      state.vehicle = 'taxi'; state.mode = 'car'; state.taxiMode = true; state.speed = 0;
-      toast('Taxi job — fares pay as you drive');
-      syncHud();
-      return { ok: true };
-    },
-    exitTaxi() { state.taxiMode = false; state.mode = 'foot'; state.speed = 0; syncHud(); },
-  };
-
-  startMission(0);
-  return api;
+// Boot: any failure here is a page error the harnesses can see.
+try {
+  new Game();
+} catch (e) {
+  window.__PAGEERROR__ = String((e && e.message) || e);
+  throw e;
 }

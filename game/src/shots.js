@@ -1,85 +1,75 @@
-// Coral Bay Heat — camera presets for the four dossier shots.
+// Screenshot staging for Coral Bay Heat. `?shot=cover|shootout|map|title`
+// arranges the scene and camera for each of the four dossier shots, then
+// the capture harness screenshots after __READY__. Every shot answers
+// the same question — which car / character is ours? — by putting the
+// hero biggest, closest and lit.
 //
-// Every shot is a fixed camera plus the staged positions of the hero car
-// and the helicopter, so the four screenshots are reproducible frames:
-//   cover    — high rear chase cam: the hero car big in the right
-//              foreground mid-drive, police cruisers ahead of him on the
-//              coastal road, the helicopter hovering over the chase.
-//   shootout — over-shoulder, just off the aim axis: the player (red
-//              jacket, back to the lens) firing at a police officer
-//              across the sand, a fallen officer on the ground.
-//   map      — neutral city view behind the map/stats pause screen.
-//   title    — low dusk view up the boulevard at the skyline and sunset,
-//              behind the title screen overlay.
-export const SHOTS = {
-  cover: {
-    // High (y 4.2) and centred on the road, behind the hero and looking
-    // straight north down the road. The hero sits 9 m from the lens in
-    // the right lane, so he is the big foreground car — unmistakably
-    // ours — and every cruiser is ahead of him: two leading the chase
-    // (cop1 left lane, cop3 his own lane, rears to the lens) and two
-    // oncoming as a roadblock (cop2, cop4, fronts to the lens).
-    cam: [0, 4.2, 23],
-    look: [0, 1.0, -16],
-    // Hero mid-drive in the northbound lane, a touch of steering angle
-    // so he reads as driving, not parked.
-    hero: [3.5, 0, 14],
-    heroRot: 0.05,
-    // The heli hovers over the chase just north of the hero, nose
-    // turned back at him, so heli, beam and car read as one spotlight.
-    // The bob/drift in animate() follows this preset.
-    heli: [2, 11, 0],
-    wanted: 3,
-    fov: 55,
-  },
-  shootout: {
-    // Over-shoulder, 3.5 m off the aim axis: dead behind the player the
-    // pistol foreshortens to a stub and hides behind his head; off-axis
-    // the slide reads in profile beside his head, muzzle flash at its
-    // tip, tracer running on to the officer. Player ~210 px tall, back
-    // to the lens, right of centre; officer centre-frame; fallen
-    // officer on the ground left of centre, clear of the tracer line.
-    // The hero car stays parked on the road as background.
-    cam: [24.2, 2.6, 15.1],
-    look: [18, 1.1, 0.5],
-    hero: [0.6, 0, 2],
-    heroRot: 0.06,
-    heli: [-6, 24, -60],
-    // Wanted 3, matching M4 LOSE THE HEAT — three stars on a police
-    // stand-off, not two.
-    wanted: 3,
-    fov: 55,
-  },
-  map: {
-    // Backdrop behind the full map/stats pause screen overlay — the
-    // overlay covers the screen, so this is a neutral city view.
-    cam: [0, 8, 40],
-    look: [0, 1, -20],
-    hero: [1.6, 0, 2],
-    heroRot: 3.05,
-    heli: [0.5, 13.5, -38],
-    wanted: 1,
-    fov: 55,
-  },
-  title: {
-    // Low dusk view up the boulevard at the skyline + sunset, behind
-    // the title screen overlay. The hero car sits big and glossy in
-    // the lower centre, framed by palms and the sunset; the overlay's
-    // scrim darkens the bottom so the title and menu read over it.
-    cam: [10, 1.7, 26],
-    look: [-6, 7, -80],
-    hero: [2.5, 0, 14],
-    heroRot: 3.05,
-    heli: [0.5, 13.5, -38],
-    wanted: 0,
-    fov: 55,
-  },
-};
+// The game calls stageShot(name) after boot; the shot modules only move
+// the camera and actors, they never change mission state.
 
-// The shot to stage, from ?shot= in the URL; anything unknown falls
-// back to the cover.
-export function shotName() {
-  const q = new URLSearchParams(location.search);
-  const s = q.get('shot') || 'cover';
-  return SHOTS[s] ? s : 'cover';
+export function stageShot(game, name) {
+  if (name === 'cover') return stageCover(game);
+  if (name === 'shootout') return stageShootout(game);
+  if (name === 'map') return stageMap(game);
+  if (name === 'title') return stageTitle(game);
+  return null;
+}
+
+// Cover: a chase down the beach road, east into the sunset. The orange
+// hero car leads, low and huge in the lower right; four cruisers fan out
+// behind it; the heli hangs ahead with its beam slanting back down onto
+// the hero and its pool glowing under the car. Staged on M6 (Pier 9 Run
+// — both its legs are drives, so the shot can never flip to the
+// shootout scene while the car coasts).
+function stageCover(game) {
+  game.setMission(5); // M6 PIER 9 RUN
+  game.placeHero(45, 0, Math.PI / 2); // east down the beach road, into the sun
+  // The hero coasts at ~3 u/s² from the moment the shot is staged, so
+  // start at 35 to read 111 KM/H when the capture fires (~1.5 s later).
+  game.setSpeed(35); // 111 KM/H on the HUD at capture
+  game.state.cash = 21000;
+  game.setWanted(3);
+  game.placePoliceChase();
+  game.setCamera('cover');
+  game.setScreen(null);
+  game.hud.setDialogue('Mara Voss: "Every cruiser in Coral Bay is behind you, kid. Drive."');
+  return 'cover';
+}
+
+// Shootout: on foot on the beach, player centre with back to camera,
+// pistol raised, crosshair up; three officers with red markers ahead;
+// the fallen officer and the blood pool to the left; the burning van
+// close behind the officers, flames big. Stages M4's shoot leg so the
+// mission panel reads STAND-OFF ON THE SAND.
+function stageShootout(game) {
+  game.setMission(3);
+  game.setLeg(1);
+  // Wanted AFTER the mission places the car, so the response units
+  // spawn around the car (26 m) instead of the origin (134 m away).
+  game.setWanted(3);
+  game.state.cash = 9500; // M4's cash — the HUD must not read $0 mid-story
+  game.setCamera('shootout');
+  game.stageTracer(); // a live tracer to the nearest officer, held for the shot
+  game.setScreen(null);
+  game.hud.setDialogue('Mara Voss: "Hold the beach. Three officers, one van — make it count."');
+  return 'shootout';
+}
+
+// Map: the pause map, 66.1% ring, 9 progress bars, career stats, crew,
+// three save slots.
+function stageMap(game) {
+  game.placeHero(0, 0, 0);
+  game.setCamera('top');
+  game.setScreen('map');
+  return 'map';
+}
+
+// Title: the title screen over a dusk boulevard with the hero car on
+// the road and the skyline behind it.
+function stageTitle(game) {
+  game.placeHero(0, 20, 0);
+  game.setWanted(0);
+  game.setCamera('title');
+  game.setScreen('title');
+  return 'title';
 }
