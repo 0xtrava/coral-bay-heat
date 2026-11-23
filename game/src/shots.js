@@ -49,7 +49,9 @@ export function stageShot(game, shot) {
   if (shot === 'cover') {
     // M6 chase up the beachfront avenue, sun low ahead, heli overhead.
     // The hero is parked for the still: the speedo is staged to 110.
-    game.teleportHero(84, -30, Math.PI);
+    // Parked south of the hotels so the chase camera is not wedged
+    // against a hotel wall.
+    game.teleportHero(84, -36, Math.PI);
     game.parkHero();
     stageHud(game, {
       cash: 21000, mission: 5, step: 0, missionId: 'M6', missionTitle: 'PIER 9 RUN',
@@ -59,10 +61,10 @@ export function stageShot(game, shot) {
       fixerLine: FIXER.lines[4],
       dialogue: 'Every cruiser in Coral Bay is behind you, kid. Drive.',
     });
-    // three cruisers ahead, holding the hero's pace so none blocks the shot
-    const spots = [[84, -42, 12], [84, -44, 14], [84, -47, 17], [84, -51, 21]];
+    // three cruisers ahead, spread across lanes so none blocks the hero
+    const spots = [[82, -55, 19], [86, -62, 26], [82, -70, 34], [86, -78, 42]];
     game.placePolice(spots, 30.5);
-    game.placeHeli(84, -62, 24);
+    game.placeHeli(80, -66, 11);
     game.setSun(0.15, 0.20, -1);
     game.setTrafficVisible(true);
     return;

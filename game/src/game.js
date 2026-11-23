@@ -36,11 +36,14 @@ scene.fog = new THREE.Fog(0xff8f6b, 130, 460);
 const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 1200);
 camera.position.set(-24, 6, 110);
 
-const ambient = new THREE.AmbientLight(0xffd9b0, 0.75);
+const ambient = new THREE.AmbientLight(0xffd9b0, 0.55);
 scene.add(ambient);
-const sunLight = new THREE.DirectionalLight(0xffb36b, 1.5);
+const sunLight = new THREE.DirectionalLight(0xffb36b, 1.15);
 sunLight.position.set(40, 90, -160);
 scene.add(sunLight);
+const fillLight = new THREE.DirectionalLight(0xffc9a0, 0.5);
+fillLight.position.set(60, 70, 160);
+scene.add(fillLight);
 
 const city = buildCity(scene, rng);
 
@@ -730,15 +733,30 @@ function updateCamera(dt) {
   const pz = state.mode === 'car' ? state.pos.z : playerState.z;
   const fx = Math.sin(heading), fz = Math.cos(heading);
   const rx = Math.cos(heading), rz = -Math.sin(heading);
-  const back = state.mode === 'car' ? 9.5 : 6.5;
-  const side = state.mode === 'car' ? 3.4 : 1.6;
-  const up = state.mode === 'car' ? 3.6 : 2.8;
+  const back = state.mode === 'car' ? 8.5 : 6.5;
+  const side = state.mode === 'car' ? 5.0 : 1.6;
+  const up = state.mode === 'car' ? 3.2 : 2.8;
   const tx = px - fx * back + rx * side;
   const tz = pz - fz * back + rz * side;
   camera.position.x = lerp(camera.position.x, tx, Math.min(1, dt * 5));
   camera.position.y = lerp(camera.position.y, up, Math.min(1, dt * 5));
   camera.position.z = lerp(camera.position.z, tz, Math.min(1, dt * 5));
-  camera.lookAt(px + fx * 10, 1.2, pz + fz * 10);
+  camera.lookAt(px + fx * 10, 3.5, pz + fz * 10);
+}
+
+// Snap the chase camera to its exact framing at once — staged shots are
+// captured 600 ms after load, far too soon for the lerp to arrive.
+function snapChaseCamera() {
+  const heading = state.mode === 'car' ? state.heading : playerState.heading;
+  const px = state.mode === 'car' ? state.pos.x : playerState.x;
+  const pz = state.mode === 'car' ? state.pos.z : playerState.z;
+  const fx = Math.sin(heading), fz = Math.cos(heading);
+  const rx = Math.cos(heading), rz = -Math.sin(heading);
+  const back = state.mode === 'car' ? 8.5 : 6.5;
+  const side = state.mode === 'car' ? 5.0 : 1.6;
+  const up = state.mode === 'car' ? 3.2 : 2.8;
+  camera.position.set(px - fx * back + rx * side, up, pz - fz * back + rz * side);
+  camera.lookAt(px + fx * 10, 3.5, pz + fz * 10);
 }
 
 // ---- the __GAME__ surface the playtest drives ----
@@ -984,6 +1002,7 @@ if (SHOT) {
   if (SHOT === 'cover' || SHOT === 'shootout') {
     titleOpen = false;
     document.getElementById('title-screen').style.display = 'none';
+    snapChaseCamera();
   }
 } else {
   document.getElementById('title-screen').style.display = 'block';

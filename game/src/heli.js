@@ -78,7 +78,7 @@ export function updateHeli(heli, beam, heroPos, heroHeading, dt, time) {
   const ahead = 10;
   const tx = heroPos.x + Math.sin(heroHeading) * ahead;
   const tz = heroPos.z + Math.cos(heroHeading) * ahead;
-  const hoverH = 24 + Math.sin(time * 0.7) * 1.2;
+  const hoverH = 20 + Math.sin(time * 0.7) * 1.2;
   heli.position.x += (tx - heli.position.x) * Math.min(1, dt * 1.2);
   heli.position.z += (tz - heli.position.z) * Math.min(1, dt * 1.2);
   heli.position.y += (hoverH - heli.position.y) * Math.min(1, dt * 1.2);

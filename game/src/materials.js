@@ -57,23 +57,34 @@ export function facadeTexture(baseHex, rng, litRatio = 0.45) {
   g.fillRect(0, 0, 128, 10);
   g.fillStyle = 'rgba(255,255,255,0.10)';
   g.fillRect(0, 246, 128, 10);
-  // windows
-  const cols = 4, rows = 8;
+  // windows: few, widely spaced, high-contrast — they must read as a grid,
+  // not merge into horizontal bands at street distance
+  const cols = 4, rows = 6;
   const cw = 128 / cols, ch = 256 / rows;
   for (let r = 0; r < rows; r++) {
     for (let col = 0; col < cols; col++) {
-      const x = col * cw + 6, y = r * ch + 8;
+      const x = col * cw + 8, y = r * ch + 10;
       const lit = rng() < litRatio;
-      g.fillStyle = lit ? '#ffd98a' : '#2e3440';
+      // dark frame, then the pane
+      g.fillStyle = '#10131a';
+      g.fillRect(x - 2, y - 2, cw - 12, ch - 16);
+      g.fillStyle = lit ? '#ffe9a8' : '#1a2030';
       if (lit) {
-        g.shadowColor = '#ffb347'; g.shadowBlur = 8;
+        g.shadowColor = '#ffb347'; g.shadowBlur = 12;
       }
-      g.fillRect(x, y, cw - 12, ch - 16);
+      g.fillRect(x, y, cw - 16, ch - 20);
       g.shadowBlur = 0;
-      g.fillStyle = 'rgba(255,255,255,0.25)';
-      g.fillRect(x, y, cw - 12, 3);
+      // white sill under every window — the grid reads even unlit
+      g.fillStyle = 'rgba(255,255,255,0.35)';
+      g.fillRect(x, y + ch - 20, cw - 16, 2);
     }
   }
+  // top light: the dusk sun catches the upper floors
+  const topGrad = g.createLinearGradient(0, 0, 0, 90);
+  topGrad.addColorStop(0, 'rgba(255,200,120,0.20)');
+  topGrad.addColorStop(1, 'rgba(255,200,120,0)');
+  g.fillStyle = topGrad;
+  g.fillRect(0, 0, 128, 90);
   return toTexture(c);
 }
 
@@ -87,8 +98,8 @@ export function roadTexture() {
     g.fillRect(Math.random() * 128, Math.random() * 128, 2, 2);
   }
   g.fillStyle = '#f5d76e';
-  g.fillRect(60, 0, 8, 44);
-  g.fillRect(60, 84, 8, 44);
+  g.fillRect(61, 0, 5, 28);
+  g.fillRect(61, 100, 5, 28);
   g.fillStyle = 'rgba(255,255,255,0.35)';
   g.fillRect(4, 0, 3, 128);
   g.fillRect(121, 0, 3, 128);

@@ -57,6 +57,17 @@ export function buildHud() {
   const respectBar = el('div', 'bar', dp);
   refs.respectFill = el('div', 'bar-fill green', respectBar);
   refs.packagesLine = el('div', 'dp-packages', dp, 'PACKAGES 0 / 4');
+  // health + armour live in the left column, v17-style
+  const hb = el('div', 'panel health-panel', left);
+  const hRow = el('div', 'hp-row', hb);
+  el('span', 'hp-label', hRow, 'HEALTH');
+  const hBar = el('div', 'bar', hRow);
+  refs.healthFill = el('div', 'bar-fill red', hBar);
+  refs.healthVal = el('span', 'hp-val', hRow, '100');
+  const aRow = el('div', 'hp-row', hb);
+  el('span', 'hp-label', aRow, 'ARMOUR');
+  const aBar = el('div', 'bar', aRow);
+  refs.armourFill = el('div', 'bar-fill blue', aBar);
 
   // right column: fixer, weapons, crew
   const right = el('div', 'hud-right', hud);
@@ -97,30 +108,20 @@ export function buildHud() {
     refs.crewCards.push(card);
   }
 
-  // bottom-left: health / armour / speed
+  // bottom-left: minimap (v17 puts the round street map here)
   const bl = el('div', 'hud-bl', hud);
-  const hb = el('div', 'panel health-panel', bl);
-  const hRow = el('div', 'hp-row', hb);
-  el('span', 'hp-label', hRow, 'HEALTH');
-  const hBar = el('div', 'bar', hRow);
-  refs.healthFill = el('div', 'bar-fill red', hBar);
-  refs.healthVal = el('span', 'hp-val', hRow, '100');
-  const aRow = el('div', 'hp-row', hb);
-  el('span', 'hp-label', aRow, 'ARMOUR');
-  const aBar = el('div', 'bar', aRow);
-  refs.armourFill = el('div', 'bar-fill blue', aBar);
-  refs.speedo = el('div', 'speedo', bl, '<b>0</b> KM/H');
-  refs.carName = el('div', 'car-name', bl, 'CORAL GT · VELOCE');
-  refs.carCond = el('div', 'car-cond', bl, 'CONDITION 100%');
-  refs.radioLine = el('div', 'radio-line', bl, '♪ CORAL FM 98.1 — Island Pop');
-
-  // bottom-right: minimap
-  const br = el('div', 'hud-br', hud);
-  const mmWrap = el('div', 'minimap-wrap', br);
+  const mmWrap = el('div', 'minimap-wrap', bl);
   refs.minimap = document.createElement('canvas');
-  refs.minimap.width = 220; refs.minimap.height = 220;
+  refs.minimap.width = 180; refs.minimap.height = 180;
   mmWrap.appendChild(refs.minimap);
   refs.minimapLabel = el('div', 'minimap-label', mmWrap, 'DOWNTOWN');
+
+  // bottom-right: speed, car, radio
+  const br = el('div', 'hud-br', hud);
+  refs.speedo = el('div', 'speedo', br, '<b>0</b> KM/H');
+  refs.carName = el('div', 'car-name', br, 'CORAL GT · VELOCE');
+  refs.carCond = el('div', 'car-cond', br, 'CONDITION 100%');
+  refs.radioLine = el('div', 'radio-line', br, '♪ CORAL FM 98.1 — Island Pop');
 
   // bottom-centre: dialogue bar
   refs.dialogue = el('div', 'dialogue', hud, '');

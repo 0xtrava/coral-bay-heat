@@ -31,11 +31,11 @@ export function buildCar(opts = {}) {
   const nose = new THREE.Mesh(new THREE.BoxGeometry(width * 0.92, 0.42, 0.7), bodyMat);
   nose.position.set(0, 0.52, length / 2 + 0.2);
   car.add(nose);
-  const cabin = new THREE.Mesh(new THREE.BoxGeometry(width * 0.82, 0.6, length * 0.42), lambert(roof));
-  cabin.position.set(0, 1.2, -length * 0.06);
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(width * 0.74, 0.46, length * 0.4), lambert(roof));
+  cabin.position.set(0, 1.12, -length * 0.08);
   car.add(cabin);
-  const glass = new THREE.Mesh(new THREE.BoxGeometry(width * 0.84, 0.34, length * 0.4), lambert(0x9fd8e8, { transparent: true, opacity: 0.75 }));
-  glass.position.set(0, 1.18, -length * 0.06);
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(width * 0.76, 0.36, length * 0.38), lambert(0xbfe8f2, { transparent: true, opacity: 0.55 }));
+  glass.position.set(0, 1.1, -length * 0.08);
   car.add(glass);
   // white racing stripes over the hood and roof
   for (const sx of [-0.32, 0.32]) {
@@ -44,8 +44,8 @@ export function buildCar(opts = {}) {
     car.add(stripe);
   }
   if (spoiler) {
-    const wing = new THREE.Mesh(new THREE.BoxGeometry(width * 0.94, 0.08, 0.5), lambert(0x1a1a20));
-    wing.position.set(0, 1.18, -length / 2 - 0.15);
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(width * 0.8, 0.06, 0.42), lambert(0x1a1a20));
+    wing.position.set(0, 1.06, -length / 2 - 0.12);
     car.add(wing);
     for (const sx of [-0.7, 0.7]) {
       const strut = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.3, 0.08), lambert(0x1a1a20));
@@ -111,7 +111,7 @@ export function buildCar(opts = {}) {
 }
 
 export function buildHeroCar() {
-  const car = buildCar({ color: 0xff6a00, spoiler: true, plate: 'CORAL-01' });
+  const car = buildCar({ color: 0xff6a00, roof: 0x3a3f4a, spoiler: true, plate: 'CORAL-01' });
   car.userData.isHero = true;
   return car;
 }

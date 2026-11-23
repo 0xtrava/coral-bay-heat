@@ -86,8 +86,8 @@ export function buildCity(scene, rng) {
         col = mix(col, deep, smoothstep(0.5, 1.0, h));
         float sun = pow(max(dot(normalize(vDir), normalize(sunDir)), 0.0), 90.0);
         col += vec3(1.0, 0.85, 0.55) * sun * 1.4;
-        float glow = pow(max(dot(normalize(vDir), normalize(sunDir)), 0.0), 6.0);
-        col += vec3(1.0, 0.55, 0.35) * glow * 0.35;
+        float glow = pow(max(dot(normalize(vDir), normalize(sunDir)), 0.0), 18.0);
+        col += vec3(1.0, 0.55, 0.35) * glow * 0.18;
         gl_FragColor = vec4(col, 1.0);
       }`,
   });
@@ -107,7 +107,7 @@ export function buildCity(scene, rng) {
     map: glowTexture('rgba(255,230,170,0.9)', 'rgba(255,160,80,0.45)'),
     transparent: true, depthWrite: false, fog: false,
   }));
-  halo.scale.set(190, 190, 1);
+  halo.scale.set(120, 120, 1);
   halo.position.copy(sunDir).multiplyScalar(690);
   world.add(halo);
 
@@ -334,7 +334,6 @@ export function buildCity(scene, rng) {
   }
   for (let z = -108; z <= 108; z += 18) {
     palm(89.5, z + between(rng, -2, 2), 1);
-    if (chance(rng, 0.6)) palm(78.5, z + 9, 0.9);
   }
   for (let x = -108; x <= 60; x += 24) {
     if (chance(rng, 0.5)) palm(x, 101.5, 0.9);
