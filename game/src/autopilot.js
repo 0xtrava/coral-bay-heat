@@ -97,7 +97,11 @@ export class Autopilot {
       this.lastMoveTime = time;
       this.stuckTimer = 0;
     }
-    if (time - this.lastMoveTime > 2.5 && dist > 4) {
+    // No distance gate here: a car 3.9 out is neither "arrived" (3.5)
+    // nor "stuck" (4) under the old gate, and it sat there forever.
+    // (Arrived returns early above, so a car still here is genuinely
+    // not moving.)
+    if (time - this.lastMoveTime > 2.5) {
       this.stuckTimer += dt;
       if (this.stuckTimer > 1.2) {
         this.failures++;
@@ -127,9 +131,12 @@ export class Autopilot {
     while (diff > Math.PI) diff -= Math.PI * 2;
     while (diff < -Math.PI) diff += Math.PI * 2;
     const steer = Math.max(-1, Math.min(1, diff * 1.6));
-    // brake for sharp turns or when close
+    // Brake only for sharp turns. Braking merely for proximity used to
+    // overpower the 0.45 creep throttle (18/s^2 vs 6.3/s^2), parking the
+    // car ~3.9 units out — too far to arrive (3.5) and too near to count
+    // as stuck (4) — facing the waypoint, forever.
     const sharp = Math.abs(diff) > 0.9;
-    const brake = sharp || dist < 8 ? 0.6 : 0;
+    const brake = sharp ? 0.6 : 0;
     const throttle = sharp ? 0.25 : (dist < 8 ? 0.45 : 1);
     return { throttle, brake, steer };
   }
