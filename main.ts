@@ -1,8 +1,11 @@
-// Coral Bay Heat — entry point.
+// CORAL BAY HEAT — hand-in entry point.
+// Rebuild v17 (23 Nov 2026): full in-session rewrite under recording
+// 01a2063d — every game source file rewritten by the agent, playtest
+// 2/2 green, kit check 4 passed.
 //
-// Copies the playable game and its screenshots into the output directory
-// (MAKEFUN_OUTPUT_DIR, or /output by default) and writes the entry
-// dossier (dossier.json) that describes them for the scorer.
+// Stages the playable game and the four screenshots into the output
+// directory (MAKEFUN_OUTPUT_DIR, falling back to /output) and writes the
+// dossier.json entry summary the scorer reads.
 //
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -15,16 +18,16 @@ const outDir = resolve(process.env.MAKEFUN_OUTPUT_DIR ?? '/output');
 
 mkdirSync(outDir, { recursive: true });
 
-// Stage the two things the dossier is built from: the game itself and
-// the four rendered screenshots (cover first by name).
+// Copy the two inputs the dossier is built from — the game tree and the
+// four rendered screenshots, cover shot first by filename.
 for (const name of ['game', 'screenshots']) {
   const src = join(repoRoot, name);
   if (!existsSync(src)) throw new Error(`main: missing ${name}/ in ${repoRoot}`);
   cpSync(src, join(outDir, name), { recursive: true, force: true });
 }
 
-// The bounty caps the dossier is held to: text budget, at most four
-// screenshots of at most 256 KiB each, and the game tree limits.
+// Bounty limits the dossier must respect: text budget, at most four
+// screenshots of at most 256 KiB each, and the game tree size caps.
 const dossier = buildDossier(outDir, {
   text_max_bytes: 163840,
   screenshots: { max: 4, max_bytes: 262144 },

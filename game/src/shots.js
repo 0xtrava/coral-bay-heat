@@ -1,6 +1,6 @@
 // Coral Bay Heat — camera presets for the four dossier shots.
 //
-// Each shot is a fixed camera plus the staged positions of the hero car
+// Every shot is a fixed camera plus the staged positions of the hero car
 // and the helicopter, so the four screenshots are reproducible frames:
 //   cover    — high rear chase cam: the hero car big in the right
 //              foreground mid-drive, police cruisers ahead of him on the
