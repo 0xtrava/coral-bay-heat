@@ -92,7 +92,11 @@ function stageShootout(game) {
   game.setCash(18450);
   game.setClock(DUSK);
   game.setWanted(3);
-  game.renderer.toneMappingExposure = 1.6;
+  // fix10: 1.6 still blows the sand out white-yellow and erases the
+  // pistol + tracer — drop to 1.35, and the shootout scene dims its
+  // heli pool + beam too (game.js), so the gun and the beam pop
+  // against sand that keeps its tone.
+  game.renderer.toneMappingExposure = 1.35;
   game.placeShootoutScene();
   frameShot(game, 'shootout', true, false, false);
   game.hud.setDialogue('MARA VOSS · FIXER', 'Three stars and the whole beach is crawling with CBPD — hold the line, then vanish before backup lands.');
@@ -130,7 +134,12 @@ function stageTitle(game) {
   game.startPlay();
   game.setCash(18450);
   game.setClock(DUSK);
-  game.teleportCar(92, 37, Math.PI * 0.92);
+  // fix10: the hero sits at z 40 now, not 37 — 15 m from the lens
+  // instead of 18, so it reads bigger in the lower centre instead
+  // of a small car driving away at the bottom. (z 43 was tried
+  // first and cropped the car off the bottom edge — 40 keeps the
+  // whole car in frame.)
+  game.teleportCar(92, 40, Math.PI * 0.92);
   game.placeTitleTraffic();
   frameShot(game, 'title', false, true, false);
 }

@@ -1368,11 +1368,30 @@ export class Game {
     this.scooter.rotation.y = 0;
     // a crowded boulevard: pedestrians on both sidewalks all the way
     // through the chase zone (cruisers to z -34, camera at z 24), so
-    // the street reads as alive at a glance
+    // the street reads as alive at a glance.
+    // fix10: the crowd stands at x 4.5 / 19.5 — 3.5 m clear of the
+    // road edge, on the outer sidewalk — NOT at 6.2 / 17.8. At 1.8 m
+    // off the edge a walker reads as standing IN the road from the
+    // low cover camera (the 2.5 m sidewalk foreshortens to nothing);
+    // at 3.5 m the whole body projects onto the pale pavement, and
+    // nobody's feet touch the asphalt.
     this.stageCrowd([
-      [6.2, -28], [17.8, -20], [6.2, -12], [17.8, -4], [6.2, 4], [17.8, 12],
-      [6.2, 20], [17.8, 28], [6.2, 36], [17.8, 44], [6.2, -36], [17.8, 20],
+      [4.5, -28], [19.5, -20], [4.5, -12], [19.5, -4], [4.5, 4], [19.5, 12],
+      [4.5, 20], [19.5, 28], [4.5, 36], [19.5, 44], [4.5, -36], [19.5, 20],
     ], []);
+    // fix10: the ambient walkers wander the same corridor — snap any
+    // of them standing in the cover chase zone (avenues 0/12/24,
+    // z -40..50) onto the same safe sidewalk lines, so no stray
+    // pedestrian reads as walking in the middle of the road either.
+    // They only ever move along z, so a one-time x snap holds
+    // through the capture.
+    for (const p of this.peds) {
+      const px = p.mesh.position.x, pz = p.mesh.position.z;
+      if (px >= 4 && px <= 28 && pz >= -40 && pz <= 50) {
+        const nx = px < 12 ? 4.5 : px < 24 ? 19.5 : 29.5;
+        p.mesh.position.x = nx;
+      }
+    }
     // heli low over the chase, beam down on the road between the hero
     // and the nearest cruiser — its body in the frame, the light pool
     // landing ahead of the orange GT (pinned via heliTarget; the
@@ -1469,6 +1488,15 @@ export class Game {
     this.heli.group.visible = true;
     this.heli.pool.visible = true;
     updateHeli(this.heli, this.heliTarget, 0, this.time);
+    // fix10: dim the searchlight for the shootout only — the pool
+    // (0.55) + beam shaft (0.1) stacked on the bright sand into a
+    // white washout that erased the pistol and the tracer. At pool
+    // 0.38 / beam 0.07 the light still marks the player, but the
+    // sand keeps its tone and the gun + tracer read against it.
+    // Each capture is a fresh page, so this never leaks into the
+    // cover or the other shots.
+    this.heli.pool.material.opacity = 0.38;
+    this.heli.group.userData.beam.material.opacity = 0.07;
   }
 
   placeTitleTraffic() {

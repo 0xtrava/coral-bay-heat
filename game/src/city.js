@@ -522,10 +522,22 @@ export function buildProps(state) {
     group.add(pole, arm, bulb, halo);
   };
   for (let z = -96; z <= 108; z += 24) {
-    addLamp(6.0, z + 12);
-    addLamp(18.0, z + 12);
+    const lz = z + 12;
+    // fix10: NO lamp in the cover chase zone (z -48..48). The poles
+    // stand on the sidewalk, but from the low cover camera a pole
+    // 2 m off the road edge reads as standing IN the middle of the
+    // road — Egi called it out. With the zone clear, the cover frame
+    // has no pole near the road at all; the lamps further north sit
+    // at the horizon, too small to read as in the road.
+    if (lz >= -48 && lz <= 48) continue;
+    addLamp(6.0, lz);
+    addLamp(18.0, lz);
   }
   for (let z = -40; z <= 60; z += 20) {
+    // fix10: no promenade pole in the shootout standoff zone
+    // (z -24..24) — a pole there reads as standing in the open sand
+    // in the middle of the fight, not on the promenade edge.
+    if (z >= -24 && z <= 24) continue;
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 5.5, 6), lampPoleMat);
     pole.position.set(106, 2.75, z);
     const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), lampBulbMat);

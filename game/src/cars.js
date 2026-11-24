@@ -209,27 +209,32 @@ export function makeHeroCar() {
 
   // lower body: long, low, wide — the GT stance
   g.add(box(2.0, 0.5, 4.4, orange, 0, 0.55, 0));
-  // SCULPTED HOOD (fix9): the flat slab hood is what made the nose
-  // read as a wedge from the front-3/4. Now the hood is FACETED —
-  // a tall centre spine down the middle, two side panels angled
-  // down toward the fenders, and thin dark shut lines flanking the
-  // spine — so the hood catches the light in three planes and reads
-  // as a shaped GT-R bonnet, not one flat orange board.
-  g.add(box(1.9, 0.08, 1.3, orange, 0, 0.84, 1.5, -0.1));
-  g.add(box(0.5, 0.16, 1.35, orange, 0, 0.9, 1.5, -0.1)); // centre spine
-  const hoodL = box(0.62, 0.07, 1.25, orange, -0.62, 0.87, 1.5, -0.1);
+  // SCULPTED HOOD (fix9, slope fixed in fix10): the flat slab hood
+  // is what made the nose read as a wedge from the front-3/4. Now
+  // the hood is FACETED — a tall centre spine down the middle, two
+  // side panels angled down toward the fenders, and thin dark shut
+  // lines flanking the spine — so the hood catches the light in
+  // three planes and reads as a shaped GT-R bonnet, not one flat
+  // orange board. fix10: the panels used to tilt NOSE-UP (rx -0.1),
+  // which is why the bonnet still read as a flat slab from the
+  // front — a real GT-R hood slopes DOWN to the nose. Flipped to
+  // rx +0.08 / +0.1 so the bonnet falls away toward the grille and
+  // the car reads lower and sleeker from the front-3/4.
+  g.add(box(1.9, 0.08, 1.3, orange, 0, 0.84, 1.5, 0.08));
+  g.add(box(0.5, 0.16, 1.35, orange, 0, 0.9, 1.5, 0.08)); // centre spine
+  const hoodL = box(0.62, 0.07, 1.25, orange, -0.62, 0.87, 1.5, 0.08);
   hoodL.rotation.z = 0.1;
-  const hoodR = box(0.62, 0.07, 1.25, orange, 0.62, 0.87, 1.5, -0.1);
+  const hoodR = box(0.62, 0.07, 1.25, orange, 0.62, 0.87, 1.5, 0.08);
   hoodR.rotation.z = -0.1;
   g.add(hoodL, hoodR);
-  g.add(box(0.03, 0.03, 1.3, dark, -0.3, 0.95, 1.5, -0.1)); // shut line L
-  g.add(box(0.03, 0.03, 1.3, dark, 0.3, 0.95, 1.5, -0.1)); // shut line R
+  g.add(box(0.03, 0.03, 1.3, dark, -0.3, 0.95, 1.5, 0.08)); // shut line L
+  g.add(box(0.03, 0.03, 1.3, dark, 0.3, 0.95, 1.5, 0.08)); // shut line R
   // fender ridges: a muscular shoulder line sloping from the
   // windshield base down to the nose on each side — the front-3/4
   // view catches these and the nose stops reading as a flat slab.
-  const frL = box(0.24, 0.1, 1.5, orangeDark, -0.88, 0.92, 1.35, -0.14);
+  const frL = box(0.24, 0.1, 1.5, orangeDark, -0.88, 0.92, 1.35, 0.1);
   frL.rotation.z = 0.06;
-  const frR = box(0.24, 0.1, 1.5, orangeDark, 0.88, 0.92, 1.35, -0.14);
+  const frR = box(0.24, 0.1, 1.5, orangeDark, 0.88, 0.92, 1.35, 0.1);
   frR.rotation.z = -0.06;
   g.add(frL, frR);
   // nose / front bumper: a sculpted fascia, not a flat box — the
