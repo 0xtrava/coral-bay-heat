@@ -100,7 +100,7 @@ export function pickBoatForDestination() {
 
 // Side jobs and shops the playtest touches.
 export const SHOPS = {
-  gunStore: { x: 12, z: -42, name: 'AMMU-NATION', radius: 14 },
+  gunStore: { x: 24, z: -36, name: 'AMMU-NATION', radius: 14 },
   garage: { x: -24, z: 96, name: 'Lio’s Garage', radius: 14 },
 };
 export const TAXI_START = { x: 12, z: -84 };

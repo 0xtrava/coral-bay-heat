@@ -52,11 +52,16 @@
   #fixer-card .f-rank { font-size: 12px; color: #cfc4de; }
   #weapons { display: flex; gap: 6px; width: 100%; }
   .wslot { flex: 1; background: rgba(18,14,28,0.78); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px;
-    padding: 6px 2px 5px; text-align: center; }
-  .wslot.active { border-color: #ffb347; box-shadow: 0 0 0 1px #ffb347; }
-  .wslot .w-ico { font-size: 17px; }
-  .wslot .w-name { font-size: 10px; font-weight: bold; }
-  .wslot .w-ammo { font-size: 11px; color: #ffb347; }
+    padding: 7px 2px 6px; text-align: center; }
+  .wslot.active { border-color: #ffb347; border-width: 2px; box-shadow: 0 0 0 1px #ffb347, 0 0 12px rgba(255,179,71,0.45);
+    background: rgba(60,40,14,0.85); }
+  .wslot .w-ico { font-size: 17px; height: 20px; display: flex; align-items: center; justify-content: center; }
+  .wslot .w-ico svg { display: block; }
+  .wslot .w-name { font-size: 11px; font-weight: bold; letter-spacing: 0.5px; }
+  .wslot .w-mode { font-size: 8.5px; letter-spacing: 1.5px; color: #9fb6d9; }
+  .wslot.active .w-mode { color: #ffd34d; }
+  .wslot .w-ammo { font-size: 16px; font-weight: bold; color: #ffb347; line-height: 1.1; }
+  .wslot.active .w-ammo { color: #ffd34d; }
   .crew-card { width: 100%; display: flex; gap: 8px; align-items: center; }
   .crew-card .c-ico { width: 30px; height: 30px; border-radius: 50%; background: #ffb347; color: #231303;
     display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 15px; }

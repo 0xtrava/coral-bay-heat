@@ -1,250 +1,500 @@
-// Cars for Coral Bay Heat: low, wide, sleek GTs and cruisers with
-// real proportions — a long sloped nose, a raked narrow glasshouse, a
-// wide stance with big wheels and bright hubs, glowing headlights and
-// grilles — so they read as cars at a glance, never boxes. The hero
-// GT is longer, lower and wider than the traffic around it, and the
-// only vivid orange car on the road.
+// Vehicles for Coral Bay Heat — rebuilt as REAL cars, not boxes.
+// The hero is an orange Nissan GT-R R35 (vivid orange, a BIG rear
+// wing on two struts, QUAD ROUND taillights, black wheels, a wide
+// rear, a rear diffuser, a low wide stance). The police cruisers are
+// black-and-white muscle cars (black hood / roof / trunk, white
+// doors, POLICE on the hood, a round gold badge on the door,
+// EMERGENCY DIAL 911 on the rear quarter, a red+blue roof light
+// bar, a black front push bar, black steel wheels with a silver
+// centre). The burning vehicle is a black-and-white police Ranger
+// SUV (black hood / roof, white doors, POLICE on the door, a round
+// badge, a red+blue light bar, off-road tires with silver rims, a
+// front bull bar, a white stripe on the hood, a spare on the back).
+// Every vehicle is built from many small, well-proportioned parts —
+// a long hood, a cabin set back, a sloped windshield, defined wheel
+// arches, detailed wheels, shaped headlights, a grille, mirrors,
+// glass — so each one reads as a real vehicle at a glance.
+// Forward is +Z, rear is -Z (the grille sits at +Z, the plate at -Z).
 import * as THREE from 'three';
 import { PALETTE, plateTexture } from './materials.js';
 
-function box(w, h, d, color, x = 0, y = 0, z = 0) {
-  const m = new THREE.Mesh(
-    new THREE.BoxGeometry(w, h, d),
-    new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.3 }),
-  );
+function std(color, roughness = 0.45, metalness = 0.35) {
+  return new THREE.MeshStandardMaterial({ color, roughness, metalness });
+}
+
+function box(w, h, d, mat, x, y, z, rx = 0, ry = 0) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
   m.position.set(x, y, z);
-  m.castShadow = true;
-  return m;
-}
-
-// A box tilted about X: the sloped nose, windshield and rear deck that
-// make a car read as a car instead of a box.
-function slopeBox(w, h, d, color, x, y, z, rx) {
-  const m = box(w, h, d, color, x, y, z);
   m.rotation.x = rx;
+  m.rotation.y = ry;
+  m.castShadow = true;
+  m.receiveShadow = true;
   return m;
 }
 
-// A glowing lamp: headlight / tail light that reads at dusk.
+// A canvas text decal: bold text on a flat plane (POLICE on a hood,
+// EMERGENCY DIAL 911 on a rear quarter). Transparent background, so
+// the paint shows through and only the letters read.
+function textDecal(text, w, h, fg = '#f4f0e2', fontPx = 40) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 128;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 512, 128);
+  ctx.fillStyle = fg;
+  ctx.font = `bold ${fontPx}px Arial, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 256, 66);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, h),
+    new THREE.MeshStandardMaterial({ map: t, transparent: true, roughness: 0.6, metalness: 0.1 }),
+  );
+  return m;
+}
+
+// A glowing lamp: a headlight or a taillight that reads at dusk.
 function lamp(w, h, d, color, x, y, z) {
   const m = new THREE.Mesh(
     new THREE.BoxGeometry(w, h, d),
-    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.1, roughness: 0.4 }),
+    new THREE.MeshStandardMaterial({
+      color, emissive: color, emissiveIntensity: 0.85, roughness: 0.25, metalness: 0.2,
+    }),
   );
   m.position.set(x, y, z);
   return m;
 }
 
-// A big wheel: fat dark tyre with a bright silver hub that reads at a
-// glance, pushed out to the corners of the car.
-function wheelMesh() {
-  const g = new THREE.Group();
-  const tyre = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.48, 0.48, 0.3, 16),
-    new THREE.MeshStandardMaterial({ color: 0x14141a, roughness: 0.9 }),
-  );
-  tyre.rotation.z = Math.PI / 2;
-  tyre.castShadow = true;
-  const hub = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.28, 0.28, 0.32, 12),
-    new THREE.MeshStandardMaterial({ color: 0xd8dce2, roughness: 0.3, metalness: 0.8 }),
-  );
-  hub.rotation.z = Math.PI / 2;
-  const cap = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.12, 0.12, 0.34, 8),
-    new THREE.MeshStandardMaterial({ color: 0x222226, roughness: 0.5, metalness: 0.5 }),
-  );
-  cap.rotation.z = Math.PI / 2;
-  g.add(tyre, hub, cap);
-  return g;
-}
-
-function addWheels(group, halfW, halfL, y = 0.48) {
-  const wheels = [];
-  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-    const w = wheelMesh();
-    w.position.set(sx * halfW, y, sz * halfL);
-    group.add(w);
-    wheels.push(w);
-  }
-  group.userData.wheels = wheels;
-  return wheels;
-}
-
-function lightBar(group, y) {
-  const bar = new THREE.Group();
-  // a white roof pod under the bar, then big red/blue lamps
-  const pod = new THREE.Mesh(
-    new THREE.BoxGeometry(1.5, 0.1, 0.42),
-    new THREE.MeshStandardMaterial({ color: 0xf2f2ee, roughness: 0.4, metalness: 0.2 }),
-  );
-  pod.position.y = -0.12;
-  const red = new THREE.Mesh(
-    new THREE.BoxGeometry(0.65, 0.22, 0.34),
-    new THREE.MeshStandardMaterial({ color: 0xd92020, emissive: 0xd92020, emissiveIntensity: 0.9, roughness: 0.4 }),
-  );
-  red.position.set(-0.36, 0, 0);
-  const blue = new THREE.Mesh(
-    new THREE.BoxGeometry(0.65, 0.22, 0.34),
-    new THREE.MeshStandardMaterial({ color: 0x2050d0, emissive: 0x2050d0, emissiveIntensity: 0.9, roughness: 0.4 }),
-  );
-  blue.position.set(0.36, 0, 0);
-  bar.add(pod, red, blue);
-  bar.position.y = y;
-  group.add(bar);
-  group.userData.lightRed = red;
-  group.userData.lightBlue = blue;
-  return bar;
-}
-
-// A white door badge with dark letters, e.g. CBPD on a cruiser door.
-function doorBadge(text) {
+// A round lamp: a GT-R taillight, a fog light, an exhaust tip.
+function roundLamp(radius, depth, color, x, y, z) {
+  const geo = new THREE.CylinderGeometry(radius, radius, depth, 16);
+  geo.rotateX(Math.PI / 2);
   const m = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.1, 0.28),
-    new THREE.MeshStandardMaterial({ map: plateTexture(text) }),
+    geo,
+    new THREE.MeshStandardMaterial({
+      color, emissive: color, emissiveIntensity: 0.9, roughness: 0.25, metalness: 0.2,
+    }),
   );
+  m.position.set(x, y, z);
   return m;
 }
 
-// The hero: a long, low, wide orange GT — a long gently-sloped hood,
-// a raked narrow glasshouse, white racing stripes, a big black grille,
-// glowing headlights, a wing spoiler, and big wheels with bright hubs.
-// 5.0 m long, 2.18 m wide, roof under a metre — a wedge, not a box.
+// A wheel: a chunky tire, a dark rim disc, a bright hub and five
+// spokes on the outer face, all in a group whose rotation.x is the
+// spin axis (the game spins userData.wheels). `side` is +1 for the
+// right wheels (outer face +X) and -1 for the left wheels.
+function wheel(radius, width, side, rimColor = 0x1a1a22, hubColor = 0xcfd8dc) {
+  const g = new THREE.Group();
+  const tireGeo = new THREE.CylinderGeometry(radius, radius, width, 20);
+  tireGeo.rotateZ(Math.PI / 2);
+  const tire = new THREE.Mesh(tireGeo, std(0x14141a, 0.9, 0.1));
+  tire.castShadow = true;
+  g.add(tire);
+  // rim disc, slightly proud of the tire on the outer face
+  const rimGeo = new THREE.CylinderGeometry(radius * 0.62, radius * 0.62, width + 0.04, 16);
+  rimGeo.rotateZ(Math.PI / 2);
+  const rim = new THREE.Mesh(rimGeo, std(rimColor, 0.35, 0.65));
+  g.add(rim);
+  // bright hub cap on the outer face
+  const hubGeo = new THREE.CylinderGeometry(radius * 0.26, radius * 0.26, width + 0.08, 12);
+  hubGeo.rotateZ(Math.PI / 2);
+  const hub = new THREE.Mesh(hubGeo, std(hubColor, 0.3, 0.7));
+  g.add(hub);
+  // five spokes radiating from the hub across the outer face
+  const faceX = side * (width / 2 + 0.03);
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    const s = new THREE.Mesh(new THREE.BoxGeometry(0.05, radius * 0.62, 0.1), std(rimColor, 0.35, 0.65));
+    s.position.set(faceX, Math.cos(a) * radius * 0.32, Math.sin(a) * radius * 0.32);
+    s.rotation.x = a;
+    g.add(s);
+  }
+  return g;
+}
+
+// A roof light bar: a red beacon and a blue beacon on a dark base.
+// Returns { group, red, blue } — the caller exposes red/blue as
+// userData.lightRed / lightBlue so the game can flash them.
+function lightBar() {
+  const g = new THREE.Group();
+  g.add(box(1.25, 0.09, 0.5, std(0x1a1a22, 0.5, 0.4), 0, 0, 0));
+  const redMat = new THREE.MeshStandardMaterial({ color: 0xff2020, emissive: 0xff0000, emissiveIntensity: 1.2, roughness: 0.3 });
+  const blueMat = new THREE.MeshStandardMaterial({ color: 0x2040ff, emissive: 0x0000ff, emissiveIntensity: 1.2, roughness: 0.3 });
+  const red = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.24, 0.45), redMat);
+  red.position.set(-0.31, 0.16, 0);
+  const blue = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.24, 0.45), blueMat);
+  blue.position.set(0.31, 0.16, 0);
+  g.add(red, blue);
+  return { group: g, red, blue };
+}
+
+// A round gold badge for a police door: a gold disc with a dark star.
+function doorBadge(x, y, z, facing) {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 128;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#ffd34d';
+  ctx.beginPath(); ctx.arc(64, 64, 60, 0, 7); ctx.fill();
+  ctx.strokeStyle = '#8a6a1a'; ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.arc(64, 64, 56, 0, 7); ctx.stroke();
+  ctx.fillStyle = '#1a2a6e';
+  ctx.font = 'bold 64px Arial, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('★', 64, 68);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.34, 0.34),
+    new THREE.MeshStandardMaterial({ map: t, transparent: true, roughness: 0.4, metalness: 0.4 }),
+  );
+  m.position.set(x, y, z);
+  m.rotation.y = facing;
+  return m;
+}
+
+// A side mirror: a small stalk and a dark glass head.
+function mirror(side, y, z) {
+  const g = new THREE.Group();
+  g.add(box(0.12, 0.04, 0.04, std(0x1a1a22, 0.5, 0.4), side * 0.06, 0, 0));
+  g.add(box(0.1, 0.14, 0.2, std(0x1a1a22, 0.4, 0.5), side * 0.16, 0.02, 0));
+  g.position.set(side * 1.0, y, z);
+  return g;
+}
+
+function finishCar(g, kind, wheels) {
+  g.userData = { kind, wheels, lightRed: null, lightBlue: null };
+  return g;
+}
+
+// The hero: an orange Nissan GT-R R35. Vivid orange, a long hood, a
+// low wide stance, the cabin set back, a sloped windshield, a BIG
+// rear wing on two struts, QUAD ROUND taillights, black wheels with
+// bright hubs, a rear diffuser, side skirts, a front splitter, a
+// grille, mirrors, glass, plate CORAL-01. Wide at the rear, like the
+// real car.
 export function makeHeroCar() {
   const g = new THREE.Group();
-  g.add(box(2.18, 0.36, 5.0, PALETTE.heroOrange, 0, 0.46, 0)); // low wide body
-  g.add(slopeBox(2.16, 0.12, 1.9, PALETTE.heroOrange, 0, 0.56, 1.8, 0.26)); // long sloped nose
-  g.add(slopeBox(1.62, 0.12, 1.5, 0x2a3a4a, 0, 0.9, 0.5, -0.55)); // raked windshield
-  g.add(box(1.55, 0.24, 1.0, 0x2a3a4a, 0, 0.98, -0.3)); // narrow roof glass
-  g.add(slopeBox(1.62, 0.12, 1.1, 0x2a3a4a, 0, 0.88, -1.3, 0.55)); // sloped rear deck
-  // white racing stripes down the centre: hood, roof, trunk
-  g.add(box(0.26, 0.02, 1.85, 0xf4f0e2, -0.18, 0.66, 1.8));
-  g.add(box(0.26, 0.02, 1.85, 0xf4f0e2, 0.18, 0.66, 1.8));
-  g.add(box(0.26, 0.02, 0.95, 0xf4f0e2, -0.18, 1.11, -0.3));
-  g.add(box(0.26, 0.02, 0.95, 0xf4f0e2, 0.18, 1.11, -0.3));
-  g.add(box(0.26, 0.02, 1.05, 0xf4f0e2, -0.18, 1.02, -1.3));
-  g.add(box(0.26, 0.02, 1.05, 0xf4f0e2, 0.18, 1.02, -1.3));
-  g.add(box(1.4, 0.16, 0.06, 0x14141a, 0, 0.5, 2.51)); // black grille
-  g.add(box(2.2, 0.1, 0.5, 0x2a2a30, 0, 0.32, 2.4)); // front splitter
-  g.add(box(0.12, 0.18, 4.0, 0x1c1c22, -1.1, 0.34, 0)); // side skirts
-  g.add(box(0.12, 0.18, 4.0, 0x1c1c22, 1.1, 0.34, 0));
-  // wing spoiler on two struts
-  g.add(box(0.1, 0.28, 0.1, 0x1c1c22, -0.75, 0.86, -2.28));
-  g.add(box(0.1, 0.28, 0.1, 0x1c1c22, 0.75, 0.86, -2.28));
-  g.add(box(2.1, 0.07, 0.55, 0x2a2a30, 0, 1.03, -2.28)); // wing
-  g.add(lamp(0.75, 0.13, 0.06, 0xffe9a8, -0.66, 0.56, 2.51)); // headlights
-  g.add(lamp(0.75, 0.13, 0.06, 0xffe9a8, 0.66, 0.56, 2.51));
-  g.add(lamp(0.4, 0.12, 0.06, 0xff2a2a, -0.68, 0.54, -2.51)); // tail lights
-  g.add(lamp(0.4, 0.12, 0.06, 0xff2a2a, 0.68, 0.54, -2.51));
+  const orange = std(PALETTE.heroOrange, 0.32, 0.55);
+  const orangeDark = std(0xd94f00, 0.4, 0.5);
+  const dark = std(0x14141a, 0.5, 0.4);
+  const glass = new THREE.MeshStandardMaterial({ color: 0x14202e, roughness: 0.12, metalness: 0.8 });
+
+  // lower body: long, low, wide — the GT stance
+  g.add(box(2.0, 0.5, 4.4, orange, 0, 0.55, 0));
+  // sloped hood, falling toward the nose, with a power bulge down
+  // the centre so the hood has shape instead of a flat slab
+  g.add(box(1.9, 0.08, 1.3, orange, 0, 0.84, 1.5, -0.1));
+  g.add(box(0.85, 0.07, 1.0, orange, 0, 0.9, 1.45, -0.1));
+  // nose / front bumper with a black lower splitter
+  g.add(box(2.05, 0.32, 0.4, orange, 0, 0.42, 2.25));
+  g.add(box(2.1, 0.1, 0.5, dark, 0, 0.22, 2.28));
+  // splitter corner canards — small vertical fins at the bumper corners
+  g.add(box(0.06, 0.22, 0.4, dark, -1.02, 0.32, 2.3));
+  g.add(box(0.06, 0.22, 0.4, dark, 1.02, 0.32, 2.3));
+  // wide black grille + a lower intake, so the nose reads as a GT-R face
+  g.add(box(1.5, 0.2, 0.06, dark, 0, 0.58, 2.46));
+  g.add(box(1.7, 0.12, 0.06, dark, 0, 0.34, 2.46));
+  // angular swept headlights: wide, bright, angled back toward the
+  // fenders like the real GT-R's — not flat white rectangles
+  const hlL = lamp(0.68, 0.14, 0.06, 0xfff2c0, -0.66, 0.76, 2.46);
+  hlL.rotation.y = 0.18;
+  const hlR = lamp(0.68, 0.14, 0.06, 0xfff2c0, 0.66, 0.76, 2.46);
+  hlR.rotation.y = -0.18;
+  g.add(hlL, hlR);
+  // LED daytime strips under the headlights
+  g.add(lamp(0.5, 0.05, 0.05, 0xffffff, -0.66, 0.64, 2.47));
+  g.add(lamp(0.5, 0.05, 0.05, 0xffffff, 0.66, 0.64, 2.47));
+  // black side air intakes on the front corners
+  g.add(box(0.16, 0.22, 0.3, dark, -0.98, 0.55, 2.2));
+  g.add(box(0.16, 0.22, 0.3, dark, 0.98, 0.55, 2.2));
+  // flared front arches over the front wheels
+  g.add(box(0.22, 0.28, 1.1, orangeDark, -1.0, 0.72, 1.55));
+  g.add(box(0.22, 0.28, 1.1, orangeDark, 1.0, 0.72, 1.55));
+  // flared rear arches — the GT-R is wide at the rear
+  g.add(box(0.24, 0.3, 1.2, orangeDark, -1.02, 0.72, -1.55));
+  g.add(box(0.24, 0.3, 1.2, orangeDark, 1.02, 0.72, -1.55));
+  // cabin: glasshouse set back, lower and sleeker than a box — a
+  // sloped windshield and rear glass so the roofline falls away
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.46, 2.0), glass);
+  cabin.position.set(0, 1.0, -0.3);
+  cabin.castShadow = true;
+  g.add(cabin);
+  g.add(box(1.6, 0.06, 1.9, orange, 0, 1.26, -0.3)); // roof panel
+  g.add(box(1.62, 0.05, 0.9, glass, 0, 1.08, 0.78, -0.62)); // windshield
+  g.add(box(1.62, 0.05, 0.85, glass, 0, 1.08, -1.32, 0.5)); // rear glass
+  g.add(box(0.04, 0.36, 1.6, glass, -0.86, 1.0, -0.3)); // side glass L
+  g.add(box(0.04, 0.36, 1.6, glass, 0.86, 1.0, -0.3)); // side glass R
+  // BIG rear wing on two struts, with endplates — the GT-R signature
+  g.add(box(0.08, 0.38, 0.16, dark, -0.7, 0.98, -2.25));
+  g.add(box(0.08, 0.38, 0.16, dark, 0.7, 0.98, -2.25));
+  g.add(box(2.15, 0.07, 0.55, dark, 0, 1.18, -2.25));
+  g.add(box(0.06, 0.22, 0.55, dark, -1.08, 1.18, -2.25));
+  g.add(box(0.06, 0.22, 0.55, dark, 1.08, 1.18, -2.25));
+  // QUAD ROUND taillights — two on each side, like the real GT-R.
+  // Big and bright red so they read even from far down the boulevard.
+  g.add(roundLamp(0.17, 0.07, 0xff2a2a, -0.62, 0.72, -2.42));
+  g.add(roundLamp(0.17, 0.07, 0xff2a2a, -0.94, 0.72, -2.42));
+  g.add(roundLamp(0.17, 0.07, 0xff2a2a, 0.62, 0.72, -2.42));
+  g.add(roundLamp(0.17, 0.07, 0xff2a2a, 0.94, 0.72, -2.42));
+  // rear diffuser with vertical fins + twin exhausts
+  g.add(box(1.9, 0.26, 0.3, dark, 0, 0.35, -2.35));
+  for (const fx of [-0.6, -0.2, 0.2, 0.6]) g.add(box(0.05, 0.22, 0.34, dark, fx, 0.3, -2.38));
+  g.add(roundLamp(0.09, 0.1, 0x8a8a92, -0.45, 0.28, -2.5));
+  g.add(roundLamp(0.09, 0.1, 0x8a8a92, 0.45, 0.28, -2.5));
+  // side skirts + mirrors
+  g.add(box(0.08, 0.12, 3.2, dark, -1.02, 0.28, 0));
+  g.add(box(0.08, 0.12, 3.2, dark, 1.02, 0.28, 0));
+  g.add(mirror(-1, 1.0, 0.55));
+  g.add(mirror(1, 1.0, 0.55));
+  // plate CORAL-01 on the rear
   const plate = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.72, 0.18),
+    new THREE.PlaneGeometry(0.62, 0.16),
     new THREE.MeshStandardMaterial({ map: plateTexture('CORAL-01') }),
   );
-  plate.position.set(0, 0.42, -2.54);
+  plate.position.set(0, 0.48, -2.52);
   plate.rotation.y = Math.PI;
   g.add(plate);
-  addWheels(g, 1.04, 1.7);
-  g.userData.kind = 'hero';
-  return g;
+  // big black wheels with bright hubs — large enough to fill the
+  // arches, so the car sits on its wheels instead of floating
+  const wheels = [];
+  for (const [wx, wz] of [[-0.96, 1.55], [0.96, 1.55], [-0.96, -1.55], [0.96, -1.55]]) {
+    const w = wheel(0.46, 0.32, wx > 0 ? 1 : -1, 0x14141a, 0xd8dde2);
+    w.position.set(wx, 0.46, wz);
+    g.add(w);
+    wheels.push(w);
+  }
+  return finishCar(g, 'hero', wheels);
 }
 
-// A CBPD cruiser: long, low, wide — white body, navy doors with big
-// CBPD badges, a tall glowing red/blue light bar on a roof pod,
-// POLICE on the rear, big wheels with bright hubs — a real police car.
+// A CBPD cruiser: a black-and-white police muscle car. Black hood /
+// roof / trunk, white doors, POLICE on the hood, a round gold badge
+// on the door, EMERGENCY DIAL 911 on the rear quarter, a red+blue
+// roof light bar, a black front push bar, black steel wheels with a
+// silver centre.
 export function makeCruiser() {
   const g = new THREE.Group();
-  g.add(box(2.16, 0.38, 4.9, PALETTE.policeWhite, 0, 0.48, 0));
-  g.add(slopeBox(2.14, 0.12, 1.8, PALETTE.policeWhite, 0, 0.58, 1.8, 0.26)); // long sloped nose
-  g.add(slopeBox(1.6, 0.12, 1.45, PALETTE.policeBlue, 0, 0.92, 0.5, -0.55)); // raked windshield
-  g.add(box(1.55, 0.24, 1.0, PALETTE.policeBlue, 0, 1.0, -0.3)); // roof
-  g.add(slopeBox(1.6, 0.12, 1.05, PALETTE.policeBlue, 0, 0.9, -1.28, 0.55)); // sloped rear deck
-  g.add(box(2.18, 0.32, 1.3, PALETTE.policeBlue, 0, 0.54, -0.2)); // navy door band
-  const badgeL = doorBadge('CBPD');
-  badgeL.position.set(-1.1, 0.54, -0.2);
-  badgeL.rotation.y = -Math.PI / 2;
-  const badgeR = doorBadge('CBPD');
-  badgeR.position.set(1.1, 0.54, -0.2);
-  badgeR.rotation.y = Math.PI / 2;
-  g.add(badgeL, badgeR);
-  g.add(box(1.4, 0.14, 0.06, 0x14141a, 0, 0.52, 2.46)); // grille
-  g.add(lamp(0.7, 0.12, 0.06, 0xffe9a8, -0.64, 0.56, 2.46));
-  g.add(lamp(0.7, 0.12, 0.06, 0xffe9a8, 0.64, 0.56, 2.46));
-  g.add(lamp(0.4, 0.12, 0.06, 0xff2a2a, -0.66, 0.56, -2.46));
-  g.add(lamp(0.4, 0.12, 0.06, 0xff2a2a, 0.66, 0.56, -2.46));
-  const rear = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.95, 0.24),
+  const white = std(PALETTE.policeWhite, 0.4, 0.3);
+  const black = std(0x14141a, 0.4, 0.5);
+  const dark = std(0x1a1a22, 0.5, 0.4);
+  const glass = new THREE.MeshStandardMaterial({ color: 0x14202e, roughness: 0.12, metalness: 0.8 });
+
+  // white main body; the black panels make the two-tone
+  g.add(box(1.95, 0.55, 4.3, white, 0, 0.6, 0));
+  g.add(box(1.85, 0.08, 1.2, black, 0, 0.9, 1.5)); // black hood
+  g.add(box(1.6, 0.08, 1.6, black, 0, 1.25, -0.2)); // black roof
+  g.add(box(1.85, 0.08, 0.9, black, 0, 0.9, -1.7)); // black trunk
+  // POLICE across the hood, reading from the front — big and bold
+  const hoodMark = textDecal('POLICE', 1.7, 0.42, '#f4f0e2', 52);
+  hoodMark.rotation.x = -Math.PI / 2;
+  hoodMark.rotation.z = Math.PI;
+  hoodMark.position.set(0, 0.95, 1.5);
+  g.add(hoodMark);
+  // black side stripe along the doors — the classic police two-tone
+  g.add(box(0.04, 0.22, 3.4, black, -0.99, 0.62, -0.2));
+  g.add(box(0.04, 0.22, 3.4, black, 0.99, 0.62, -0.2));
+  // cabin: glasshouse with white pillars
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.45, 1.8), glass);
+  cabin.position.set(0, 1.0, -0.2);
+  cabin.castShadow = true;
+  g.add(cabin);
+  g.add(box(1.62, 0.05, 0.8, glass, 0, 1.05, 0.72, -0.45)); // windshield
+  g.add(box(1.62, 0.05, 0.7, glass, 0, 1.05, -1.1, 0.4)); // rear glass
+  // round gold badge on each front door
+  g.add(doorBadge(-0.99, 0.75, 0.5, -Math.PI / 2));
+  g.add(doorBadge(0.99, 0.75, 0.5, Math.PI / 2));
+  // EMERGENCY DIAL 911 on each rear quarter
+  for (const s of [-1, 1]) {
+    const q = textDecal('EMERGENCY DIAL 911', 1.15, 0.2, '#1a2a6e', 30);
+    q.position.set(s * 0.99, 0.72, -1.35);
+    q.rotation.y = s * Math.PI / 2;
+    g.add(q);
+  }
+  // red+blue roof light bar
+  const bar = lightBar();
+  bar.group.position.set(0, 1.38, -0.2);
+  g.add(bar.group);
+  // black front push bar + grille + headlights
+  g.add(box(1.6, 0.12, 0.1, dark, 0, 0.5, 2.32));
+  g.add(box(0.1, 0.5, 0.08, dark, -0.5, 0.55, 2.32));
+  g.add(box(0.1, 0.5, 0.08, dark, 0.5, 0.55, 2.32));
+  g.add(box(1.4, 0.16, 0.06, dark, 0, 0.6, 2.3));
+  g.add(lamp(0.5, 0.13, 0.06, 0xffe9a8, -0.62, 0.78, 2.3));
+  g.add(lamp(0.5, 0.13, 0.06, 0xffe9a8, 0.62, 0.78, 2.3));
+  // taillights + POLICE plate on the rear
+  g.add(lamp(0.45, 0.13, 0.06, 0xff2a2a, -0.62, 0.78, -2.18));
+  g.add(lamp(0.45, 0.13, 0.06, 0xff2a2a, 0.62, 0.78, -2.18));
+  const plate = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.62, 0.16),
     new THREE.MeshStandardMaterial({ map: plateTexture('POLICE') }),
   );
-  rear.position.set(0, 0.6, -2.49);
-  rear.rotation.y = Math.PI;
-  g.add(rear);
-  lightBar(g, 1.36);
-  addWheels(g, 1.04, 1.65);
-  g.userData.kind = 'cruiser';
-  return g;
+  plate.position.set(0, 0.48, -2.2);
+  plate.rotation.y = Math.PI;
+  g.add(plate);
+  // mirrors
+  g.add(mirror(-1, 0.98, 0.5));
+  g.add(mirror(1, 0.98, 0.5));
+  // black steel wheels with a silver centre
+  const wheels = [];
+  for (const [wx, wz] of [[-0.9, 1.45], [0.9, 1.45], [-0.9, -1.45], [0.9, -1.45]]) {
+    const w = wheel(0.4, 0.3, wx > 0 ? 1 : -1, 0x14141a, 0xcfd8dc);
+    w.position.set(wx, 0.4, wz);
+    g.add(w);
+    wheels.push(w);
+  }
+  const car = finishCar(g, 'cruiser', wheels);
+  car.userData.lightRed = bar.red;
+  car.userData.lightBlue = bar.blue;
+  return car;
 }
 
-// Civilian traffic in soft island colours — low, wide, long sloped
-// nose and windshield, glowing headlights, big wheels, so the street
-// reads as cars.
+// The burning vehicle: a black-and-white police Ranger SUV. Black
+// hood / roof, white doors, POLICE on the door, a round badge, a
+// red+blue light bar, off-road tires with silver rims, a front bull
+// bar, a white stripe on the hood, a spare on the back.
+export function makePoliceVan() {
+  const g = new THREE.Group();
+  const white = std(PALETTE.policeWhite, 0.4, 0.3);
+  const black = std(0x14141a, 0.4, 0.5);
+  const dark = std(0x1a1a22, 0.5, 0.4);
+  const glass = new THREE.MeshStandardMaterial({ color: 0x14202e, roughness: 0.12, metalness: 0.8 });
+
+  // tall 4x4 body: white, with the black hood and roof
+  g.add(box(2.0, 0.8, 4.6, white, 0, 0.75, 0));
+  g.add(box(1.9, 0.08, 1.3, black, 0, 1.18, 1.6)); // black hood
+  g.add(box(0.5, 0.02, 1.3, white, 0, 1.23, 1.6)); // white hood stripe
+  g.add(box(1.7, 0.08, 2.2, black, 0, 1.6, -0.3)); // black roof
+  // POLICE on each front door — big and bold
+  for (const s of [-1, 1]) {
+    const d = textDecal('POLICE', 1.15, 0.3, '#1a2a6e', 46);
+    d.position.set(s * 1.01, 0.88, 0.6);
+    d.rotation.y = s * Math.PI / 2;
+    g.add(d);
+  }
+  // round gold badge on each door, under the POLICE text
+  g.add(doorBadge(-1.01, 0.55, 0.6, -Math.PI / 2));
+  g.add(doorBadge(1.01, 0.55, 0.6, Math.PI / 2));
+  // big glasshouse — an SUV has tall windows
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.55, 2.4), glass);
+  cabin.position.set(0, 1.35, -0.3);
+  cabin.castShadow = true;
+  g.add(cabin);
+  g.add(box(1.72, 0.05, 0.9, glass, 0, 1.38, 0.95, -0.4)); // windshield
+  g.add(box(1.72, 0.05, 0.8, glass, 0, 1.38, -1.5, 0.35)); // rear glass
+  // red+blue roof light bar
+  const bar = lightBar();
+  bar.group.position.set(0, 1.72, -0.3);
+  g.add(bar.group);
+  // front bull bar + grille + high headlights
+  g.add(box(1.8, 0.12, 0.12, dark, 0, 0.7, 2.42));
+  g.add(box(0.12, 0.7, 0.1, dark, -0.6, 0.75, 2.42));
+  g.add(box(0.12, 0.7, 0.1, dark, 0.6, 0.75, 2.42));
+  g.add(box(1.3, 0.18, 0.06, dark, 0, 0.85, 2.4));
+  g.add(lamp(0.5, 0.14, 0.06, 0xffe9a8, -0.68, 1.02, 2.4));
+  g.add(lamp(0.5, 0.14, 0.06, 0xffe9a8, 0.68, 1.02, 2.4));
+  // taillights + spare tire on the back door
+  g.add(lamp(0.45, 0.14, 0.06, 0xff2a2a, -0.68, 1.02, -2.32));
+  g.add(lamp(0.45, 0.14, 0.06, 0xff2a2a, 0.68, 1.02, -2.32));
+  const spareGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.22, 18);
+  spareGeo.rotateX(Math.PI / 2);
+  const spare = new THREE.Mesh(spareGeo, std(0x14141a, 0.9, 0.1));
+  spare.position.set(0, 1.0, -2.38);
+  spare.castShadow = true;
+  g.add(spare);
+  const spareHubGeo = new THREE.CylinderGeometry(0.18, 0.18, 0.26, 12);
+  spareHubGeo.rotateX(Math.PI / 2);
+  const spareHub = new THREE.Mesh(spareHubGeo, std(0xcfd8dc, 0.3, 0.7));
+  spareHub.position.set(0, 1.0, -2.38);
+  g.add(spareHub);
+  // running boards along the sides
+  g.add(box(0.15, 0.08, 3.0, dark, -1.05, 0.45, 0));
+  g.add(box(0.15, 0.08, 3.0, dark, 1.05, 0.45, 0));
+  // mirrors
+  g.add(mirror(-1, 1.25, 0.7));
+  g.add(mirror(1, 1.25, 0.7));
+  // off-road tires: bigger, with a chunky tread ring and silver rims
+  const wheels = [];
+  for (const [wx, wz] of [[-0.95, 1.6], [0.95, 1.6], [-0.95, -1.6], [0.95, -1.6]]) {
+    const w = wheel(0.5, 0.35, wx > 0 ? 1 : -1, 0x1a1a22, 0xd8dde2);
+    // tread blocks around the tire
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      const t = new THREE.Mesh(new THREE.BoxGeometry(0.37, 0.09, 0.14), std(0x1e1e24, 0.95, 0.05));
+      t.position.set(0, Math.cos(a) * 0.5, Math.sin(a) * 0.5);
+      t.rotation.x = a;
+      w.add(t);
+    }
+    w.position.set(wx, 0.5, wz);
+    g.add(w);
+    wheels.push(w);
+  }
+  // the fire anchors over the engine / hood
+  const flameAnchor = new THREE.Object3D();
+  flameAnchor.position.set(0, 1.45, -0.6);
+  g.add(flameAnchor);
+  const car = finishCar(g, 'van', wheels);
+  car.userData.lightRed = bar.red;
+  car.userData.lightBlue = bar.blue;
+  car.userData.flameAnchor = flameAnchor;
+  return car;
+}
+
+// Civilian traffic in soft island colours — a proper sedan: a lower
+// body, a set-back cabin with glass, a grille, headlights and
+// taillights, mirrors, wheels.
 const CIVILIAN_COLORS = [0xd94f4f, 0x4f7fd9, 0xe8d44f, 0x7fd94f, 0xc9c9c9, 0x8a6fd9, 0xe8a34f, 0x4fd9c9];
 export function makeCivilianCar(rng) {
   const color = rng.pick(CIVILIAN_COLORS);
   const g = new THREE.Group();
-  g.add(box(2.0, 0.38, 4.5, color, 0, 0.48, 0));
-  g.add(slopeBox(1.98, 0.12, 1.7, color, 0, 0.56, 1.65, 0.26)); // long sloped nose
-  g.add(slopeBox(1.56, 0.12, 1.35, 0x223038, 0, 0.88, 0.45, -0.55)); // raked windshield
-  g.add(box(1.5, 0.24, 0.95, 0x223038, 0, 0.96, -0.28)); // roof glass
-  g.add(slopeBox(1.56, 0.12, 1.0, 0x223038, 0, 0.86, -1.15, 0.55)); // sloped rear deck
-  g.add(box(1.3, 0.12, 0.06, 0x14141a, 0, 0.52, 2.26)); // grille
-  g.add(lamp(0.6, 0.11, 0.06, 0xffe9a8, -0.6, 0.56, 2.26));
-  g.add(lamp(0.6, 0.11, 0.06, 0xffe9a8, 0.6, 0.56, 2.26));
-  g.add(lamp(0.36, 0.11, 0.06, 0xff2a2a, -0.62, 0.56, -2.26));
-  g.add(lamp(0.36, 0.11, 0.06, 0xff2a2a, 0.62, 0.56, -2.26));
-  addWheels(g, 0.98, 1.5);
-  g.userData.kind = 'civilian';
-  return g;
+  const paint = std(color, 0.4, 0.4);
+  const dark = std(0x1a1a22, 0.5, 0.4);
+  const glass = new THREE.MeshStandardMaterial({ color: 0x14202e, roughness: 0.12, metalness: 0.8 });
+  g.add(box(1.9, 0.5, 4.2, paint, 0, 0.55, 0));
+  g.add(box(1.8, 0.07, 1.1, paint, 0, 0.82, 1.45, -0.08)); // sloped hood
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.45, 1.9), glass);
+  cabin.position.set(0, 1.0, -0.25);
+  cabin.castShadow = true;
+  g.add(cabin);
+  g.add(box(1.5, 0.06, 1.8, paint, 0, 1.25, -0.25)); // roof
+  g.add(box(1.52, 0.05, 0.8, glass, 0, 1.05, 0.7, -0.45)); // windshield
+  g.add(box(1.52, 0.05, 0.7, glass, 0, 1.05, -1.15, 0.4)); // rear glass
+  g.add(box(1.2, 0.14, 0.06, dark, 0, 0.55, 2.12)); // grille
+  g.add(lamp(0.45, 0.12, 0.06, 0xffe9a8, -0.6, 0.7, 2.12));
+  g.add(lamp(0.45, 0.12, 0.06, 0xffe9a8, 0.6, 0.7, 2.12));
+  g.add(lamp(0.4, 0.12, 0.06, 0xff2a2a, -0.6, 0.7, -2.12));
+  g.add(lamp(0.4, 0.12, 0.06, 0xff2a2a, 0.6, 0.7, -2.12));
+  g.add(mirror(-1, 0.95, 0.5));
+  g.add(mirror(1, 0.95, 0.5));
+  const wheels = [];
+  for (const [wx, wz] of [[-0.88, 1.4], [0.88, 1.4], [-0.88, -1.4], [0.88, -1.4]]) {
+    const w = wheel(0.38, 0.28, wx > 0 ? 1 : -1, 0x1a1a22, 0xcfd8dc);
+    w.position.set(wx, 0.38, wz);
+    g.add(w);
+    wheels.push(w);
+  }
+  return finishCar(g, 'car', wheels);
 }
 
-// The white police box van for the beach stand-off: a two-tone body
-// with a long sloped cab nose, navy side stripe with CBPD badges, a
-// tall light bar on a roof pod, glowing headlights, big wheels — and
-// a flame socket the game lights on fire.
-export function makePoliceVan() {
-  const g = new THREE.Group();
-  g.add(box(2.15, 1.35, 4.7, 0xe8e8e2, 0, 1.0, 0));
-  g.add(box(2.0, 0.6, 1.4, 0x223038, 0, 1.3, 1.5)); // cab glass
-  g.add(slopeBox(2.05, 0.3, 1.2, 0xe8e8e2, 0, 0.68, 2.3, 0.4)); // long sloped nose
-  g.add(box(2.17, 0.4, 1.6, PALETTE.policeBlue, 0, 0.68, 0.2)); // navy side stripe
-  const badgeL = doorBadge('CBPD');
-  badgeL.position.set(-1.09, 0.68, 0.2);
-  badgeL.rotation.y = -Math.PI / 2;
-  const badgeR = doorBadge('CBPD');
-  badgeR.position.set(1.09, 0.68, 0.2);
-  badgeR.rotation.y = Math.PI / 2;
-  g.add(badgeL, badgeR);
-  g.add(box(1.3, 0.16, 0.06, 0x14141a, 0, 0.58, 2.76)); // grille
-  g.add(lamp(0.6, 0.14, 0.06, 0xffe9a8, -0.62, 0.7, 2.76));
-  g.add(lamp(0.6, 0.14, 0.06, 0xffe9a8, 0.62, 0.7, 2.76));
-  lightBar(g, 1.85);
-  addWheels(g, 1.02, 1.6);
-  const flameAnchor = new THREE.Object3D();
-  flameAnchor.position.set(0, 1.45, -0.6);
-  g.add(flameAnchor);
-  g.userData.flameAnchor = flameAnchor;
-  g.userData.kind = 'van';
-  return g;
-}
-
-// A little red scooter for the boulevard (the cover's street life).
+// A scooter: a low deck, two small wheels, a handlebar, a seat.
 export function makeScooter() {
   const g = new THREE.Group();
-  g.add(box(0.5, 0.35, 1.6, 0xd92020, 0, 0.5, 0));
-  g.add(box(0.4, 0.5, 0.5, 0x222226, 0, 0.85, -0.5));
-  const w1 = wheelMesh(); w1.scale.set(0.8, 0.8, 0.8); w1.position.set(0, 0.3, 0.7);
-  const w2 = wheelMesh(); w2.scale.set(0.8, 0.8, 0.8); w2.position.set(0, 0.3, -0.7);
-  g.add(w1, w2);
-  g.userData.wheels = [w1, w2];
-  g.userData.kind = 'scooter';
-  return g;
+  const paint = std(0xd92020, 0.4, 0.4);
+  const dark = std(0x1a1a22, 0.5, 0.4);
+  g.add(box(0.5, 0.12, 1.5, paint, 0, 0.35, 0)); // deck
+  g.add(box(0.45, 0.3, 0.5, paint, 0, 0.55, -0.55)); // rear body
+  g.add(box(0.4, 0.25, 0.45, dark, 0, 0.62, -0.55)); // seat
+  g.add(box(0.35, 0.5, 0.25, paint, 0, 0.6, 0.65)); // front shield
+  const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6, 8), dark);
+  bar.rotation.z = Math.PI / 2;
+  bar.position.set(0, 0.95, 0.6);
+  g.add(bar);
+  g.add(lamp(0.2, 0.1, 0.06, 0xffe9a8, 0, 0.7, 0.78));
+  const wheels = [];
+  for (const wz of [0.65, -0.65]) {
+    const w = wheel(0.28, 0.14, 1, 0x14141a, 0xcfd8dc);
+    w.position.set(0, 0.28, wz);
+    g.add(w);
+    wheels.push(w);
+  }
+  return finishCar(g, 'scooter', wheels);
 }

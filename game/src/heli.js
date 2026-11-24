@@ -1,11 +1,13 @@
-// The CBPD helicopter: a REAL helicopter silhouette — a long, slim
-// fuselage (far longer than tall, never a fat cylinder, never a box),
-// a tapered nose with a distinct glass cockpit, a long thin tail boom
-// with fin and tail rotor, a rotor mast on top, skids underneath, nav
-// lights, and a bright searchlight beam that lands a warm pool of
-// light on whatever it watches — the player, the hero car, the beach.
-// The staged shots yaw it side-on (heli.yawOffset) so the camera sees
-// the full length of the aircraft, not the nose.
+// The CBPD helicopter — a REAL Bell 206 / Police Maverick, not a
+// drum and not a box. A white rounded egg-shaped cabin with a BIG
+// black glass cockpit (a curved windshield and dark side windows),
+// a long thin dark blue tail boom with POLICE in white along it, a
+// tall tail fin with a tail rotor, a four-blade main rotor on a mast,
+// thin black skids, nav lights, and a searchlight ball under the
+// nose whose beam lands a warm pool of light on whatever it watches.
+// Long, slim, tapered — the whole aircraft is far longer than tall.
+// The staged shots yaw it side-on (heli.yawOffset) so the camera
+// sees the full length of the aircraft, not the nose.
 import * as THREE from 'three';
 import { glowTexture } from './materials.js';
 
@@ -13,167 +15,185 @@ function std(color, roughness = 0.4, metalness = 0.35) {
   return new THREE.MeshStandardMaterial({ color, roughness, metalness });
 }
 
+// White POLICE lettering for the tail boom, on a transparent plane.
+function boomMarking() {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 96;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 512, 96);
+  ctx.fillStyle = '#f4f0e2';
+  ctx.font = 'bold 72px Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('POLICE', 256, 50);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.Mesh(
+    new THREE.PlaneGeometry(2.6, 0.5),
+    new THREE.MeshStandardMaterial({ map: t, transparent: true, roughness: 0.5, metalness: 0.1 }),
+  );
+}
+
 export function makeHeli() {
   const g = new THREE.Group();
-  const white = std(0xf2f2ee, 0.35, 0.25);
+  const white = std(0xf8f8f4, 0.3, 0.25);
   const navy = std(0x1c3a6e, 0.4, 0.3);
   const dark = std(0x1a1a22, 0.5, 0.4);
-  const glassMat = new THREE.MeshStandardMaterial({ color: 0x16324a, roughness: 0.12, metalness: 0.75 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x0c141c, roughness: 0.05, metalness: 0.9 });
 
-  // slim fuselage: a long thin cylinder along Z — 3.2 long, 1.1 across,
-  // so the body reads as an aircraft fuselage, never a drum
-  const fuselage = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 3.2, 14), white);
-  fuselage.rotation.x = Math.PI / 2;
-  fuselage.position.set(0, 0, 0.1);
-  fuselage.castShadow = true;
-  // tapered nose cone: the front narrows to a point, it is not a ball
-  const nose = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.55, 1.3, 12), white);
-  nose.rotation.x = Math.PI / 2;
-  nose.position.set(0, -0.02, 2.35);
+  // cabin: a white rounded egg — a sphere stretched long and squashed
+  // flat, so it reads as a helicopter cabin, never a cylinder
+  const cabin = new THREE.Mesh(new THREE.SphereGeometry(0.85, 20, 16), white);
+  cabin.scale.set(1.0, 0.78, 1.75);
+  cabin.position.set(0, 0.05, 0.35);
+  cabin.castShadow = true;
+  g.add(cabin);
+  // nose: a smaller white egg at the front, tapering the cabin down
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.52, 16, 12), white);
+  nose.scale.set(0.9, 0.72, 1.2);
+  nose.position.set(0, -0.08, 1.7);
   nose.castShadow = true;
-  // nose tip cap
-  const noseTip = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), dark);
-  noseTip.position.set(0, -0.02, 3.0);
-  // glass cockpit: a big dark bubble over the front-top — the windshield
-  // that reads from below and from the side
-  const canopy = new THREE.Mesh(new THREE.SphereGeometry(0.58, 16, 12), glassMat);
-  canopy.scale.set(0.95, 0.6, 1.35);
-  canopy.position.set(0, 0.32, 1.55);
+  g.add(nose);
+  // BIG black glass cockpit: a large curved bubble wrapping the
+  // front-top of the cabin — the windshield the camera reads from
+  // any angle. Bigger and glossier than a black blob: it covers the
+  // whole front of the cabin like a real Bell 206 bubble.
+  const canopy = new THREE.Mesh(new THREE.SphereGeometry(0.88, 20, 14), glassMat);
+  canopy.scale.set(1.0, 0.75, 1.25);
+  canopy.position.set(0, 0.25, 1.35);
+  g.add(canopy);
   // side windows: dark glass panels on each side of the cabin
-  const winGeo = new THREE.PlaneGeometry(1.15, 0.5);
+  const winGeo = new THREE.PlaneGeometry(1.3, 0.55);
   const winL = new THREE.Mesh(winGeo, glassMat);
-  winL.position.set(-0.56, 0.18, 1.15);
+  winL.position.set(-0.82, 0.18, 0.55);
   winL.rotation.y = -Math.PI / 2;
   const winR = new THREE.Mesh(winGeo, glassMat);
-  winR.position.set(0.56, 0.18, 1.15);
+  winR.position.set(0.82, 0.18, 0.55);
   winR.rotation.y = Math.PI / 2;
-  // navy cheatline along each side
-  const stripeL = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.22, 3.0), navy);
-  stripeL.position.set(-0.55, -0.18, 0.1);
+  g.add(winL, winR);
+  // navy cheatline along each side of the cabin
+  const stripeL = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 2.6), navy);
+  stripeL.position.set(-0.84, -0.28, 0.35);
   const stripeR = stripeL.clone();
-  stripeR.position.x = 0.55;
+  stripeR.position.x = 0.84;
+  g.add(stripeL, stripeR);
   // navy belly
-  const belly = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.22, 2.6), navy);
-  belly.position.set(0, -0.52, 0.1);
-  // POLICE marking on each side of the cabin
-  const markGeo = new THREE.PlaneGeometry(1.3, 0.32);
-  const markMat = new THREE.MeshStandardMaterial({
-    map: (() => {
-      const c = document.createElement('canvas');
-      c.width = 256; c.height = 64;
-      const ctx = c.getContext('2d');
-      ctx.fillStyle = '#f4f0e2'; ctx.fillRect(0, 0, 256, 64);
-      ctx.fillStyle = '#1a2a6e';
-      ctx.font = 'bold 36px Arial, sans-serif';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('POLICE', 128, 34);
-      const t = new THREE.CanvasTexture(c);
-      t.colorSpace = THREE.SRGBColorSpace;
-      return t;
-    })(),
-  });
-  const markL = new THREE.Mesh(markGeo, markMat);
-  markL.position.set(-0.57, -0.05, -0.55);
-  markL.rotation.y = -Math.PI / 2;
-  const markR = new THREE.Mesh(markGeo, markMat);
-  markR.position.set(0.57, -0.05, -0.55);
-  markR.rotation.y = Math.PI / 2;
-  // tapered tail cone: the fuselage narrows into the boom
-  const tailCone = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.5, 0.9, 10), white);
+  const belly = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.18, 2.4), navy);
+  belly.position.set(0, -0.62, 0.35);
+  g.add(belly);
+  // tapered tail cone: the cabin narrows into the boom
+  const tailCone = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.55, 1.0, 10), navy);
   tailCone.rotation.x = Math.PI / 2;
-  tailCone.position.set(0, 0.08, -1.95);
-  // long thin tail boom, rising slightly toward the tail
-  const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.2, 3.4, 8), white);
-  boom.rotation.x = Math.PI / 2 - 0.06;
-  boom.position.set(0, 0.32, -4.0);
+  tailCone.position.set(0, 0.18, -1.55);
+  g.add(tailCone);
+  // long thin tail boom, dark blue, rising slightly toward the tail
+  const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.17, 3.6, 8), navy);
+  boom.rotation.x = Math.PI / 2 - 0.05;
+  boom.position.set(0, 0.38, -3.7);
   boom.castShadow = true;
-  // tail fin (vertical) + horizontal stabiliser
-  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.25, 0.7), navy);
-  fin.position.set(0, 0.95, -5.55);
-  const stab = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.07, 0.45), white);
-  stab.position.set(0, 0.45, -5.3);
-  // tail rotor: small cross on the fin, spins
+  g.add(boom);
+  // POLICE in white along each side of the boom
+  const markL = boomMarking();
+  markL.position.set(-0.14, 0.38, -3.7);
+  markL.rotation.y = -Math.PI / 2;
+  const markR = boomMarking();
+  markR.position.set(0.14, 0.38, -3.7);
+  markR.rotation.y = Math.PI / 2;
+  g.add(markL, markR);
+  // tall tail fin (vertical) + horizontal stabiliser
+  const fin = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.35, 0.75), navy);
+  fin.position.set(0, 1.0, -5.4);
+  g.add(fin);
+  const stab = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.07, 0.5), white);
+  stab.position.set(0, 0.5, -5.15);
+  g.add(stab);
+  // tail rotor: a small two-blade cross on the fin, spins
   const tailRotor = new THREE.Group();
   const trMat = std(0x14141a, 0.5, 0.4);
-  const tr1 = new THREE.Mesh(new THREE.BoxGeometry(0.07, 1.05, 0.09), trMat);
-  const tr2 = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.09, 1.05), trMat);
+  const tr1 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.1, 0.08), trMat);
+  const tr2 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.08, 1.1), trMat);
   tailRotor.add(tr1, tr2);
-  tailRotor.position.set(0.11, 0.95, -5.55);
-  // skids: two long tubes with four struts
-  const skidMat = dark;
+  tailRotor.position.set(0.12, 1.0, -5.4);
+  g.add(tailRotor);
+  // skids: two long thin tubes with four struts
   for (const sx of [-0.68, 0.68]) {
-    const skid = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3.4, 8), skidMat);
-    skid.rotation.x = Math.PI / 2;
-    skid.position.set(sx, -1.0, 0.3);
+    const skidGeo = new THREE.CylinderGeometry(0.055, 0.055, 3.4, 8);
+    skidGeo.rotateX(Math.PI / 2);
+    const skid = new THREE.Mesh(skidGeo, dark);
+    skid.position.set(sx, -1.05, 0.35);
     g.add(skid);
-    for (const sz of [-0.7, 1.0]) {
-      const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.45, 6), skidMat);
-      strut.position.set(sx, -0.82, sz);
+    for (const sz of [-0.65, 1.05]) {
+      const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.5, 6), dark);
+      strut.position.set(sx, -0.85, sz);
       strut.rotation.z = sx > 0 ? -0.3 : 0.3;
       g.add(strut);
     }
   }
-  // mast + main rotor: four long blades and a translucent blur disc
-  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.55, 8), dark);
-  mast.position.y = 0.85;
+  // mast + main rotor: four long thin blades and a translucent blur disc
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.6, 8), dark);
+  mast.position.y = 0.9;
+  g.add(mast);
   const rotor = new THREE.Group();
   const bladeMat = std(0x14141a, 0.5, 0.4);
   for (let i = 0; i < 4; i++) {
-    const blade = new THREE.Mesh(new THREE.BoxGeometry(4.1, 0.05, 0.26), bladeMat);
     const holder = new THREE.Group();
     holder.rotation.y = (i / 4) * Math.PI * 2;
-    blade.position.x = 2.2;
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.05, 0.26), bladeMat);
+    blade.position.x = 2.25;
     holder.add(blade);
     rotor.add(holder);
   }
   const blur = new THREE.Mesh(
-    new THREE.CircleGeometry(4.1, 24),
-    new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.13, side: THREE.DoubleSide, depthWrite: false }),
+    new THREE.CircleGeometry(4.2, 24),
+    new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false }),
   );
   blur.rotation.x = -Math.PI / 2;
   rotor.add(blur);
-  rotor.position.y = 1.15;
+  rotor.position.y = 1.2;
+  g.add(rotor);
   // nav lights: red left, green right, white tail — they glow
-  const navL = new THREE.Mesh(
-    new THREE.SphereGeometry(0.11, 8, 8),
-    new THREE.MeshBasicMaterial({ color: 0xff2a2a }),
+  const navL = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff2a2a }));
+  navL.position.set(-0.85, 0, 0.9);
+  const navR = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 8), new THREE.MeshBasicMaterial({ color: 0x2aff5a }));
+  navR.position.set(0.85, 0, 0.9);
+  const navT = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  navT.position.set(0, 0.55, -5.6);
+  g.add(navL, navR, navT);
+  // searchlight ball under the nose
+  const lampBall = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 10), dark);
+  lampBall.position.set(0, -0.72, 1.35);
+  g.add(lampBall);
+  const lampLens = new THREE.Mesh(
+    new THREE.SphereGeometry(0.16, 10, 8),
+    new THREE.MeshBasicMaterial({ color: 0xfff2b0 }),
   );
-  navL.position.set(-0.58, 0, 0.9);
-  const navR = new THREE.Mesh(
-    new THREE.SphereGeometry(0.11, 8, 8),
-    new THREE.MeshBasicMaterial({ color: 0x2aff5a }),
-  );
-  navR.position.set(0.58, 0, 0.9);
-  const navT = new THREE.Mesh(
-    new THREE.SphereGeometry(0.09, 8, 8),
-    new THREE.MeshBasicMaterial({ color: 0xffffff }),
-  );
-  navT.position.set(0, 0.5, -5.75);
-  // belly searchlight housing
-  const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.28, 0.28, 10), dark);
-  lamp.position.set(0, -0.68, 1.0);
-  // searchlight: a soft shaft of light from the belly, additive — the
-  // beam is a whisper, the warm pool on the ground is the signature
+  lampLens.position.set(0, -0.82, 1.5);
+  g.add(lampLens);
+  // searchlight: a soft shaft of light from the belly, additive.
+  // The cone's apex is translated to the origin, so the beam pivots
+  // at the searchlight ball under the nose and its wide base lands
+  // on the beam target — it reads as a searchlight aimed at someone,
+  // not a faint cone hanging under the heli. Bright enough to see.
   const beamGeo = new THREE.ConeGeometry(2.2, 26, 16, 1, true);
+  beamGeo.translate(0, -13, 0);
   const beam = new THREE.Mesh(
     beamGeo,
     new THREE.MeshBasicMaterial({
-      color: 0xfff2b0, transparent: true, opacity: 0.12,
+      color: 0xfff2b0, transparent: true, opacity: 0.16,
       blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false,
     }),
   );
-  beam.position.y = -13.4;
+  beam.position.set(0, -0.72, 1.35);
+  g.add(beam);
   // light pool: a warm glow disc that sits on the ground under the beam
   const pool = new THREE.Mesh(
-    new THREE.PlaneGeometry(12, 12),
+    new THREE.PlaneGeometry(16, 16),
     new THREE.MeshBasicMaterial({
       map: glowTexture('rgba(255,240,180,0.95)', 'rgba(255,200,90,0.4)'),
-      transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false,
+      transparent: true, opacity: 1.0, blending: THREE.AdditiveBlending, depthWrite: false,
     }),
   );
   pool.rotation.x = -Math.PI / 2;
-  g.add(fuselage, nose, noseTip, canopy, winL, winR, stripeL, stripeR, belly,
-    markL, markR, tailCone, boom, fin, stab, tailRotor, mast, rotor, navL, navR, navT, lamp, beam);
   // the whole aircraft reads bigger on screen than the old drum did
   g.scale.setScalar(1.15);
   g.userData = { kind: 'heli', rotor, tailRotor, beam, pool, phase: Math.random() * 6.28 };
@@ -210,17 +230,23 @@ export function updateHeli(heli, target, dt, time) {
     target.z + Math.cos(time * 0.19 + u.phase) * 4,
   );
   g.rotation.y = Math.atan2(target.x - g.position.x, target.z - g.position.z) + (heli.yawOffset || 0);
-  // aim the beam straight down at the target; the beam is a 26 m cone,
-  // so scale it to the hover altitude and its tip lands on the ground
-  // under the heli instead of poking through it
-  const bs = alt / 26;
-  u.beam.scale.set(1, bs, 1);
-  u.beam.position.y = -13.4 * bs;
-  const dx = target.x - g.position.x;
-  const dz = target.z - g.position.z;
-  u.beam.rotation.z = Math.atan2(dx, alt) * 0.9;
-  u.beam.rotation.x = -Math.atan2(dz, alt) * 0.9;
-  u.pool.position.set(target.x, 0.06, target.z);
+  // the searchlight aims at the beam target (the hero), which is
+  // NOT the hover point: the heli hangs ahead in the frame while
+  // its beam and light pool land ON the hero. The beam pivots at
+  // the searchlight ball and stretches to the target, so the shaft
+  // visibly connects the heli to the hero instead of landing on
+  // empty ground behind him.
+  g.updateMatrixWorld(true);
+  const bt = heli.beamTarget || target;
+  const ballWorld = g.localToWorld(new THREE.Vector3(0, -0.72, 1.35));
+  const toTarget = new THREE.Vector3(bt.x - ballWorld.x, -ballWorld.y, bt.z - ballWorld.z);
+  const dist = Math.max(toTarget.length(), 0.01);
+  const dir = toTarget.clone().normalize();
+  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir);
+  const inv = g.getWorldQuaternion(new THREE.Quaternion()).invert();
+  u.beam.quaternion.copy(inv.multiply(q));
+  u.beam.scale.set(1, dist / 26, 1);
+  u.pool.position.set(bt.x, 0.06, bt.z);
   const s = 1 + Math.sin(time * 2.1) * 0.05;
   u.pool.scale.set(s, s, 1);
 }

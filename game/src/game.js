@@ -4,7 +4,7 @@
 // playtest contract (window.__GAME__, window.__HERO__, __READY__).
 import * as THREE from 'three';
 import { Rng, hashSeed } from './rng.js';
-import { PALETTE, glowTexture } from './materials.js';
+import { PALETTE, glowTexture, flameTexture, smokeTexture } from './materials.js';
 import { buildCity, buildBlocks, buildProps, AVENUES, STREETS, BEACH_X0, districtAt } from './city.js';
 import { makeHeroCar, makeCruiser, makeCivilianCar, makePoliceVan, makeScooter } from './cars.js';
 import { makePlayer, makeOfficer, makeFallenOfficer, makePedestrian, makeBeachgoer, stepWalk } from './people.js';
@@ -107,6 +107,14 @@ export class Game {
     this._buildActors();
     this._wireInput();
     this._startMission(0);
+    // Shader warm-up: compile every program NOW, during load, so the
+    // first rendered frames don't hitch on shader compilation (the
+    // first frame cost ~2.4 s in headless SwiftShader, and a 1 s key
+    // hold landing inside it registered zero input — that's what made
+    // wheels-spin flaky). Same programs, same look; the work just
+    // moves before __READY__ instead of into the first checks. Also
+    // a real-player win: no hitch on the opening frames.
+    this.renderer.compile(this.scene, this.camera);
   }
 
   _buildThree() {
@@ -117,14 +125,14 @@ export class Game {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.8;
+    this.renderer.toneMappingExposure = 2.15;
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(0xf0c090, 200, 800);
+    this.scene.fog = new THREE.Fog(0xf0c090, 300, 1000);
     this.camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 1400);
     this.camera.position.set(0, 6, 20);
-    const hemi = new THREE.HemisphereLight(0xffd9b0, 0x6a5a4a, 1.55);
+    const hemi = new THREE.HemisphereLight(0xffd9b0, 0x6a5a4a, 1.9);
     this.scene.add(hemi);
-    const sun = new THREE.DirectionalLight(0xffc06a, 4.5);
+    const sun = new THREE.DirectionalLight(0xffb347, 6.0);
     sun.position.set(120, 150, -260);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
@@ -133,7 +141,7 @@ export class Game {
     sun.shadow.camera.far = 700;
     this.scene.add(sun);
     this.scene.add(sun.target);
-    const fill = new THREE.DirectionalLight(0xffd9a0, 1.0);
+    const fill = new THREE.DirectionalLight(0xffd9a0, 1.4);
     fill.position.set(-80, 60, 120);
     this.scene.add(fill);
     window.addEventListener('resize', () => {
@@ -181,7 +189,7 @@ export class Game {
     // fires; the group keeps the same .visible / timer interface
     // the update loop and the playtest already rely on.
     this.flash = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.9, 0.9),
+      new THREE.PlaneGeometry(1.5, 1.5),
       new THREE.MeshBasicMaterial({
         map: glowTexture('rgba(255,250,200,1)', 'rgba(255,180,60,0.6)'),
         transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
@@ -193,10 +201,10 @@ export class Game {
       new THREE.CylinderGeometry(r, r, 1, 10),
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false }),
     );
-    const beamCore = beamPart(0.09, 0xfff6c0, 0.98);
-    const beamGlow = beamPart(0.22, 0xffd34d, 0.42);
+    const beamCore = beamPart(0.14, 0xfff6c0, 0.98);
+    const beamGlow = beamPart(0.36, 0xffd34d, 0.5);
     const targetRing = new THREE.Mesh(
-      new THREE.RingGeometry(0.28, 0.42, 24),
+      new THREE.RingGeometry(0.4, 0.58, 24),
       new THREE.MeshBasicMaterial({ color: 0xff6a2a, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false }),
     );
     this.tracer = new THREE.Group();
@@ -205,26 +213,71 @@ export class Game {
     this.tracer.visible = false;
     this.scene.add(this.tracer);
     this.tracerTimer = 0;
-    // flames for the burning van (a cone of orange triangles + glow)
+    // the burning Ranger: a BIG clear fire — billboarded flame
+    // sprites (a soft teardrop with a white-hot core), not solid
+    // cones: a cone reads as an orange triangle, a sprite reads as
+    // flame. Three rings (a tall yellow core, an orange middle, a
+    // red outer ring) licking up from the engine and the cabin,
+    // plus soft grey smoke puffs rising above — round and
+    // translucent, never solid black pyramids. A wide warm glow on
+    // the sand and an orange point light so the fire lights the
+    // Ranger, the ground and the officers nearby. The fire is a
+    // named requirement: it must be GOOD and CLEAR.
     this.flames = new THREE.Group();
-    const flameMat = new THREE.MeshBasicMaterial({ color: 0xff7a1a, transparent: true, opacity: 0.9 });
-    const flameMat2 = new THREE.MeshBasicMaterial({ color: 0xffd34d, transparent: true, opacity: 0.9 });
+    const flameTex = flameTexture();
+    const flameSets = [
+      { n: 5, w: 1.5, h: 3.4, x: 0.55, z: 0.7, tint: 0xffe14d },
+      { n: 6, w: 1.8, h: 2.8, x: 0.85, z: 1.1, tint: 0xff7a1a },
+      { n: 5, w: 2.1, h: 2.3, x: 1.1, z: 1.4, tint: 0xe83a10 },
+    ];
+    for (const set of flameSets) {
+      for (let i = 0; i < set.n; i++) {
+        const mat = new THREE.SpriteMaterial({
+          map: flameTex, color: set.tint, transparent: true,
+          blending: THREE.AdditiveBlending, depthWrite: false,
+        });
+        const f = new THREE.Sprite(mat);
+        f.scale.set(set.w, set.h, 1);
+        f.position.set(this.rng.range(-set.x, set.x), set.h * 0.5, this.rng.range(-set.z, set.z) + 0.4);
+        f.userData.phase = this.rng.float() * 6.28;
+        f.userData.baseW = set.w;
+        f.userData.baseH = set.h;
+        f.userData.flame = true;
+        this.flames.add(f);
+      }
+    }
+    // smoke: soft round grey puffs that rise, grow and fade — a
+    // sprite blob, never a cone
+    const smokeTex = smokeTexture();
     for (let i = 0; i < 7; i++) {
-      const f = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.6 + this.rng.range(0, 0.9), 5), i % 2 ? flameMat : flameMat2);
-      f.position.set(this.rng.range(-0.8, 0.8), 0.8, this.rng.range(-1.2, 1.2));
-      f.userData.phase = this.rng.float() * 6.28;
-      this.flames.add(f);
+      const mat = new THREE.SpriteMaterial({
+        map: smokeTex, color: 0x9a9a9a, transparent: true, opacity: 0.34, depthWrite: false,
+      });
+      const s = new THREE.Sprite(mat);
+      const sz = 2.2 + this.rng.range(0, 1.2);
+      s.scale.set(sz, sz, 1);
+      s.position.set(this.rng.range(-0.9, 0.9), 3.2 + this.rng.range(0, 1.8), this.rng.range(-1.0, 1.0) + 0.4);
+      s.userData.phase = this.rng.float() * 6.28;
+      s.userData.smoke = true;
+      s.userData.baseY = s.position.y;
+      s.userData.baseScale = sz;
+      this.flames.add(s);
     }
     const fireGlow = new THREE.Mesh(
-      new THREE.PlaneGeometry(5, 5),
+      new THREE.PlaneGeometry(9, 9),
       new THREE.MeshBasicMaterial({
-        map: glowTexture('rgba(255,200,90,0.9)', 'rgba(255,110,20,0.4)'),
+        map: glowTexture('rgba(255,200,90,0.95)', 'rgba(255,110,20,0.4)'),
         transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
       }),
     );
     fireGlow.rotation.x = -Math.PI / 2;
     fireGlow.position.y = 0.4;
     this.flames.add(fireGlow);
+    // an orange light that flickers with the fire and lights the Ranger
+    const fireLight = new THREE.PointLight(0xff7a1a, 80, 22, 1.5);
+    fireLight.position.set(0, 2.2, 0.4);
+    this.flames.add(fireLight);
+    this.flames.userData.fireLight = fireLight;
     this.flames.visible = false;
     this.scene.add(this.flames);
   }
@@ -279,11 +332,19 @@ export class Game {
       this.scene.add(p);
       this.peds.push({ mesh: p, avenue, side, dir: this.rng.chance(0.5) ? 1 : -1, speed: this.rng.range(0.9, 1.6) });
     }
-    // beachgoers
+    // beachgoers — kept out of the shootout standoff zone (x 106..126,
+    // z -6..14 around the player at 116, 4): a random beachgoer there
+    // drifts right up beside the player and reads as a second
+    // protagonist. Re-roll until the spot is clear of the standoff.
     this.beachgoers = [];
     for (let i = 0; i < 24; i++) {
       const p = makeBeachgoer(this.rng);
-      p.position.set(this.rng.range(110, 130), 0, this.rng.range(-40, 60));
+      let bx = this.rng.range(110, 130), bz = this.rng.range(-40, 60);
+      while (bx >= 106 && bx <= 126 && bz >= -6 && bz <= 14) {
+        bx = this.rng.range(110, 130);
+        bz = this.rng.range(-40, 60);
+      }
+      p.position.set(bx, 0, bz);
       p.rotation.y = this.rng.range(0, 6.28);
       this.scene.add(p);
       this.beachgoers.push({ mesh: p, cx: p.position.x, cz: p.position.z, phase: this.rng.float() * 6.28 });
@@ -389,6 +450,17 @@ export class Game {
     for (let i = 0; i < steps; i++) {
       if (this.mode !== 'map') this._step(dt0);
     }
+    // Visual-only updates run ONCE per rendered frame, not once per
+    // physics step: at ff=60 a frame runs 60 steps, and only the final
+    // state is ever rendered — the other 59 flame flickers and beam
+    // re-aims are invisible work that starves the frame rate (the
+    // playtest's wall-clock timeouts are frame-rate bound). The rotor
+    // still advances by the frame's full game dt, so the rendered
+    // frame is identical to running them every step.
+    if (this.mode !== 'map') {
+      this._updateHeli(dt0 * steps);
+      this._updateFlames(dt0 * steps);
+    }
     this._updateCamera();
     this.hud.update(this.status());
     this.renderer.render(this.scene, this.camera);
@@ -418,10 +490,10 @@ export class Game {
     this._updateTraffic(dt);
     this._updatePeds(dt);
     this._updatePolice(dt);
-    this._updateHeli(dt);
+    // (heli + flames are visual-only: updated once per rendered frame
+    // from loop(), not per physics step — see loop().)
     this._updateMissions(dt);
     this._updateWanted(dt);
-    this._updateFlames(dt);
     this.audio.setEngine(this.vehicle === 'car' ? Math.abs(this.car.speed) / this.topSpeed : 0, this.mode === 'playing');
     this.audio.siren(this.wanted);
     // wheels spin with speed; light bars flash with wanted
@@ -680,11 +752,24 @@ export class Game {
   _updateFlames(dt) {
     if (!this.flames.visible) return;
     for (const f of this.flames.children) {
-      if (f.geometry && f.geometry.type === 'ConeGeometry') {
-        f.scale.y = 1 + Math.sin(this.time * 9 + f.userData.phase) * 0.25;
-        f.rotation.y += dt * 2;
+      if (f.userData.smoke) {
+        // smoke rises, grows and fades, then sinks back to start
+        const cyc = (this.time * 0.3 + f.userData.phase) % 1;
+        f.position.y = f.userData.baseY + cyc * 2.6;
+        const s = f.userData.baseScale * (1 + cyc * 0.9);
+        f.scale.set(s, s, 1);
+        f.material.opacity = 0.34 * (1 - cyc * 0.75);
+        f.position.x += Math.sin(this.time * 0.8 + f.userData.phase) * dt * 0.4;
+      } else if (f.userData.flame) {
+        // flame flickers: height and width breathe, opacity pulses
+        f.scale.y = f.userData.baseH * (1 + Math.sin(this.time * 9 + f.userData.phase) * 0.22);
+        f.scale.x = f.userData.baseW * (1 + Math.sin(this.time * 7 + f.userData.phase * 2) * 0.1);
+        f.material.opacity = 0.88 + Math.sin(this.time * 11 + f.userData.phase) * 0.12;
       }
     }
+    // the fire light flickers with the flames
+    const fl = this.flames.userData.fireLight;
+    if (fl) fl.intensity = 72 + Math.sin(this.time * 11) * 16 + Math.sin(this.time * 23 + 1.7) * 10;
   }
 
   _updateMissions(dt) {
@@ -789,7 +874,11 @@ export class Game {
 
   _armShootout() {
     // officers take their marks on the beach — close in, big in frame,
-    // spread across the player's line of fire so none hides behind him
+    // spread across the player's line of fire so none hides behind him.
+    // They FACE the player (116, 4) — guns drawn, aimed at her — so
+    // the shootout camera, sitting behind the player, sees their
+    // fronts, their faces and their weapons, not their backs. Facing
+    // away (rotation.y = PI) is what made them read as unarmed.
     const spots = [[110, -3], [119, -7], [123, 1]];
     for (let i = 0; i < 3; i++) {
       const o = this.officers[i];
@@ -797,7 +886,7 @@ export class Game {
       o.x = spots[i][0]; o.z = spots[i][1];
       o.hp = 3; o.down = false;
       o.mesh.position.set(o.x, 0, o.z);
-      o.mesh.rotation.y = Math.PI;
+      o.mesh.rotation.y = Math.atan2(116 - o.x, 4 - o.z);
     }
     this.officersDown = 0;
     this.van.visible = true;
@@ -1271,7 +1360,10 @@ export class Game {
     // never nose-on. Altitude 7.5 and target z 8 (not 8.5 / z 24):
     // at 8.5 the drift and bob pushed the rotor over the top edge of
     // the cover frame; at z 8 it hangs over the chase, dead centre.
+    // The beam + light pool land ON the hero GT (beamTarget), not on
+    // empty road ahead of it — the searchlight watches the hero.
     this.heliTarget = { x: 12, z: 8 };
+    this.heli.beamTarget = { x: 12, z: 18 };
     setHeliAltitude(this.heli, 7.5);
     this.heli.yawOffset = Math.PI / 2;
     this.heli.group.visible = true;
@@ -1302,10 +1394,14 @@ export class Game {
       this.shootoutProps.push(cruiser);
     }
     // a crowded beach market: beachgoers by the stalls and umbrellas,
-    // pedestrians along the promenade, so the sand reads as alive
+    // pedestrians along the promenade, so the sand reads as alive.
+    // The two southern beachgoers stand well clear of the player
+    // (116, 4) and the shootout camera (117, 10.5): the old spots at
+    // (114, 12) and (122, 14) drifted right up beside the player and
+    // read as a second protagonist.
     this.stageCrowd(
       [[106, -14], [106, 6], [106, -2], [106, 16]],
-      [[112, -16], [120, -14], [126, -12], [114, 12], [122, 14], [128, 2], [116, -20], [124, 20]],
+      [[112, -16], [120, -14], [126, -12], [104, 20], [130, 20], [128, 2], [116, -20], [124, 20]],
     );
     // freeze one shot in the air: aim at the nearest officer, fire, then
     // hold the tracer + muzzle flash on for the capture — the loop would
@@ -1331,7 +1427,11 @@ export class Game {
     // it. 12 puts the fuselage in the upper frame with the rotor
     // clear of the top edge (the beach palms in that sightline are
     // cleared in city.js too, so the heli is clear twice over).
+    // The beam + light pool land ON the player (beamTarget at the
+    // hero's feet), not on empty sand behind him — the searchlight
+    // watches the hero, and the pool of light marks him.
     this.heliTarget = { x: 116, z: -14 };
+    this.heli.beamTarget = { x: 116, z: 4 };
     setHeliAltitude(this.heli, 12);
     this.heli.yawOffset = Math.PI / 2;
     this.heli.group.visible = true;

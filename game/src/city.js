@@ -75,7 +75,7 @@ export function buildCity(scene, seed = 1) {
   // (80 m, faint outer falloff) keeps a hard edge even from 500 m
   // away. The clouds are bright white, soft and small, high up —
   // they break the gradient and make the sky read as a sunny day.
-  const SUN = { x: 60, y: 78, discR: 15, discColor: 0xffb347, haloSize: 80, haloFade: 0.32 };
+  const SUN = { x: 60, y: 78, discR: 21, discColor: 0xffb347, haloSize: 120, haloFade: 0.4 };
   const sky = new THREE.Mesh(
     new THREE.SphereGeometry(700, 24, 16),
     new THREE.MeshBasicMaterial({ map: skyTexture(), side: THREE.BackSide, fog: false }),
@@ -99,13 +99,37 @@ export function buildCity(scene, seed = 1) {
   sunDisc.position.set(SUN.x, SUN.y, -519);
   sunDisc.lookAt(0, 40, 0);
   group.add(sunDisc);
-  const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, fog: false });
-  for (let c = 0; c < 20; c++) {
-    const w = rng.range(40, 110);
-    const cloud = new THREE.Mesh(new THREE.PlaneGeometry(w, w * 0.22), cloudMat);
-    cloud.position.set(rng.range(-420, 420), rng.range(100, 200), rng.range(-480, -120));
-    cloud.lookAt(0, 60, 0);
-    group.add(cloud);
+  // Puffy cumulus clouds: each cloud is a cluster of soft white
+  // sprite blobs, overlapping so it reads as a real cloud with
+  // volume — not a flat white rectangle pasted on the sky. A flat
+  // plane reads as a cardboard cutout; a cluster of soft blobs
+  // reads as weather. Spread high across the whole sky, including
+  // over the sea to the east, so every shot has clouds in it.
+  // LEAN SKY: only the first 10 clouds x 3 puffs are actually drawn
+  // (30 sprites, slightly smaller) — each big transparent sprite is
+  // fill-rate in software rendering, and 16 clouds x 4-6 puffs
+  // starved the frame rate (the playtest is wall-clock timed, so a
+  // slow frame fails the SEQ outright). The rng draws are kept
+  // EXACTLY as before — same count, same order — so the seeded
+  // stream for buildings, palms and stalls downstream is unchanged.
+  const cloudTex = glowTexture('rgba(255,255,255,0.95)', 'rgba(255,255,255,0.45)');
+  const cloudMat = new THREE.SpriteMaterial({ map: cloudTex, transparent: true, opacity: 0.85, fog: false, depthWrite: false });
+  for (let c = 0; c < 16; c++) {
+    const cx = rng.range(-420, 420);
+    const cy = rng.range(110, 200);
+    const cz = rng.range(-480, 120);
+    const n = 4 + Math.floor(rng.range(0, 3));
+    for (let i = 0; i < n; i++) {
+      const w = rng.range(28, 62);
+      const px = cx + rng.range(-28, 28);
+      const py = cy + rng.range(-6, 10);
+      const pz = cz + rng.range(-10, 10);
+      if (c >= 10 || i >= 3) continue; // rng drawn, sprite skipped
+      const s = new THREE.Sprite(cloudMat);
+      s.scale.set(w * 0.8, w * 0.8 * 0.45, 1);
+      s.position.set(px, py, pz);
+      group.add(s);
+    }
   }
 
   // ---- ground: grass base, sea, beach ----
@@ -262,10 +286,13 @@ export function buildBlocks(state) {
   // the garage: low and wide, signed
   addBuilding(group, colliders, rng, -32, 102, 16, 12, 7, PALETTE.wallTerra,
     { text: "LIO'S GARAGE", sub: 'TUNE · REPAIR', w: 13, h: 3 });
-  // the gun store: small shop with a dark sign. Narrow (w=8) so it
-  // clears both avenues' centrelines — at w=12 it walled off avenue
-  // 12's west lane and a car driving up it wedged on the shop face.
-  addBuilding(group, colliders, rng, 18, -36, 8, 10, 6, PALETTE.wallLavender,
+  // the gun store: a small shop with a dark sign, on a REAL block
+  // between avenues 24 and 48 (x 36, z -36) — clear of every road.
+  // It used to sit at x 18, z -36, in the zero-width gap between
+  // avenues 12 and 24, where its west face (x 14) stood ON avenue
+  // 12's road and it blocked the street in the cover shot. A shop
+  // belongs on a lot, not in the middle of the road.
+  addBuilding(group, colliders, rng, 36, -36, 8, 10, 6, PALETTE.wallLavender,
     { text: 'AMMU-NATION', sub: 'GUNS · AMMO', w: 8, h: 2.8 });
 
   // fill the remaining blocks with varied buildings
@@ -299,7 +326,7 @@ export function buildBlocks(state) {
       }
       if (reserved) continue;
       if (Math.abs(cx + 32) < 12 && Math.abs(cz - 102) < 10) continue;
-      if (Math.abs(cx - 18) < 10 && Math.abs(cz + 36) < 8) continue;
+      if (Math.abs(cx - 36) < 10 && Math.abs(cz + 36) < 8) continue;
       if (!rng.chance(0.82)) continue; // some blocks stay plazas / parks
       const n = rng.chance(0.35) ? 2 : 1;
       for (let k = 0; k < n; k++) {
@@ -465,9 +492,17 @@ export function buildProps(state) {
     const bz = z + rng.range(-4, 4);
     if (!inWindow(bz, -20, 4) && rng.chance(0.75)) plantPalm(rng.range(111, 128), bz);
   }
-  // streetlights along Strand Boulevard (avenue 12, outer sidewalk
-  // edges so they never block a pedestrian) and the beach promenade:
-  // dark poles, warm glowing bulbs with a soft halo sprite.
+  // streetlights along Strand Boulevard (avenue 12) and the beach
+  // promenade: dark poles, warm glowing bulbs with a soft halo
+  // sprite. The poles stand ON the sidewalk, two metres clear of
+  // the road edge on each side (x 6.0 west, x 18.0 east — the 8 m
+  // road runs x 8..16), and MID-BLOCK (z offset +12 from the
+  // street grid), so no lamp ever stands in a drivable road or on
+  // a cross-street. The old poles at x 4.2 / 19.8 hugged the road
+  // edges and read as standing IN the road from the low cover
+  // camera; at 6.0 / 18.0 they sit visibly on the pavement, with
+  // the pale sidewalk under their bases. The gun store has moved
+  // to x 36, so no lamp is near it any more.
   const lampPoleMat = new THREE.MeshStandardMaterial({ color: 0x2a2a30, roughness: 0.7, metalness: 0.4 });
   const lampBulbMat = new THREE.MeshBasicMaterial({ color: 0xffe9a8 });
   const lampHaloMat = new THREE.SpriteMaterial({
@@ -477,18 +512,18 @@ export function buildProps(state) {
   const addLamp = (x, z) => {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 5.5, 6), lampPoleMat);
     pole.position.set(x, 2.75, z);
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.08, 0.08), lampPoleMat);
-    arm.position.set(x + (x < 12 ? 0.5 : -0.5), 5.4, z);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.08, 0.08), lampPoleMat);
+    arm.position.set(x + (x < 12 ? 0.4 : -0.4), 5.4, z);
     const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), lampBulbMat);
-    bulb.position.set(x + (x < 12 ? 1.0 : -1.0), 5.3, z);
+    bulb.position.set(x + (x < 12 ? 0.8 : -0.8), 5.3, z);
     const halo = new THREE.Sprite(lampHaloMat);
     halo.scale.set(3.2, 3.2, 1);
     halo.position.copy(bulb.position);
     group.add(pole, arm, bulb, halo);
   };
-  for (let z = -96; z <= 120; z += 24) {
-    addLamp(5.6, z);
-    addLamp(18.4, z + 12);
+  for (let z = -96; z <= 108; z += 24) {
+    addLamp(6.0, z + 12);
+    addLamp(18.0, z + 12);
   }
   for (let z = -40; z <= 60; z += 20) {
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 5.5, 6), lampPoleMat);
@@ -504,8 +539,13 @@ export function buildProps(state) {
   const umbrellaColors = [0xe86a5a, 0x5a8ad9, 0xe8d44f, 0xd97fb5, 0x7fd94f];
   for (let i = 0; i < 16; i++) {
     const u = makeUmbrella(rng, rng.pick(umbrellaColors));
-    u.position.set(rng.range(112, 130), 0, rng.range(-96, 116));
+    const ux = rng.range(112, 130), uz = rng.range(-96, 116);
+    u.position.set(ux, 0, uz);
     u.rotation.y = rng.range(0, 6.28);
+    // keep the shootout sightline clear: no umbrella in the standoff
+    // zone (x 108..132, z -14..14) — a canopy there blocks the burning
+    // Ranger and an officer from the shootout camera
+    if (ux >= 108 && ux <= 132 && uz >= -14 && uz <= 14) continue;
     group.add(u);
   }
   // market stalls along the beach near the stand-off (z -24..24), kept

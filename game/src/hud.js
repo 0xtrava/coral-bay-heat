@@ -5,7 +5,20 @@
 // fills it in and draws the two maps.
 import { AVENUES, STREETS, DISTRICTS } from './city.js';
 
-const WEAPON_ICONS = { FISTS: '✊', PISTOL: '🔫', SMG: '🔫', SHOTGUN: '🔫' };
+// Weapon icons: a distinct drawn silhouette per weapon, so the
+// four slots read at a glance instead of four identical 🔫 emoji.
+// Fists keep the fist emoji; the guns are simple white silhouettes
+// (a pistol is short with a grip, an SMG is long with a magazine, a
+// shotgun is long with a pump and a stock).
+const WEAPON_ICONS = {
+  FISTS: '✊',
+  PISTOL: '<svg viewBox="0 0 28 18" width="28" height="18"><path d="M2 4h20v4H9v8H5V8H2z" fill="#fff"/></svg>',
+  SMG: '<svg viewBox="0 0 28 18" width="28" height="18"><path d="M2 5h24v4h-4v3h-3v-3h-3v6h-4V9h-3V5z" fill="#fff"/></svg>',
+  SHOTGUN: '<svg viewBox="0 0 28 18" width="28" height="18"><path d="M2 5h24v3h-5v2H8V8H2z M16 8h4v5h-4z" fill="#fff"/></svg>',
+};
+// Fire mode per weapon, shown under the name so the slots are
+// distinct even without the icon.
+const WEAPON_MODES = { FISTS: 'MELEE', PISTOL: 'SEMI', SMG: 'AUTO', SHOTGUN: 'SPREAD' };
 
 export class HUD {
   constructor(doc) {
@@ -68,14 +81,16 @@ export class HUD {
     this.setWidth('health-bar', (s.health / s.maxHealth) * 100);
     this.setWidth('armour-bar', s.armour);
     this.setText('health-num', `${Math.round(s.health)}`);
-    // weapons
+    // weapons: icon + name + fire mode + a big bold ammo count, so
+    // the selected weapon reads at a glance
     for (let i = 0; i < 4; i++) {
       const w = s.weapons[i];
       const slot = this.el(`wslot-${i}`);
       if (slot) {
         slot.classList.toggle('active', s.weaponIndex === i);
         const ammo = w.name === 'FISTS' ? '∞' : String(w.ammo);
-        const html = `<div class="w-ico">${WEAPON_ICONS[w.name] || '🔫'}</div><div class="w-name">${w.name}</div><div class="w-ammo">${ammo}</div>`;
+        const mode = WEAPON_MODES[w.name] || '';
+        const html = `<div class="w-ico">${WEAPON_ICONS[w.name] || '🔫'}</div><div class="w-name">${w.name}</div><div class="w-mode">${mode}</div><div class="w-ammo">${ammo}</div>`;
         if (slot.innerHTML !== html) slot.innerHTML = html;
       }
     }
@@ -206,11 +221,48 @@ export class HUD {
     const blockTones = ['rgba(200,170,120,0.85)', 'rgba(190,120,95,0.85)', 'rgba(110,140,170,0.85)', 'rgba(140,160,120,0.85)', 'rgba(190,140,140,0.85)', 'rgba(100,160,150,0.85)'];
     const bxs = [-100, ...AVENUES, 108];
     const bzs = [-112, ...STREETS, 124];
+    // park blocks: a couple of green lungs in the city, with trees
+    const parks = [[-24, 48, 0, 72], [24, 72, 48, 96], [-72, 24, -48, 48]];
     for (let i = 0; i < bxs.length - 1; i++) {
       for (let j = 0; j < bzs.length - 1; j++) {
         if (bxs[i] >= 108) continue; // beach and sea are drawn above
-        c.fillStyle = blockTones[(Math.abs(bxs[i] * 7 + bzs[j] * 13) | 0) % blockTones.length];
-        c.fillRect(mx(bxs[i]) + 3, mz(bzs[j]) + 3, mx(bxs[i + 1]) - mx(bxs[i]) - 6, mz(bzs[j + 1]) - mz(bzs[j]) - 6);
+        const x0 = bxs[i], x1 = bxs[i + 1], z0 = bzs[j], z1 = bzs[j + 1];
+        const isPark = parks.some(([px0, pz0, px1, pz1]) => x0 === px0 && z0 === pz0 && x1 === px1 && z1 === pz1);
+        if (isPark) {
+          c.fillStyle = '#4a7d4a';
+          c.fillRect(mx(x0) + 3, mz(z0) + 3, mx(x1) - mx(x0) - 6, mz(z1) - mz(z0) - 6);
+          // trees: small dark-green dots scattered in the park
+          c.fillStyle = '#2f5a34';
+          const seed = Math.abs(x0 * 7 + z0 * 13);
+          for (let t = 0; t < 8; t++) {
+            const tx = mx(x0) + 6 + ((seed + t * 37) % 100) / 100 * (mx(x1) - mx(x0) - 12);
+            const ty = mz(z0) + 6 + ((seed + t * 53) % 100) / 100 * (mz(z1) - mz(z0) - 12);
+            c.beginPath(); c.arc(tx, ty, 3.5, 0, 7); c.fill();
+          }
+          continue;
+        }
+        c.fillStyle = blockTones[(Math.abs(x0 * 7 + z0 * 13) | 0) % blockTones.length];
+        c.fillRect(mx(x0) + 3, mz(z0) + 3, mx(x1) - mx(x0) - 6, mz(z1) - mz(z0) - 6);
+        // building footprints: 1-3 darker rectangles inside each
+        // block, so the block reads as a city of buildings instead
+        // of one flat coloured tile. Inset from the roads by the
+        // road half-width (4 m) plus a margin.
+        const ix0 = mx(x0 + 5), ix1 = mx(x1 - 5), iz0 = mz(z0 + 5), iz1 = mz(z1 - 5);
+        const iw = ix1 - ix0, ih = iz1 - iz0;
+        if (iw > 8 && ih > 8) {
+          const n = 1 + (Math.abs(x0 * 3 + z0 * 5) % 3);
+          for (let k = 0; k < n; k++) {
+            const bw = iw * (0.3 + ((Math.abs(x0 * 11 + z0 * 7 + k * 29) % 40) / 100));
+            const bh = ih * (0.3 + ((Math.abs(x0 * 5 + z0 * 11 + k * 17) % 40) / 100));
+            const bx = ix0 + ((Math.abs(x0 * 13 + z0 * 3 + k * 23) % 100) / 100) * Math.max(0, iw - bw);
+            const bz = iz0 + ((Math.abs(x0 * 7 + z0 * 17 + k * 31) % 100) / 100) * Math.max(0, ih - bh);
+            c.fillStyle = 'rgba(60,45,45,0.55)';
+            c.fillRect(bx, bz, bw, bh);
+            c.strokeStyle = 'rgba(255,255,255,0.35)';
+            c.lineWidth = 1;
+            c.strokeRect(bx, bz, bw, bh);
+          }
+        }
       }
     }
     // district tints
@@ -219,14 +271,25 @@ export class HUD {
       c.fillStyle = tints[d.name] || 'rgba(255,255,255,0.15)';
       c.fillRect(mx(d.x0), mz(d.z0), mx(d.x1) - mx(d.x0), mz(d.z1) - mz(d.z0));
     }
-    // street grid: bright, thick, with a gold centre line on the avenues
+    // street grid: real roads, not just lines — a dark asphalt band
+    // (the full 8 m road) with a pale sidewalk edge and a gold
+    // dashed centre line on the avenues, so the grid reads as a
+    // street network a car could drive on
+    const roadHalfX = (4 / 240) * W * 0.62;
+    const roadHalfZ = (4 / 244) * H;
+    c.fillStyle = '#3a3a44';
+    for (const a of AVENUES) { c.fillRect(mx(a) - roadHalfX, 0, roadHalfX * 2, H); }
+    for (const st of STREETS) { c.fillRect(0, mz(st) - roadHalfZ, W * 0.62, roadHalfZ * 2); }
     c.strokeStyle = '#e8e8e0';
-    c.lineWidth = 4;
-    for (const a of AVENUES) { c.beginPath(); c.moveTo(mx(a), 0); c.lineTo(mx(a), H); c.stroke(); }
-    for (const st of STREETS) { c.beginPath(); c.moveTo(0, mz(st)); c.lineTo(W * 0.62, mz(st)); c.stroke(); }
+    c.lineWidth = 1.5;
+    for (const a of AVENUES) { c.beginPath(); c.moveTo(mx(a) - roadHalfX, 0); c.lineTo(mx(a) - roadHalfX, H); c.stroke(); c.beginPath(); c.moveTo(mx(a) + roadHalfX, 0); c.lineTo(mx(a) + roadHalfX, H); c.stroke(); }
+    for (const st of STREETS) { c.beginPath(); c.moveTo(0, mz(st) - roadHalfZ); c.lineTo(W * 0.62, mz(st) - roadHalfZ); c.stroke(); c.beginPath(); c.moveTo(0, mz(st) + roadHalfZ); c.lineTo(W * 0.62, mz(st) + roadHalfZ); c.stroke(); }
     c.strokeStyle = '#ffd34d';
     c.lineWidth = 1.5;
+    c.setLineDash([8, 6]);
     for (const a of AVENUES) { c.beginPath(); c.moveTo(mx(a), 0); c.lineTo(mx(a), H); c.stroke(); }
+    for (const st of STREETS) { c.beginPath(); c.moveTo(0, mz(st)); c.lineTo(W * 0.62, mz(st)); c.stroke(); }
+    c.setLineDash([]);
     // beach strip + pier
     c.fillStyle = '#d9b478';
     c.fillRect(mx(108), 0, mx(134) - mx(108), H);
@@ -293,7 +356,7 @@ export class HUD {
       mark(-36, -60, 'H', '#ff9ec4'), mark(84, 12, 'H', '#ff9ec4'),
       mark(60, 12, 'H', '#ff9ec4'),
       // shops
-      mark(18, -36, 'S', '#ffd34d'), mark(-72, -60, 'S', '#ffd34d'),
+      mark(36, -36, 'S', '#ffd34d'), mark(-72, -60, 'S', '#ffd34d'),
       mark(36, 36, 'S', '#ffd34d'),
       // garages
       mark(12, -42, 'G', '#ffd34d'), mark(-24, 96, 'G', '#ffd34d'),
@@ -303,14 +366,17 @@ export class HUD {
       mark(140, 108, 'B', '#ff4040'), mark(150, 60, 'B', '#ff4040'),
     ];
     for (const m of marks) {
+      c.fillStyle = '#fff';
+      c.beginPath(); c.arc(mx(m.x), mz(m.z), 8, 0, 7); c.fill();
       c.fillStyle = m.c;
-      c.beginPath(); c.arc(mx(m.x), mz(m.z), 6, 0, 7); c.fill();
+      c.beginPath(); c.arc(mx(m.x), mz(m.z), 6.5, 0, 7); c.fill();
       c.fillStyle = '#111';
       c.font = 'bold 9px Arial';
       c.fillText(m.t, mx(m.x) - 3, mz(m.z) + 3);
     }
-    // district labels: big bold white with a dark outline
-    c.font = 'bold 14px Arial';
+    // district labels: smaller, so the map reads as a map first and
+    // the labels annotate it — big text was all the map had
+    c.font = 'bold 12px Arial';
     c.textAlign = 'left';
     for (const [t, x, z] of [['DOWNTOWN', -56, -70], ['PIER 9', 100, -58], ['MARINA BEACH', 72, 10], ['OLD TOWN', -58, 30], ['THE DOCKS', -72, 100], ['NORTHSIDE', -20, -100], ['GARAGE', -40, 84]]) {
       c.fillStyle = 'rgba(0,0,0,0.75)';
