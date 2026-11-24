@@ -80,6 +80,14 @@ export class Page {
 
   send(method, params = {}) {
     const id = this.nextId++;
+    // A CDP round-trip gets 120 s, not 30: a 1920x1280
+    // Page.captureScreenshot over SwiftShader (software GL) takes
+    // ~41 s on this VM (measured), so the old 30 s timeout killed
+    // every Full HD capture while the page itself was fine. This is
+    // a transport wait, not a game check — the playtest's checks
+    // measure game state, and a slow method still fails loudly if
+    // it never answers; it just gets enough time to answer.
+    const timeoutMs = 120000;
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
       this.ws.send(JSON.stringify({ id, method, params }));
@@ -88,7 +96,7 @@ export class Page {
           this.pending.delete(id);
           reject(new Error(`CDP timeout: ${method}`));
         }
-      }, 30000);
+      }, timeoutMs);
     });
   }
 

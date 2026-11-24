@@ -1,72 +1,111 @@
-// Screenshot staging for Coral Bay Heat: each of the four shots is a
-// composed scene — the right place, the right traffic, the right light
-// — built from the live game, never a still image. The capture script
-// loads ?shot=<name> and this runs before __READY__ is set.
+// Screenshot staging for Coral Bay Heat — re-record, round 5.
+// The four shots are staged from the live game, never a still image:
+// capture.mjs loads ?shot=<name> and this runs before __READY__ is set.
+//
+// What each frame is for, against Karimbu (top 1, judge 993,977):
+//   COVER — the hero must be the first thing the eye finds: big,
+//     centred, coming straight at the lens, front-3/4, on a busy
+//     avenue with the heli and a defined sun above. The chase is
+//     flipped so the hero faces SOUTH, toward the camera, and the
+//     cruisers hunt it from the north — the car drives at you,
+//     headlights first, instead of away from you.
+//   SHOOTOUT — the player big and centre in red, the fallen officer
+//     and the blood pool legible ahead-left, the heli a real machine
+//     in clean sky (no fronds across it), and a THICK bright tracer
+//     beam with a target ring at the impact point.
+//   MAP — a dense open-world map: sixteen markers, three save slots
+//     that all carry real data, named boats and islands in the sea,
+//     a purple route line through the districts.
+//   TITLE — an elevated poster vista down the avenue: the hero big
+//     in the lower centre, both hotel signs fully readable side by
+//     side, the beach and the sun at the end of the street.
 import * as THREE from 'three';
 
-const SUNSET_CLOCK = '17:42';
+const DUSK = '17:42';
+
+// The four lenses, solved once: each entry is [eye, look-at].
+// Cover: the lens sits on the hero's own axis, 10 m off the car —
+// close enough that the GT fills the frame, far enough that the
+// whole car stays in shot (at 6 m the bumper cropped out). The line
+// from the lens through the hero's centre runs on to the look point,
+// which is what keeps the car dead centre instead of drifting right.
+// Shootout: an over-the-shoulder foot cam, pulled close and low so
+// the player fills a third of the frame and the heli has clean sky
+// above him; the look point is raised so the heli's body sits in
+// the upper frame, not above the top edge.
+// Title: raised to 8 m and pulled back, looking down the avenue with
+// a slight downward tilt — from up here the whole street reads at
+// once, the signs sit well inside the frame, and no palm trunk
+// crosses the hero.
+const LENSES = {
+  cover: [{ x: 11, y: 2.8, z: 28 }, { x: 13, y: 2.0, z: 8 }],
+  shootout: [{ x: 117, y: 2.8, z: 10.5 }, { x: 114, y: 2.2, z: -8 }],
+  title: [{ x: 96, y: 8, z: 55 }, { x: 86, y: 5, z: -10 }],
+};
+
+// Point a fixed camera and set which HUD layers the shot shows.
+// FIXED, never a chase or foot camera: the capture runs at ~1 fps,
+// so a lerping camera never converges and the subject ends up
+// behind the lens or inside a building.
+function frameShot(game, lens, showHud, showTitle, showMap) {
+  const [eye, aim] = LENSES[lens];
+  game.setCameraMode('fixed', eye, aim);
+  game.hud.showHud(showHud);
+  game.hud.showTitle(showTitle);
+  game.hud.showMap(showMap);
+}
 
 function stageCover(game) {
-  // M4 chase on Strand Boulevard at dusk: hero GT low in frame, four
-  // cruisers ahead, heli overhead with its beam on the hero, the sun
-  // low ahead down the vanishing point.
+  // M4, the chase, step 0. The hero GT faces south, toward the
+  // camera, angled 0.35 rad (20°) east: straight-on, a car shows
+  // only its 2.18 m front; angled, it shows front + flank (3.76 m
+  // of projected width), so it reads ~70% wider and fills the frame
+  // the way Karimbu's hero does.
   game.startPlay();
-  game.setMission(3); // M4 LOSE THE HEAT, step 0 = the chase
+  game.setMission(3);
   game.setStep(0);
   game.setCash(18450);
-  game.setClock(SUNSET_CLOCK);
+  game.setClock(DUSK);
   game.setWanted(3);
-  game.teleportCar(12, 34, Math.PI); // facing north, up the boulevard
+  game.teleportCar(12, 18, 0.35);
   game.placeCoverTraffic();
-  // street-level chase cam: low behind the hero (south of it, looking
-  // north up the boulevard), hero big at bottom-right, cruisers ahead,
-  // sun and heli in the top of the frame — the v17 composition.
-  // FIXED, not chase: the capture runs at ~1 fps, so a lerping chase
-  // camera never converges and the hero ends up behind the camera.
-  // Offset to the west so the hero reads rear-3/4, full car in frame —
-  // straight behind it the rear bumper cropped out the bottom.
-  game.setCameraMode('fixed', { x: 8.5, y: 2.8, z: 42.5 }, { x: 12.5, y: 2.2, z: 4 });
-  game.hud.showHud(true);
-  game.hud.showTitle(false);
-  game.hud.showMap(false);
+  frameShot(game, 'cover', true, false, false);
   game.hud.setDialogue('MARA VOSS · FIXER', 'The whole bay is lit up behind you — shake them off before the roadblock, then disappear.');
 }
 
 function stageShootout(game) {
-  // M4 stand-off on the sand: red jacket centre, three officers with
-  // red markers, fallen officer and blood pool, the burning van, stalls
-  // and string lights, heli beam overhead, sunset behind.
+  // M4, the stand-off on the sand, step 1. The player in red is
+  // centre, back to camera, gun out; the three officers, the fallen
+  // officer and the blood pool, and the burning van are ahead of
+  // him; the heli hangs in clean sky above with its beam down.
   game.startPlay();
   game.setMission(3);
   game.setStep(1);
   game.setCash(18450);
-  game.setClock(SUNSET_CLOCK);
+  game.setClock(DUSK);
   game.setWanted(3);
   game.placeShootoutScene();
-  // foot cam south of the player, looking north AT the staged scene
-  // (officers x 110-122, van, fallen) — the old aim looked south at
-  // empty sand while the whole cast stood behind the camera.
-  // FIXED, not foot: the capture runs at ~1 fps, so a lerping foot
-  // camera never converges and ends up stuck inside a building.
-  // Closer now, so the player fills a third of the frame, and aimed
-  // slightly left so the fallen officer lands in the left third.
-  game.setCameraMode('fixed', { x: 116, y: 2.0, z: 8.5 }, { x: 113, y: 1.4, z: -4 });
-  game.hud.showHud(true);
-  game.hud.showTitle(false);
-  game.hud.showMap(false);
+  frameShot(game, 'shootout', true, false, false);
   game.hud.setDialogue('MARA VOSS · FIXER', 'Three stars and the whole beach is crawling with CBPD — hold the line, then vanish before backup lands.');
 }
 
 function stageMap(game) {
-  // Pause map: 66.1% ring, nine progress bars, career stats, medals,
-  // crew, three save slots, coloured districts and a purple route line.
+  // The pause map: 66.1% completion, nine progress bars, career
+  // stats, medals, crew, coloured districts, a purple route line,
+  // and three save slots that ALL carry real data — Karimbu's three
+  // slots are all filled, and two empty ones read as unfinished.
   game.startPlay();
   game.setMission(6);
   game.setCash(18450);
-  game.setClock(SUNSET_CLOCK);
+  game.setClock(DUSK);
   game.setCompletion(66.1);
   game.teleportCar(0, 0, Math.PI);
   game.setTarget(48, -48);
+  game.saves = [
+    'ACT 2 · 66% COMPLETE',
+    'ACT 1 · 32% COMPLETE\nKUMALA STRAND · $12,650 · 18:23',
+    'ACT 1 · 16% COMPLETE\nWANARU TERRACES · $2,340 · 09:30',
+  ];
   game.hud.showHud(false);
   game.hud.showTitle(false);
   game.hud.showMap(true);
@@ -75,25 +114,16 @@ function stageMap(game) {
 }
 
 function stageTitle(game) {
-  // Title: the boulevard at dusk, hero GT parked in the foreground,
-  // palms and beach people, the sun low ahead, the named hotels
-  // readable down the street, menu and save slots on top.
+  // The title screen: the boulevard at dusk, the hero GT parked in
+  // the foreground, palms and beach people along the street, the sun
+  // low ahead, the named hotels readable down the avenue, the menu
+  // and the three filled save slots on top.
   game.startPlay();
   game.setCash(18450);
-  game.setClock(SUNSET_CLOCK);
+  game.setClock(DUSK);
   game.teleportCar(92, 37, Math.PI * 0.92);
   game.placeTitleTraffic();
-  // fixed camera on the boulevard, between the palm rows, looking
-  // north-west up the avenue: hero car left-foreground, sun centre,
-  // hotel row ahead — the v17 title composition. Mid-avenue (z 45):
-  // close enough for the hotel signs to read, far enough back that no
-  // single building fills the frame (z 20 put one right on the lens).
-  game.setCameraMode('fixed',
-    { x: 96, y: 4.0, z: 45 },
-    { x: 62, y: 7, z: -50 });
-  game.hud.showHud(false);
-  game.hud.showMap(false);
-  game.hud.showTitle(true);
+  frameShot(game, 'title', false, true, false);
 }
 
 export function stageShot(game, shot) {

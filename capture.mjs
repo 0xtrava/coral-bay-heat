@@ -42,7 +42,7 @@ const server = spawn(process.execPath, ['serve.mjs', String(PORT)], { cwd: ROOT,
 let chrome = null;
 try {
   await waitForServer(`http://localhost:${PORT}/game/index.html`);
-  const launched = await launchChrome(CDP_PORT);
+  const launched = await launchChrome(CDP_PORT, { width: 1920, height: 1280 });
   chrome = launched.chrome;
   const page = await connectPage(CDP_PORT);
   await page.open();

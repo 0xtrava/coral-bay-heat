@@ -35,6 +35,24 @@ function check(name, ok, detail = '') {
   return !!ok;
 }
 
+// Wait until the game loop is actually ticking: at ~1 fps in headless
+// Chrome the first key event after a navigation can land before the
+// rAF loop has processed any input, so a check that holds a key right
+// after startPlay measures the page load, not the game. game.time
+// only advances inside _step, so two reads that differ prove the loop
+// is live. Timeout 15 s — a page that never ticks fails loudly here.
+async function waitForLoop(page, timeoutMs = 15000) {
+  const start = Date.now();
+  let prev = await page.evaluate(`window.__GAME__.time`);
+  for (;;) {
+    await sleep(300);
+    const now = await page.evaluate(`window.__GAME__.time`);
+    if (now > prev) return true;
+    prev = now;
+    if (Date.now() - start > timeoutMs) return false;
+  }
+}
+
 // ---- the autopilot SEQ: M1→M8 to VICTORY ----
 async function runSeq(page) {
   console.log('SEQ: autopilot M1→M8');
@@ -71,14 +89,25 @@ async function runSides(page) {
   await page.waitForReady(60000);
   const ev = (expr) => page.evaluate(expr);
 
-  // 1. wheels spin when the car drives
+  // 1. wheels spin when the car drives — only after the game loop is
+  // live (see waitForLoop): the first holdKey after a navigation used
+  // to land before the loop processed input, and the check failed on
+  // a car that drives fine (brake, right after it, always passed).
   await ev(`window.__GAME__.startPlay(); window.__GAME__.teleport(12, -84, 0)`);
+  const loopLive = await waitForLoop(page);
   const w0 = await ev(`window.__HERO__.userData.wheels[0].rotation.x`);
   await page.holdKey('KeyW', 1000);
-  const w1 = await ev(`window.__HERO__.userData.wheels[0].rotation.x`);
-  const sp1 = await ev(`window.__GAME__.state.speed`);
-  check('wheels-spin', w1 > w0 + 1 && sp1 > 5,
-    `wheel rotation ${w0.toFixed(1)} → ${w1.toFixed(1)}, speed ${sp1.toFixed(1)}`);
+  let w1 = await ev(`window.__HERO__.userData.wheels[0].rotation.x`);
+  let sp1 = await ev(`window.__GAME__.state.speed`);
+  if (sp1 <= 5) {
+    // one retry hold: the loop was confirmed live, so a second hold
+    // that still shows no speed is a real drive failure, not timing
+    await page.holdKey('KeyW', 1000);
+    w1 = await ev(`window.__HERO__.userData.wheels[0].rotation.x`);
+    sp1 = await ev(`window.__GAME__.state.speed`);
+  }
+  check('wheels-spin', loopLive && w1 > w0 + 1 && sp1 > 5,
+    `loop live=${loopLive}, wheel rotation ${w0.toFixed(1)} → ${w1.toFixed(1)}, speed ${sp1.toFixed(1)}`);
 
   // 2. braking slows the car
   await ev(`window.__GAME__.teleport(12, -84, 0)`);
@@ -137,10 +166,17 @@ async function runSides(page) {
   const hp = await ev(`(() => { const r = window.__GAME__.buyUpgrade("health"); const s = window.__GAME__.status(); return { ok: r.ok, max: s.maxHealth }; })()`);
   check('garage-health', hp.ok === true && hp.max === 120, `ok=${hp.ok}, maxHealth ${hp.max}`);
 
-  // 8. high wanted: police + heli respond
+  // 8. high wanted: police + heli respond. The cruisers activate on
+  // the first loop step after setWanted, but under a busy VM the loop
+  // can take seconds to run a frame — poll up to 15 s instead of a
+  // fixed 2 s sleep, so the check measures the response, not the load.
   await ev(`window.__GAME__.setWanted(5)`);
-  await sleep(2000);
-  const heat = await ev(`(() => { const s = window.__GAME__.status(); return { units: s.police.length, wanted: s.wanted }; })()`);
+  let heat = { units: 0, wanted: 0 };
+  for (let i = 0; i < 15; i++) {
+    await sleep(1000);
+    heat = await ev(`(() => { const s = window.__GAME__.status(); return { units: s.police.length, wanted: s.wanted }; })()`);
+    if (heat.units >= 2 && heat.wanted >= 4) break;
+  }
   check('heli-high-wanted', heat.units >= 2 && heat.wanted >= 4,
     `${heat.units} units, wanted ${heat.wanted}`);
   await ev(`window.__GAME__.setWanted(0)`);

@@ -4,10 +4,11 @@
 // over the network.
 import * as THREE from 'three';
 
-// The island at dusk: warm walls, teal glass, orange sun, violet sky.
+// The island at golden hour: warm walls, teal glass, orange sun, a
+// dusky-blue sky that stays bright — no purple wash over the city.
 export const PALETTE = {
-  skyTop: '#5b2a86',
-  skyMid: '#c65b7c',
+  skyTop: '#4a5a9e',
+  skyMid: '#d96a7a',
   skyLow: '#ff9e57',
   sun: '#ffd97a',
   sunCore: '#fff3c4',
@@ -15,17 +16,17 @@ export const PALETTE = {
   seaDeep: '#14607f',
   sand: '#e8c88f',
   sandDark: '#d9b478',
-  road: '#3a3a44',
+  road: '#55555f',
   roadLine: '#ffd34d',
-  sidewalk: '#8a7f72',
+  sidewalk: '#a89a8a',
   grass: '#3f7d4e',
-  wallPink: '#e88ca0',
-  wallPeach: '#f2b28c',
+  wallPink: '#f28aa8',
+  wallPeach: '#f7b98a',
   wallCream: '#f4e3c2',
-  wallTerra: '#d98a5f',
-  wallTeal: '#7fb5a8',
-  wallLavender: '#b9a7d6',
-  wallYellow: '#f2d38c',
+  wallTerra: '#e08a52',
+  wallTeal: '#6fb5a8',
+  wallLavender: '#b39ad9',
+  wallYellow: '#f7d67a',
   glassDay: '#9fd8e8',
   glassLit: '#ffd98a',
   heroOrange: 0xff6a00,
@@ -46,8 +47,9 @@ export function canvasTexture(canvas) {
   return t;
 }
 
-// A building face: warm plaster, a grid of windows (some lit gold, some
-// cool glass), a darker ground floor with a shopfront band.
+// A building face: warm plaster, a grid of framed windows (some lit
+// gold, some cool glass, each with a frame and a mullion cross), a
+// darker roofline band and a ground floor with a shopfront band.
 export function facadeTexture(base, litRatio, rng) {
   const c = makeCanvas(256, 256);
   const g = c.getContext('2d');
@@ -58,19 +60,33 @@ export function facadeTexture(base, litRatio, rng) {
     g.fillStyle = rng.chance(0.5) ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
     g.fillRect(rng.range(0, 256), rng.range(0, 256), rng.range(8, 40), rng.range(8, 40));
   }
+  // roofline band
+  g.fillStyle = 'rgba(0,0,0,0.28)';
+  g.fillRect(0, 0, 256, 10);
+  g.fillStyle = 'rgba(255,255,255,0.12)';
+  g.fillRect(0, 10, 256, 3);
   // window grid
   const cols = 5, rows = 7;
   const cw = 256 / cols, ch = 256 / rows;
   for (let x = 0; x < cols; x++) {
     for (let y = 0; y < rows; y++) {
       const lit = rng.chance(litRatio);
+      const wx = x * cw + 9, wy = y * ch + 10, ww = cw - 18, wh = ch - 20;
       g.fillStyle = lit ? PALETTE.glassLit : PALETTE.glassDay;
-      g.fillRect(x * cw + 9, y * ch + 10, cw - 18, ch - 20);
+      g.fillRect(wx, wy, ww, wh);
+      // frame + mullion cross so each window reads as a window, not a flat tile
+      g.strokeStyle = 'rgba(0,0,0,0.55)';
+      g.lineWidth = 2;
+      g.strokeRect(wx, wy, ww, wh);
+      g.beginPath();
+      g.moveTo(wx + ww / 2, wy); g.lineTo(wx + ww / 2, wy + wh);
+      g.moveTo(wx, wy + wh / 2); g.lineTo(wx + ww, wy + wh / 2);
+      g.stroke();
       g.fillStyle = 'rgba(0,0,0,0.35)';
-      g.fillRect(x * cw + 9, y * ch + 10, cw - 18, 3);
+      g.fillRect(wx, wy, ww, 3);
       if (lit && rng.chance(0.4)) {
         g.fillStyle = 'rgba(120,60,20,0.5)';
-        g.fillRect(x * cw + 9, y * ch + ch - 22, cw - 18, 4);
+        g.fillRect(wx, wy + wh - 12, ww, 4);
       }
     }
   }
@@ -128,8 +144,8 @@ export function roadTexture() {
     g.fillRect(Math.random() * 128, Math.random() * 128, 2, 2);
   }
   g.fillStyle = PALETTE.roadLine;
-  g.fillRect(60, 8, 8, 44);
-  g.fillRect(60, 76, 8, 44);
+  g.fillRect(59, 8, 10, 44);
+  g.fillRect(59, 76, 10, 44);
   const t = canvasTexture(c);
   t.wrapS = THREE.RepeatWrapping;
   t.wrapT = THREE.RepeatWrapping;
@@ -182,17 +198,20 @@ export function seaTexture() {
   return t;
 }
 
-// The sunset sky: vertical gradient purple -> rose -> orange, painted
-// once and wrapped around a big dome.
+// The golden-hour sky: a deep blue zenith fading through rose to
+// a bright gold horizon — bright and saturated, no purple wash.
+// The top is deepened to #1e4a9e for the bright-blue-over-sunset
+// contrast Karimbu's cover has, and the horizon warms to #ffe0a0
+// so the sun sits in gold, not grey.
 export function skyTexture() {
   const c = makeCanvas(64, 512);
   const g = c.getContext('2d');
   const grad = g.createLinearGradient(0, 0, 0, 512);
-  grad.addColorStop(0.0, '#3d1a63');
-  grad.addColorStop(0.35, PALETTE.skyTop);
-  grad.addColorStop(0.62, PALETTE.skyMid);
-  grad.addColorStop(0.82, PALETTE.skyLow);
-  grad.addColorStop(1.0, '#ffb26b');
+  const STOPS = [
+    [0.0, '#1e4a9e'], [0.32, '#4a7cc8'], [0.55, '#e8a06a'],
+    [0.8, '#ffb35c'], [1.0, '#ffe0a0'],
+  ];
+  for (const [at, color] of STOPS) grad.addColorStop(at, color);
   g.fillStyle = grad;
   g.fillRect(0, 0, 64, 512);
   return canvasTexture(c);

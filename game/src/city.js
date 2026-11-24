@@ -69,6 +69,13 @@ export function buildCity(scene, seed = 1) {
   scene.add(group);
 
   // ---- sky dome, sun, halo, clouds ----
+  // The sun must read as a sun: a crisp orange disc with a warm
+  // glow, not a washed-out white blob. A small disc (15 m) in
+  // saturated sunset orange (#ffb347) with a tight, soft halo
+  // (80 m, faint outer falloff) keeps a hard edge even from 500 m
+  // away. The clouds are bright white, soft and small, high up —
+  // they break the gradient and make the sky read as a sunny day.
+  const SUN = { x: 60, y: 78, discR: 15, discColor: 0xffb347, haloSize: 80, haloFade: 0.32 };
   const sky = new THREE.Mesh(
     new THREE.SphereGeometry(700, 24, 16),
     new THREE.MeshBasicMaterial({ map: skyTexture(), side: THREE.BackSide, fog: false }),
@@ -76,28 +83,27 @@ export function buildCity(scene, seed = 1) {
   sky.position.y = 0;
   group.add(sky);
   const sunGlow = new THREE.Mesh(
-    new THREE.PlaneGeometry(150, 150),
+    new THREE.PlaneGeometry(SUN.haloSize, SUN.haloSize),
     new THREE.MeshBasicMaterial({
-      map: glowTexture('rgba(255,246,200,1)', 'rgba(255,170,80,0.55)'),
+      map: glowTexture('rgba(255,246,200,1)', `rgba(255,170,80,${SUN.haloFade})`),
       transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
     }),
   );
-  sunGlow.position.set(60, 78, -520);
+  sunGlow.position.set(SUN.x, SUN.y, -520);
   sunGlow.lookAt(0, 40, 0);
   group.add(sunGlow);
   const sunDisc = new THREE.Mesh(
-    new THREE.CircleGeometry(26, 32),
-    new THREE.MeshBasicMaterial({ color: PALETTE.sunCore, fog: false }),
+    new THREE.CircleGeometry(SUN.discR, 32),
+    new THREE.MeshBasicMaterial({ color: SUN.discColor, fog: false }),
   );
-  sunDisc.position.set(60, 78, -519);
+  sunDisc.position.set(SUN.x, SUN.y, -519);
   sunDisc.lookAt(0, 40, 0);
   group.add(sunDisc);
-  // soft pink clouds, flat billboards high up
-  const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffc9d9, transparent: true, opacity: 0.5, fog: false });
-  for (let i = 0; i < 14; i++) {
-    const cw = rng.range(60, 150);
-    const cloud = new THREE.Mesh(new THREE.PlaneGeometry(cw, cw * 0.22), cloudMat);
-    cloud.position.set(rng.range(-420, 420), rng.range(120, 220), rng.range(-480, -120));
+  const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, fog: false });
+  for (let c = 0; c < 20; c++) {
+    const w = rng.range(40, 110);
+    const cloud = new THREE.Mesh(new THREE.PlaneGeometry(w, w * 0.22), cloudMat);
+    cloud.position.set(rng.range(-420, 420), rng.range(100, 200), rng.range(-480, -120));
     cloud.lookAt(0, 60, 0);
     group.add(cloud);
   }
@@ -183,24 +189,50 @@ const WALL_COLORS = [
   PALETTE.wallTeal, PALETTE.wallLavender, PALETTE.wallYellow,
 ];
 
+// A building: a facade-textured box, a dressed roofline (cap,
+// parapet lip, rooftop AC boxes) so the roof reads as architecture
+// rather than a slab, a ground-floor awning, and an optional big
+// sign. The sign sits at 68% of the building height so the title
+// camera reads it well inside the frame, and it can face south
+// (the default) or east, toward the avenue.
 function addBuilding(group, colliders, rng, cx, cz, w, d, h, color, sign) {
   const mat = new THREE.MeshStandardMaterial({
-    map: facadeTexture(color, 0.45, rng), roughness: 0.85,
+    map: facadeTexture(color, 0.6, rng), roughness: 0.85,
   });
   const b = box(w, h, d, mat, cx, h / 2, cz);
   group.add(b);
-  // flat roof cap, slightly darker
-  const cap = box(w + 0.4, 0.5, d + 0.4,
-    new THREE.MeshStandardMaterial({ color: 0x3a3238, roughness: 1 }), cx, h + 0.2, cz);
-  group.add(cap);
+  const capMat = new THREE.MeshStandardMaterial({ color: 0x3a3238, roughness: 1 });
+  group.add(box(w + 0.4, 0.5, d + 0.4, capMat, cx, h + 0.2, cz));
+  // parapet lip: four thin edges around the roof rim
+  const lipMat = new THREE.MeshStandardMaterial({ color: 0x2e282e, roughness: 1 });
+  const lipY = h + 0.6;
+  const lipPieces = [
+    [w + 0.4, 0.5, 0.3, cx, lipY, cz + d / 2 + 0.05],
+    [w + 0.4, 0.5, 0.3, cx, lipY, cz - d / 2 - 0.05],
+    [0.3, 0.5, d + 0.4, cx - w / 2 - 0.05, lipY, cz],
+    [0.3, 0.5, d + 0.4, cx + w / 2 + 0.05, lipY, cz],
+  ];
+  for (const [pw, ph, pd, px, py, pz] of lipPieces) group.add(box(pw, ph, pd, lipMat, px, py, pz));
+  // rooftop AC boxes, two sizes, offset so they don't line up
+  const acMat = new THREE.MeshStandardMaterial({ color: 0x8a8a92, roughness: 0.7, metalness: 0.3 });
+  group.add(box(1.6, 0.9, 1.6, acMat, cx - w * 0.22, h + 0.9, cz - d * 0.2));
+  group.add(box(1.2, 0.7, 1.2, acMat, cx + w * 0.25, h + 0.8, cz + d * 0.22));
+  // ground-floor awning band over the shopfront
+  const awnMat = new THREE.MeshStandardMaterial({ color: 0x3a2a3a, roughness: 0.9 });
+  group.add(box(w * 0.8, 0.25, 0.8, awnMat, cx, 3.4, cz + d / 2 + 0.3));
   colliders.push({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 });
   if (sign) {
     const signMesh = new THREE.Mesh(
       new THREE.PlaneGeometry(sign.w, sign.h),
       new THREE.MeshBasicMaterial({ map: signTexture(sign.text, sign.sub, '#ffe9a8', '#1c2438') }),
     );
-    // face the street to the south (toward the title camera)
-    signMesh.position.set(cx, h * 0.82, cz + d / 2 + 0.15);
+    const signY = h * 0.68;
+    if (sign.face === 'east') {
+      signMesh.position.set(cx + w / 2 + 0.15, signY, cz);
+      signMesh.rotation.y = Math.PI / 2;
+    } else {
+      signMesh.position.set(cx, signY, cz + d / 2 + 0.15);
+    }
     group.add(signMesh);
   }
   return b;
@@ -208,18 +240,25 @@ function addBuilding(group, colliders, rng, cx, cz, w, d, h, color, sign) {
 
 export function buildBlocks(state) {
   const { group, colliders, rng } = state;
-  // named hotels: tall, signed, inside their blocks, clear of every road.
-  // The signs are big on purpose — the title camera reads them from
-  // 130 m down the boulevard, and small signs were unreadable there.
-  addBuilding(group, colliders, rng, 60, -60, 20, 14, 30, PALETTE.wallCream,
-    { text: 'HOTEL CORAL', sub: '★ ★ ★ ★', w: 22, h: 5 });
-  // LAGUNA RASI: inside the 24-48 block, clear of every road. It used
-  // to sit centred on avenue 12 (x=12) and walled the whole avenue off
-  // — a car driving up it wedged on the hotel face. Never again.
-  addBuilding(group, colliders, rng, 36, -60, 12, 12, 26, PALETTE.wallPink,
-    { text: 'LAGUNA RASI', sub: 'ROOMS · POOL', w: 16, h: 4.5 });
-  addBuilding(group, colliders, rng, -36, -60, 18, 13, 24, PALETTE.wallTeal,
-    { text: 'PALM COURT', sub: 'SUITES', w: 19, h: 4.5 });
+  // The named hotels: tall, signed, inside their blocks, clear of
+  // every road. The signs are big on purpose — the title camera
+  // reads them from 130 m down the boulevard, and small signs were
+  // unreadable there. LAGUNA RASI and PALM COURT stand side by side
+  // on the west side of avenue 96, a full avenue apart (x 84 and
+  // x 60, both at z 12), so from the title camera the two signs sit
+  // next to each other and neither hides the other — stacking them
+  // north-south on one x put PALM COURT directly behind LAGUNA RASI
+  // and its sign was invisible. Both signs face south, straight at
+  // the title camera.
+  const HOTELS = [
+    { x: 60, z: -60, w: 20, d: 14, h: 30, color: PALETTE.wallCream, text: 'HOTEL CORAL', sub: '★ ★ ★ ★', sw: 26, sh: 6 },
+    { x: 84, z: 12, w: 13, d: 11, h: 26, color: PALETTE.wallPink, text: 'LAGUNA RASI', sub: 'ROOMS · POOL', sw: 18, sh: 5 },
+    { x: 60, z: 12, w: 13, d: 11, h: 24, color: PALETTE.wallTeal, text: 'PALM COURT', sub: 'SUITES', sw: 18, sh: 5 },
+  ];
+  for (const ho of HOTELS) {
+    addBuilding(group, colliders, rng, ho.x, ho.z, ho.w, ho.d, ho.h, ho.color,
+      { text: ho.text, sub: ho.sub, w: ho.sw, h: ho.sh });
+  }
   // the garage: low and wide, signed
   addBuilding(group, colliders, rng, -32, 102, 16, 12, 7, PALETTE.wallTerra,
     { text: "LIO'S GARAGE", sub: 'TUNE · REPAIR', w: 13, h: 3 });
@@ -242,11 +281,23 @@ export function buildBlocks(state) {
       if (x0 >= BEACH_X0 - 4) continue;
       // the docks block stays open for the M7 crate yard
       if (x0 >= -96 && x1 <= -24 && z0 >= 96) continue;
-      // skip blocks already holding a named building
+      // skip blocks already holding a named building, and the two
+      // blocks due south of the title hotels, which stay open as
+      // plazas: a tall block-fill building there stands directly on
+      // the title camera's sightline to the LAGUNA RASI and PALM
+      // COURT signs and hides them (the old layout had exactly that
+      // — a foreground tower cut LAGUNA RASI to "RASI" and buried
+      // PALM COURT). Open ground reads as a plaza, not a hole.
       const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
-      if (Math.abs(cx - 60) < 14 && Math.abs(cz + 60) < 12) continue;
-      if (Math.abs(cx - 36) < 12 && Math.abs(cz + 60) < 10) continue;
-      if (Math.abs(cx + 36) < 13 && Math.abs(cz + 60) < 11) continue;
+      const RESERVED = [
+        [60, -60, 14, 12], [84, 12, 10, 10], [60, 12, 10, 10],
+        [84, 36, 10, 10], [60, 36, 10, 10],
+      ];
+      let reserved = false;
+      for (const [rx, rz, rdx, rdz] of RESERVED) {
+        if (Math.abs(cx - rx) < rdx && Math.abs(cz - rz) < rdz) { reserved = true; break; }
+      }
+      if (reserved) continue;
       if (Math.abs(cx + 32) < 12 && Math.abs(cz - 102) < 10) continue;
       if (Math.abs(cx - 18) < 10 && Math.abs(cz + 36) < 8) continue;
       if (!rng.chance(0.82)) continue; // some blocks stay plazas / parks
@@ -263,25 +314,43 @@ export function buildBlocks(state) {
   }
 }
 
-// ---- palms, beach gear, market stalls, string lights, boats ----
+// A palm with real fronds: nine two-segment fronds that droop at the
+// tips, two greens, a ringed trunk that leans a little, coconuts.
 function makePalm(rng) {
   const g = new THREE.Group();
-  const h = rng.range(5, 8);
+  const h = rng.range(5, 9);
   const trunk = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.22, 0.34, h, 7),
+    new THREE.CylinderGeometry(0.2, 0.36, h, 7),
     new THREE.MeshStandardMaterial({ color: 0x6e4a2f, roughness: 1 }),
   );
   trunk.position.y = h / 2;
   trunk.rotation.z = rng.range(-0.08, 0.08);
   g.add(trunk);
-  const frondMat = new THREE.MeshStandardMaterial({ color: 0x2f7d3a, roughness: 0.9, side: THREE.DoubleSide });
-  for (let i = 0; i < 7; i++) {
-    const frond = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.9), frondMat);
-    const a = (i / 7) * Math.PI * 2;
-    frond.position.set(Math.cos(a) * 1.4, h + 0.3, Math.sin(a) * 1.4);
-    frond.rotation.y = -a + Math.PI / 2;
-    frond.rotation.x = -0.5;
-    g.add(frond);
+  // trunk rings: thin dark bands so the trunk reads as bark, not a stick
+  for (let i = 1; i <= 4; i++) {
+    const ring = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.26, 0.28, 0.12, 7),
+      new THREE.MeshStandardMaterial({ color: 0x4a2f1e, roughness: 1 }),
+    );
+    ring.position.y = (h / 5) * i;
+    g.add(ring);
+  }
+  const frondMats = [
+    new THREE.MeshStandardMaterial({ color: 0x2f7d3a, roughness: 0.9, side: THREE.DoubleSide }),
+    new THREE.MeshStandardMaterial({ color: 0x3f9d4e, roughness: 0.9, side: THREE.DoubleSide }),
+  ];
+  for (let i = 0; i < 9; i++) {
+    const a = (i / 9) * Math.PI * 2 + rng.range(-0.1, 0.1);
+    const mat = frondMats[i % 2];
+    const inner = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.9), mat);
+    inner.position.set(Math.cos(a) * 1.0, h + 0.45, Math.sin(a) * 1.0);
+    inner.rotation.y = -a + Math.PI / 2;
+    inner.rotation.x = -0.25;
+    const outer = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.8), mat);
+    outer.position.set(Math.cos(a) * 2.4, h + 0.15, Math.sin(a) * 2.4);
+    outer.rotation.y = -a + Math.PI / 2;
+    outer.rotation.x = -0.95; // drooping tip
+    g.add(inner, outer);
   }
   const coconuts = new THREE.Mesh(
     new THREE.SphereGeometry(0.3, 8, 8),
@@ -374,23 +443,62 @@ function makeBoat(color, name) {
 
 export function buildProps(state) {
   const { group, rng } = state;
-  // palms along Strand Boulevard and the beach
+  // Palms along Strand Boulevard and the beach, with two sightlines
+  // kept clear on purpose. A palm at (91,40) used to sit almost
+  // exactly on the title camera's line to the hero GT, and the beach
+  // palms around z -20..4 crossed the shootout camera's line to the
+  // heli — both read as a trunk or fronds pasted across the subject.
+  // Palms are still thick everywhere else, just not in front of the
+  // two things the frame is about.
+  const inWindow = (z, lo, hi) => z >= lo && z <= hi;
+  const plantPalm = (x, z) => {
+    const p = makePalm(rng);
+    p.position.set(x, 0, z);
+    group.add(p);
+  };
   for (let z = -100; z <= 124; z += 14) {
-    if (rng.chance(0.85)) {
-      const p = makePalm(rng);
-      p.position.set(91, 0, z + rng.range(-2, 2));
-      group.add(p);
-    }
-    if (rng.chance(0.85)) {
-      const p = makePalm(rng);
-      p.position.set(101, 0, z + rng.range(-2, 2));
-      group.add(p);
-    }
-    if (rng.chance(0.6)) {
-      const p = makePalm(rng);
-      p.position.set(rng.range(111, 128), 0, z + rng.range(-4, 4));
-      group.add(p);
-    }
+    const pz = z + rng.range(-2, 2);
+    // west sidewalk of avenue 96 — skip the title sightline (z 36..58)
+    if (!inWindow(pz, 36, 58) && rng.chance(0.85)) plantPalm(91, pz);
+    if (rng.chance(0.85)) plantPalm(101, z + rng.range(-2, 2));
+    // beach palms — skip the shootout heli sightline (z -20..4)
+    const bz = z + rng.range(-4, 4);
+    if (!inWindow(bz, -20, 4) && rng.chance(0.75)) plantPalm(rng.range(111, 128), bz);
+  }
+  // streetlights along Strand Boulevard (avenue 12, outer sidewalk
+  // edges so they never block a pedestrian) and the beach promenade:
+  // dark poles, warm glowing bulbs with a soft halo sprite.
+  const lampPoleMat = new THREE.MeshStandardMaterial({ color: 0x2a2a30, roughness: 0.7, metalness: 0.4 });
+  const lampBulbMat = new THREE.MeshBasicMaterial({ color: 0xffe9a8 });
+  const lampHaloMat = new THREE.SpriteMaterial({
+    map: glowTexture('rgba(255,240,190,0.9)', 'rgba(255,200,90,0.35)'),
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const addLamp = (x, z) => {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 5.5, 6), lampPoleMat);
+    pole.position.set(x, 2.75, z);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.08, 0.08), lampPoleMat);
+    arm.position.set(x + (x < 12 ? 0.5 : -0.5), 5.4, z);
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), lampBulbMat);
+    bulb.position.set(x + (x < 12 ? 1.0 : -1.0), 5.3, z);
+    const halo = new THREE.Sprite(lampHaloMat);
+    halo.scale.set(3.2, 3.2, 1);
+    halo.position.copy(bulb.position);
+    group.add(pole, arm, bulb, halo);
+  };
+  for (let z = -96; z <= 120; z += 24) {
+    addLamp(5.6, z);
+    addLamp(18.4, z + 12);
+  }
+  for (let z = -40; z <= 60; z += 20) {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 5.5, 6), lampPoleMat);
+    pole.position.set(106, 2.75, z);
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), lampBulbMat);
+    bulb.position.set(106, 5.5, z);
+    const halo = new THREE.Sprite(lampHaloMat);
+    halo.scale.set(3.2, 3.2, 1);
+    halo.position.copy(bulb.position);
+    group.add(pole, bulb, halo);
   }
   // beach umbrellas + towels
   const umbrellaColors = [0xe86a5a, 0x5a8ad9, 0xe8d44f, 0xd97fb5, 0x7fd94f];

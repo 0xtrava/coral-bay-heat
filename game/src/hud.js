@@ -101,7 +101,8 @@ export class HUD {
 
   hideDialogue() { this.show('dialogue', false); }
 
-  // Round minimap: roads, beach, sea, player arrow, police, marker.
+  // Round minimap: rich district tints, bright roads, blue sea with a
+  // sandy beach, big labels, player arrow, police, marker.
   drawMinimap(s) {
     const c = this.miniCtx;
     if (!c) return;
@@ -110,43 +111,71 @@ export class HUD {
     const view = 260; // metres across the map
     const px = (x) => W / 2 + ((x - s.pos.x) / view) * W;
     const pz = (z) => H / 2 + ((z - s.pos.z) / view) * H;
-    // land + sea + beach
-    c.fillStyle = '#22402a';
+    // land: deep green base, then a district tint for each quarter
+    c.fillStyle = '#2a5a34';
     c.fillRect(0, 0, W, H);
-    c.fillStyle = '#1e7fa8';
+    const tints = [
+      { x0: -100, z0: -112, x1: 0, z1: 0, c: 'rgba(90,140,200,0.35)' },
+      { x0: 0, z0: -112, x1: 108, z1: 0, c: 'rgba(200,180,110,0.35)' },
+      { x0: -100, z0: 0, x1: 0, z1: 132, c: 'rgba(200,130,110,0.35)' },
+      { x0: 0, z0: 0, x1: 108, z1: 132, c: 'rgba(220,200,140,0.35)' },
+    ];
+    for (const t of tints) {
+      c.fillStyle = t.c;
+      c.fillRect(px(t.x0), pz(t.z0), px(t.x1) - px(t.x0), pz(t.z1) - pz(t.z0));
+    }
+    // sea + beach
+    c.fillStyle = '#2a8ab8';
     c.fillRect(px(134), 0, W, H);
-    c.fillStyle = '#c9a86a';
+    c.fillStyle = '#e8c88f';
     c.fillRect(px(108), 0, px(134) - px(108), H);
-    // roads
-    c.strokeStyle = '#8a8a92';
-    c.lineWidth = 2;
+    c.fillStyle = 'rgba(255,255,255,0.5)';
+    c.fillRect(px(108) - 1, 0, 2, H);
+    // roads: bright and thick so the grid reads at a glance
+    c.strokeStyle = '#e8e8e0';
+    c.lineWidth = 3;
     for (const a of AVENUES) { c.beginPath(); c.moveTo(px(a), 0); c.lineTo(px(a), H); c.stroke(); }
     for (const st of STREETS) { c.beginPath(); c.moveTo(0, pz(st)); c.lineTo(W, pz(st)); c.stroke(); }
-    // district labels
-    c.fillStyle = 'rgba(255,255,255,0.65)';
-    c.font = 'bold 8px Arial';
-    c.fillText('DOWNTOWN', px(-40), pz(-60));
-    c.fillText('PIER 9', px(96), pz(-60));
-    c.fillText('MARINA BEACH', px(96), pz(20));
-    c.fillText('GARAGE', px(-36), pz(100));
-    c.fillText('THE DOCKS', px(-60), pz(110));
+    c.strokeStyle = '#ffd34d';
+    c.lineWidth = 1;
+    for (const a of AVENUES) { c.beginPath(); c.moveTo(px(a), 0); c.lineTo(px(a), H); c.stroke(); }
+    // district labels: bold white with a dark outline
+    c.font = 'bold 9px Arial';
+    c.textAlign = 'left';
+    for (const [t, x, z] of [['DOWNTOWN', -40, -60], ['PIER 9', 96, -60], ['MARINA BEACH', 96, 20], ['GARAGE', -36, 100], ['THE DOCKS', -60, 110]]) {
+      c.fillStyle = 'rgba(0,0,0,0.7)';
+      c.fillText(t, px(x) + 1, pz(z) + 1);
+      c.fillStyle = '#fff';
+      c.fillText(t, px(x), pz(z));
+    }
     // mission marker
     if (s.target) {
       c.fillStyle = '#ffd34d';
-      c.beginPath(); c.arc(px(s.target.x), pz(s.target.z), 5, 0, 7); c.fill();
+      c.beginPath(); c.arc(px(s.target.x), pz(s.target.z), 6, 0, 7); c.fill();
+      c.strokeStyle = '#fff';
+      c.lineWidth = 1.5;
+      c.beginPath(); c.arc(px(s.target.x), pz(s.target.z), 6, 0, 7); c.stroke();
       c.fillStyle = '#222';
-      c.font = 'bold 8px Arial';
+      c.font = 'bold 9px Arial';
       c.fillText('!', px(s.target.x) - 1.5, pz(s.target.z) + 3);
     }
-    // police dots
-    c.fillStyle = '#ff4040';
-    for (const p of s.police) { c.beginPath(); c.arc(px(p.x), pz(p.z), 2.5, 0, 7); c.fill(); }
+    // police dots with a white ring
+    for (const p of s.police) {
+      c.fillStyle = '#ff4040';
+      c.beginPath(); c.arc(px(p.x), pz(p.z), 3.5, 0, 7); c.fill();
+      c.strokeStyle = '#fff';
+      c.lineWidth = 1;
+      c.beginPath(); c.arc(px(p.x), pz(p.z), 3.5, 0, 7); c.stroke();
+    }
     // player arrow: heading 0 faces +z (down the map), so rotate PI - h
     c.save();
     c.translate(W / 2, H / 2);
     c.rotate(Math.PI - s.heading);
     c.fillStyle = '#fff';
-    c.beginPath(); c.moveTo(0, -7); c.lineTo(5, 6); c.lineTo(-5, 6); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(0, -9); c.lineTo(6, 7); c.lineTo(-6, 7); c.closePath(); c.fill();
+    c.strokeStyle = '#2a6fd9';
+    c.lineWidth = 1.5;
+    c.beginPath(); c.moveTo(0, -9); c.lineTo(6, 7); c.lineTo(-6, 7); c.closePath(); c.stroke();
     c.fillStyle = '#2a6fd9';
     c.beginPath(); c.arc(0, 0, 3, 0, 7); c.fill();
     c.restore();
@@ -159,19 +188,22 @@ export class HUD {
     if (!c) return;
     const W = this.big.width, H = this.big.height;
     c.clearRect(0, 0, W, H);
-    // sea + land
-    c.fillStyle = '#0e2a3a';
+    // sea: a gradient, deep at the horizon to bright near the beach
+    const seaGrad = c.createLinearGradient(W * 0.62, 0, W, 0);
+    seaGrad.addColorStop(0, '#1a6a8a');
+    seaGrad.addColorStop(1, '#2a8ab8');
+    c.fillStyle = seaGrad;
     c.fillRect(0, 0, W, H);
-    c.fillStyle = '#1d4a2a';
+    c.fillStyle = '#2a5a34';
     c.fillRect(0, 0, W * 0.62, H);
     c.fillStyle = '#1e7fa8';
     c.fillRect(W * 0.62, 0, W * 0.38, H);
     const mx = (x) => ((x + 100) / 240) * W * 0.62;
     const mz = (z) => ((z + 112) / 244) * H;
-    // varied city blocks: each avenue/street cell gets a muted tone
-    // picked from its coordinates, so the west half reads as a real
-    // city instead of one flat green field
-    const blockTones = ['rgba(90,140,90,0.55)', 'rgba(140,150,110,0.55)', 'rgba(110,130,160,0.55)', 'rgba(150,120,100,0.55)', 'rgba(80,120,110,0.55)'];
+    // varied city blocks: rich saturated tones picked from the
+    // coordinates, so the west half reads as a real city — warm tans,
+    // terracotta, teal and rose, not one flat green field
+    const blockTones = ['rgba(200,170,120,0.85)', 'rgba(190,120,95,0.85)', 'rgba(110,140,170,0.85)', 'rgba(140,160,120,0.85)', 'rgba(190,140,140,0.85)', 'rgba(100,160,150,0.85)'];
     const bxs = [-100, ...AVENUES, 108];
     const bzs = [-112, ...STREETS, 124];
     for (let i = 0; i < bxs.length - 1; i++) {
@@ -182,16 +214,19 @@ export class HUD {
       }
     }
     // district tints
-    const tints = { DOWNTOWN: 'rgba(120,180,120,0.35)', NORTHSIDE: 'rgba(120,140,200,0.35)', 'OLD TOWN': 'rgba(200,180,120,0.35)', 'THE DOCKS': 'rgba(180,120,120,0.35)', 'MARINA BEACH': 'rgba(220,200,140,0.35)', 'PIER 9': 'rgba(140,200,200,0.35)', GARAGE: 'rgba(160,140,180,0.35)' };
+    const tints = { DOWNTOWN: 'rgba(120,180,120,0.22)', NORTHSIDE: 'rgba(120,140,200,0.22)', 'OLD TOWN': 'rgba(200,180,120,0.22)', 'THE DOCKS': 'rgba(180,120,120,0.22)', 'MARINA BEACH': 'rgba(220,200,140,0.22)', 'PIER 9': 'rgba(140,200,200,0.22)', GARAGE: 'rgba(160,140,180,0.22)' };
     for (const d of DISTRICTS) {
       c.fillStyle = tints[d.name] || 'rgba(255,255,255,0.15)';
       c.fillRect(mx(d.x0), mz(d.z0), mx(d.x1) - mx(d.x0), mz(d.z1) - mz(d.z0));
     }
-    // street grid
-    c.strokeStyle = '#d8d8d0';
-    c.lineWidth = 3;
+    // street grid: bright, thick, with a gold centre line on the avenues
+    c.strokeStyle = '#e8e8e0';
+    c.lineWidth = 4;
     for (const a of AVENUES) { c.beginPath(); c.moveTo(mx(a), 0); c.lineTo(mx(a), H); c.stroke(); }
     for (const st of STREETS) { c.beginPath(); c.moveTo(0, mz(st)); c.lineTo(W * 0.62, mz(st)); c.stroke(); }
+    c.strokeStyle = '#ffd34d';
+    c.lineWidth = 1.5;
+    for (const a of AVENUES) { c.beginPath(); c.moveTo(mx(a), 0); c.lineTo(mx(a), H); c.stroke(); }
     // beach strip + pier
     c.fillStyle = '#d9b478';
     c.fillRect(mx(108), 0, mx(134) - mx(108), H);
@@ -245,17 +280,27 @@ export class HUD {
       c.font = 'bold 11px Arial';
       c.fillText('!', mx(s.target.x) - 2, mz(s.target.z) + 4);
     }
-    // markers: shops, garage, boats, hotels
+    // Markers: hotels, shops, garages, pier, boats — dense, like a
+    // real open-world map. Sixteen now, including the two relocated
+    // title hotels (LAGUNA RASI at 84,12 and PALM COURT at 60,12 —
+    // the map and the title agree on where they stand), a shop and a
+    // garage in the west, and a pier marker on the beach, so no
+    // district reads as blank.
+    const mark = (x, z, t, c) => ({ x, z, t, c });
     const marks = [
-      { x: 12, z: -42, t: 'G', c: '#ffd34d' },
-      { x: -24, z: 96, t: 'G', c: '#ffd34d' },
-      { x: 140, z: 108, t: 'B', c: '#ff4040' },
-      { x: 96, z: -48, t: 'P', c: '#7fd9d9' },
-      { x: 60, z: -60, t: 'H', c: '#ff9ec4' },
-      { x: 36, z: -60, t: 'H', c: '#ff9ec4' },
-      { x: -36, z: -60, t: 'H', c: '#ff9ec4' },
-      { x: 18, z: -36, t: 'S', c: '#ffd34d' },
-      { x: -32, z: 102, t: 'G', c: '#ffd34d' },
+      // hotels
+      mark(60, -60, 'H', '#ff9ec4'), mark(36, -60, 'H', '#ff9ec4'),
+      mark(-36, -60, 'H', '#ff9ec4'), mark(84, 12, 'H', '#ff9ec4'),
+      mark(60, 12, 'H', '#ff9ec4'),
+      // shops
+      mark(18, -36, 'S', '#ffd34d'), mark(-72, -60, 'S', '#ffd34d'),
+      mark(36, 36, 'S', '#ffd34d'),
+      // garages
+      mark(12, -42, 'G', '#ffd34d'), mark(-24, 96, 'G', '#ffd34d'),
+      mark(-32, 102, 'G', '#ffd34d'), mark(72, 60, 'G', '#ffd34d'),
+      // pier + boats
+      mark(96, -48, 'P', '#7fd9d9'), mark(120, 60, 'P', '#7fd9d9'),
+      mark(140, 108, 'B', '#ff4040'), mark(150, 60, 'B', '#ff4040'),
     ];
     for (const m of marks) {
       c.fillStyle = m.c;
@@ -264,16 +309,15 @@ export class HUD {
       c.font = 'bold 9px Arial';
       c.fillText(m.t, mx(m.x) - 3, mz(m.z) + 3);
     }
-    // district labels
-    c.fillStyle = '#fff';
-    c.font = 'bold 13px Arial';
-    c.fillText('DOWNTOWN', mx(-56), mz(-70));
-    c.fillText('PIER 9', mx(100), mz(-58));
-    c.fillText('MARINA BEACH', mx(72), mz(10));
-    c.fillText('OLD TOWN', mx(-58), mz(30));
-    c.fillText('THE DOCKS', mx(-72), mz(100));
-    c.fillText('NORTHSIDE', mx(-20), mz(-100));
-    c.fillText('GARAGE', mx(-40), mz(84));
+    // district labels: big bold white with a dark outline
+    c.font = 'bold 14px Arial';
+    c.textAlign = 'left';
+    for (const [t, x, z] of [['DOWNTOWN', -56, -70], ['PIER 9', 100, -58], ['MARINA BEACH', 72, 10], ['OLD TOWN', -58, 30], ['THE DOCKS', -72, 100], ['NORTHSIDE', -20, -100], ['GARAGE', -40, 84]]) {
+      c.fillStyle = 'rgba(0,0,0,0.75)';
+      c.fillText(t, mx(x) + 1, mz(z) + 1);
+      c.fillStyle = '#fff';
+      c.fillText(t, mx(x), mz(z));
+    }
     // player arrow
     c.save();
     c.translate(mx(s.pos.x), mz(s.pos.z));

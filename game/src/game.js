@@ -117,14 +117,14 @@ export class Game {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.3;
+    this.renderer.toneMappingExposure = 1.8;
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.Fog(0xc96a72, 90, 480);
+    this.scene.fog = new THREE.Fog(0xf0c090, 200, 800);
     this.camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 1400);
     this.camera.position.set(0, 6, 20);
-    const hemi = new THREE.HemisphereLight(0xd98ab0, 0x4a3a30, 0.85);
+    const hemi = new THREE.HemisphereLight(0xffd9b0, 0x6a5a4a, 1.55);
     this.scene.add(hemi);
-    const sun = new THREE.DirectionalLight(0xffb36b, 2.6);
+    const sun = new THREE.DirectionalLight(0xffc06a, 4.5);
     sun.position.set(120, 150, -260);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
@@ -133,7 +133,7 @@ export class Game {
     sun.shadow.camera.far = 700;
     this.scene.add(sun);
     this.scene.add(sun.target);
-    const fill = new THREE.DirectionalLight(0x8a6fd9, 0.35);
+    const fill = new THREE.DirectionalLight(0xffd9a0, 1.0);
     fill.position.set(-80, 60, 120);
     this.scene.add(fill);
     window.addEventListener('resize', () => {
@@ -170,7 +170,16 @@ export class Game {
       this.scene.add(g);
       this.packageMeshes.push(g);
     }
-    // muzzle flash + tracer (hidden until fired)
+    // muzzle flash + tracer beam (hidden until fired). The tracer
+    // is a THICK beam, not a 1px line: a hot core inside a wider
+    // amber glow, both additive so they bloom against the dusk,
+    // plus a target ring at the impact point. A THREE.Line is one
+    // pixel wide and reads as nothing at 1920 px; a beam with a
+    // visible width and a ring at the end reads as a shot fired.
+    // The cylinders are unit height along Y and get scaled and
+    // aimed from the muzzle to the impact point each time shoot()
+    // fires; the group keeps the same .visible / timer interface
+    // the update loop and the playtest already rely on.
     this.flash = new THREE.Mesh(
       new THREE.PlaneGeometry(0.9, 0.9),
       new THREE.MeshBasicMaterial({
@@ -180,11 +189,19 @@ export class Game {
     );
     this.flash.visible = false;
     this.scene.add(this.flash);
-    const tracerMat = new THREE.LineBasicMaterial({ color: 0xffe95a, transparent: true, opacity: 0.95 });
-    this.tracer = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
-      tracerMat,
+    const beamPart = (r, color, opacity) => new THREE.Mesh(
+      new THREE.CylinderGeometry(r, r, 1, 10),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false }),
     );
+    const beamCore = beamPart(0.09, 0xfff6c0, 0.98);
+    const beamGlow = beamPart(0.22, 0xffd34d, 0.42);
+    const targetRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.28, 0.42, 24),
+      new THREE.MeshBasicMaterial({ color: 0xff6a2a, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false }),
+    );
+    this.tracer = new THREE.Group();
+    this.tracer.add(beamCore, beamGlow, targetRing);
+    this.tracer.userData = { core: beamCore, glow: beamGlow, ring: targetRing };
     this.tracer.visible = false;
     this.scene.add(this.tracer);
     this.tracerTimer = 0;
@@ -251,9 +268,9 @@ export class Game {
     this.scooter.rotation.y = Math.PI;
     this.scene.add(this.scooter);
     this.scooterState = { z: 40, dir: -1, speed: 11 };
-    // pedestrians on the sidewalks
+    // pedestrians on the sidewalks — a crowded island, not an empty set
     this.peds = [];
-    for (let i = 0; i < 26; i++) {
+    for (let i = 0; i < 56; i++) {
       const p = makePedestrian(this.rng);
       const avenue = this.rng.pick(AVENUES);
       const side = this.rng.chance(0.5) ? -5.8 : 5.8;
@@ -264,7 +281,7 @@ export class Game {
     }
     // beachgoers
     this.beachgoers = [];
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 24; i++) {
       const p = makeBeachgoer(this.rng);
       p.position.set(this.rng.range(110, 130), 0, this.rng.range(-40, 60));
       p.rotation.y = this.rng.range(0, 6.28);
@@ -771,8 +788,9 @@ export class Game {
   }
 
   _armShootout() {
-    // officers take their marks on the beach
-    const spots = [[110, -6], [118, -8], [122, -2]];
+    // officers take their marks on the beach — close in, big in frame,
+    // spread across the player's line of fire so none hides behind him
+    const spots = [[110, -3], [119, -7], [123, 1]];
     for (let i = 0; i < 3; i++) {
       const o = this.officers[i];
       o.mesh.visible = true;
@@ -783,15 +801,35 @@ export class Game {
     }
     this.officersDown = 0;
     this.van.visible = true;
-    this.van.position.set(120, 0, -8);
+    this.van.position.set(119, 0, -6);
     this.van.rotation.y = 0.4;
     this.flames.visible = true;
-    this.flames.position.set(120, 1.2, -8);
+    this.flames.position.set(119, 1.2, -6);
     this.fallen.visible = true;
-    // down beside the player, left of his line of fire — in the old
-    // spot (110, 4) he fell outside the shootout frame entirely
-    this.fallen.position.set(this.foot.x - 2.5, 0, this.foot.z - 0.5);
+    // down ahead-left of the player, in the line of fire — the blood
+    // pool and the splayed body read clearly from the shootout camera
+    this.fallen.position.set(112.5, 0, -0.5);
     this.fallen.rotation.y = 0.8;
+  }
+
+  // Stage a crowd of pedestrians on a sidewalk (avenue + side offset)
+  // or beachgoers on the sand, so a shot's street reads as alive.
+  // They stroll slowly and stay in the frame through the capture.
+  stageCrowd(pedSpots, beachSpots) {
+    for (const [x, z] of pedSpots) {
+      const p = makePedestrian(this.rng);
+      p.position.set(x, 0, z);
+      p.rotation.y = this.rng.range(0, 6.28);
+      this.scene.add(p);
+      this.peds.push({ mesh: p, avenue: Math.round(x), side: 0, dir: this.rng.chance(0.5) ? 1 : -1, speed: this.rng.range(0.4, 0.9) });
+    }
+    for (const [x, z] of beachSpots) {
+      const p = makeBeachgoer(this.rng);
+      p.position.set(x, 0, z);
+      p.rotation.y = this.rng.range(0, 6.28);
+      this.scene.add(p);
+      this.beachgoers.push({ mesh: p, cx: x, cz: z, phase: this.rng.float() * 6.28 });
+    }
   }
 
   _boardBoat() {
@@ -895,11 +933,26 @@ export class Game {
       const a = this.foot.heading;
       to = new THREE.Vector3(this.foot.x + Math.sin(a) * w.range, 1.2, this.foot.z + Math.cos(a) * w.range);
     }
-    // tracer + muzzle flash, both brief
-    const pos = this.tracer.geometry.attributes.position;
-    pos.setXYZ(0, from.x, from.y, from.z);
-    pos.setXYZ(1, to.x, to.y, to.z);
-    pos.needsUpdate = true;
+    // Aim the beam from the muzzle to the impact point. The two
+    // cylinders are unit height along Y, so rotate Y onto the shot
+    // direction and stretch them to the shot length, centred on the
+    // midpoint; the ring sits at the impact point, facing the
+    // camera. A beam with a visible length and a ring at the end
+    // reads as a shot being fired — a line endpoint does not.
+    const shotDir = new THREE.Vector3().subVectors(to, from);
+    const shotLen = Math.max(shotDir.length(), 0.01);
+    const shotMid = new THREE.Vector3().addVectors(from, to).multiplyScalar(0.5);
+    const shotQuat = new THREE.Quaternion().setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0), shotDir.clone().normalize(),
+    );
+    const beam = this.tracer.userData;
+    for (const part of [beam.core, beam.glow]) {
+      part.scale.set(1, shotLen, 1);
+      part.position.copy(shotMid);
+      part.quaternion.copy(shotQuat);
+    }
+    beam.ring.position.copy(to);
+    beam.ring.lookAt(this.camera.position);
     this.tracer.visible = true;
     this.flash.position.copy(from).add(new THREE.Vector3(Math.sin(this.foot.heading) * 0.7, 0, Math.cos(this.foot.heading) * 0.7));
     this.flash.lookAt(this.camera.position);
@@ -1163,43 +1216,64 @@ export class Game {
 
   // ---- shot staging helpers ----
   placeCoverTraffic() {
-    // four cruisers in a tight pack ahead up the boulevard, the red
-    // delivery van leading them — the chase, in frame, right in front
-    // of the hero instead of scattered 30 m apart
-    const spots = [
-      { x: 11, z: 22, h: Math.PI }, { x: 14, z: 10, h: Math.PI },
-      { x: 10, z: -2, h: Math.PI }, { x: 13, z: -14, h: Math.PI },
-    ];
+    // The chase, flipped: the hero GT faces SOUTH, toward the lens,
+    // and the four cruisers chase it from the north — the car comes
+    // at you, headlights and grille first, instead of driving away.
+    // The cruisers sit behind the hero in a tight pack, heading
+    // south, the same direction as the hero, closing in; the red
+    // delivery van is oncoming in the far lane, and two civilians
+    // fill avenue 24 in parallel — so the frame reads as a street
+    // full of traffic, not an empty road with one car.
+    // Each cruiser is [x, z]; all head south (heading 0).
+    const cruisers = [[11, 2], [14, -10], [10, -22], [13, -34]];
     for (let i = 0; i < 4; i++) {
       const p = this.police[i];
       p.active = true;
       p.mesh.visible = true;
-      p.x = spots[i].x; p.z = spots[i].z; p.heading = spots[i].h; p.speed = 12;
+      p.x = cruisers[i][0];
+      p.z = cruisers[i][1];
+      p.heading = 0;
+      p.speed = 12;
       p.mesh.position.set(p.x, 0, p.z);
       p.mesh.rotation.y = p.heading;
     }
-    // civilian cars ahead and behind on the boulevard; the lead one
-    // reads as the red delivery van from the v17 cover
-    const civ = [
-      { x: 12, z: -26, h: Math.PI }, { x: 12, z: 52, h: 0 }, { x: 24, z: -10, h: Math.PI },
-    ];
+    // Civilian cars, each [x, z, heading]: the red delivery van
+    // oncoming in the far lane (northbound, toward the hero — a
+    // near-miss that adds the danger), two cars running avenue 24
+    // in parallel.
+    const civ = [[15, -4, Math.PI], [24, 6, 0], [24, -20, Math.PI]];
     for (let i = 0; i < 3 && i < this.traffic.length; i++) {
       const t = this.traffic[i];
-      t.avenue = civ[i].x;
-      t.z = civ[i].z;
-      t.dir = civ[i].h === 0 ? 1 : -1;
-      t.mesh.position.set(civ[i].x, 0, civ[i].z);
-      t.mesh.rotation.y = civ[i].h;
+      t.avenue = civ[i][0];
+      t.z = civ[i][1];
+      t.dir = civ[i][2] === 0 ? 1 : -1;
+      t.mesh.position.set(civ[i][0], 0, civ[i][1]);
+      t.mesh.rotation.y = civ[i][2];
       if (i === 0) t.mesh.children[0].material.color.setHex(0xd92020);
     }
-    this.scooterState.z = 18;
-    this.scooter.position.set(16, 0, 18);
-    this.scooter.rotation.y = Math.PI;
-    // heli low ahead of the hero, beam down on the road by the lead
-    // cruiser — its body in the frame, not 26 m up where only the cone
-    // shows (pinned ahead via heliTarget; the per-frame hover follows it)
-    this.heliTarget = { x: 12, z: 20 };
-    setHeliAltitude(this.heli, 12);
+    // the scooter rides south in the right lane, just ahead of the
+    // hero — a moving shape in the near field, not a static prop
+    this.scooterState.z = 12;
+    this.scooter.position.set(16, 0, 12);
+    this.scooter.rotation.y = 0;
+    // a crowded boulevard: pedestrians on both sidewalks all the way
+    // through the chase zone (cruisers to z -34, camera at z 24), so
+    // the street reads as alive at a glance
+    this.stageCrowd([
+      [6.2, -28], [17.8, -20], [6.2, -12], [17.8, -4], [6.2, 4], [17.8, 12],
+      [6.2, 20], [17.8, 28], [6.2, 36], [17.8, 44], [6.2, -36], [17.8, 20],
+    ], []);
+    // heli low over the chase, beam down on the road between the hero
+    // and the nearest cruiser — its body in the frame, the light pool
+    // landing ahead of the orange GT (pinned via heliTarget; the
+    // per-frame hover follows it). Yawed side-on to the cover camera
+    // so the long fuselage, tail boom and rotor read across the frame,
+    // never nose-on. Altitude 7.5 and target z 8 (not 8.5 / z 24):
+    // at 8.5 the drift and bob pushed the rotor over the top edge of
+    // the cover frame; at z 8 it hangs over the chase, dead centre.
+    this.heliTarget = { x: 12, z: 8 };
+    setHeliAltitude(this.heli, 7.5);
+    this.heli.yawOffset = Math.PI / 2;
     this.heli.group.visible = true;
     this.heli.pool.visible = true;
     updateHeli(this.heli, this.heliTarget, 0, this.time);
@@ -1215,18 +1289,24 @@ export class Game {
     this.playerMesh.position.set(116, 0, 4);
     this.playerMesh.rotation.y = Math.PI;
     this._armShootout();
-    // two parked cruisers flanking the standoff — the live pursuit
-    // units are still 20+ m out, so the frame needs police cars in it;
-    // they sit behind the officers, framing the scene, not blocking it
+    // two parked cruisers flanking the standoff — close in, so the
+    // frame shows police cars in it, not white specks 20 m out; they
+    // sit behind the officers, framing the scene, not blocking it
     for (const p of this.shootoutProps || []) this.scene.remove(p);
     this.shootoutProps = [];
-    for (const [x, z, ry] of [[107, -15, Math.PI], [125, -13, Math.PI]]) {
+    for (const [x, z, ry] of [[108, -10, Math.PI], [124, -9, Math.PI]]) {
       const cruiser = makeCruiser();
       cruiser.position.set(x, 0, z);
       cruiser.rotation.y = ry;
       this.scene.add(cruiser);
       this.shootoutProps.push(cruiser);
     }
+    // a crowded beach market: beachgoers by the stalls and umbrellas,
+    // pedestrians along the promenade, so the sand reads as alive
+    this.stageCrowd(
+      [[106, -14], [106, 6], [106, -2], [106, 16]],
+      [[112, -16], [120, -14], [126, -12], [114, 12], [122, 14], [128, 2], [116, -20], [124, 20]],
+    );
     // freeze one shot in the air: aim at the nearest officer, fire, then
     // hold the tracer + muzzle flash on for the capture — the loop would
     // fade them in 0.09 s otherwise, and the frame would show no shot
@@ -1242,10 +1322,18 @@ export class Game {
       this.shoot(best);
       this.tracerTimer = 3600;
     }
-    // heli low over the officers, beam down among them — its body in the
-    // top of the frame, not 26 m up out of sight
-    this.heliTarget = { x: 116, z: -8 };
-    setHeliAltitude(this.heli, 8);
+    // heli high over the officers, beam down among them — its whole
+    // body in clean sky in the top of the frame, not tangled in palm
+    // fronds and not out of the top edge. Yawed side-on to the
+    // shootout camera so the long fuselage and tail boom read.
+    // Altitude 12 and target z -14: at 14 the heli sat above the
+    // frame (only its searchlight showed); at 11 the fronds crossed
+    // it. 12 puts the fuselage in the upper frame with the rotor
+    // clear of the top edge (the beach palms in that sightline are
+    // cleared in city.js too, so the heli is clear twice over).
+    this.heliTarget = { x: 116, z: -14 };
+    setHeliAltitude(this.heli, 12);
+    this.heli.yawOffset = Math.PI / 2;
     this.heli.group.visible = true;
     this.heli.pool.visible = true;
     updateHeli(this.heli, this.heliTarget, 0, this.time);
@@ -1255,7 +1343,7 @@ export class Game {
     // a few cars parked and rolling on the boulevard ahead of the hero
     // (north of the title camera, so none of them sits on the lens)
     const civ = [
-      { x: 96, z: -20, h: Math.PI }, { x: 96, z: -40, h: Math.PI }, { x: 84, z: 10, h: 0 },
+      { x: 96, z: -20, h: Math.PI }, { x: 96, z: -40, h: Math.PI }, { x: 72, z: 10, h: 0 },
     ];
     for (let i = 0; i < 3 && i < this.traffic.length; i++) {
       const t = this.traffic[i];
@@ -1271,6 +1359,12 @@ export class Game {
     this.scooterState.dir = -1;
     this.scooter.position.set(100, 0, -90);
     this.scooter.rotation.y = Math.PI;
+    // a crowded avenue: pedestrians on both sidewalks, beachgoers on
+    // the sand to the east, so the title reads as a living city
+    this.stageCrowd(
+      [[90.2, -12], [101.8, -6], [90.2, 2], [101.8, 10], [90.2, 18], [101.8, 26], [90.2, 34], [101.8, 42]],
+      [[112, -18], [118, -8], [124, 4], [114, 22], [122, 30]],
+    );
   }
 
   settleFrames(n) {
