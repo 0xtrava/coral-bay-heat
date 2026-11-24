@@ -93,19 +93,26 @@ async function runSides(page) {
   // live (see waitForLoop): the first holdKey after a navigation used
   // to land before the loop processed input, and the check failed on
   // a car that drives fine (brake, right after it, always passed).
+  // Fix9: hold the key and POLL the speed while it is held, instead
+  // of a fixed 1000 ms hold and one read. At ~1 fps in headless
+  // Chrome a fixed hold can start and end between two frames, so no
+  // _step ever sees the key down and the car never moves — the check
+  // then fails on a car that drives fine (diag: KeyW held 1500 ms
+  // reached speed 11.8 and moved 6.3 m). Polling measures whether
+  // the car drives, not whether a frame fell in the window.
   await ev(`window.__GAME__.startPlay(); window.__GAME__.teleport(12, -84, 0)`);
   const loopLive = await waitForLoop(page);
   const w0 = await ev(`window.__HERO__.userData.wheels[0].rotation.x`);
-  await page.holdKey('KeyW', 1000);
-  let w1 = await ev(`window.__HERO__.userData.wheels[0].rotation.x`);
-  let sp1 = await ev(`window.__GAME__.state.speed`);
-  if (sp1 <= 5) {
-    // one retry hold: the loop was confirmed live, so a second hold
-    // that still shows no speed is a real drive failure, not timing
-    await page.holdKey('KeyW', 1000);
-    w1 = await ev(`window.__HERO__.userData.wheels[0].rotation.x`);
+  await page.keyDown('KeyW');
+  let w1 = w0, sp1 = 0;
+  const holdStart = Date.now();
+  while (Date.now() - holdStart < 8000) {
+    await sleep(300);
     sp1 = await ev(`window.__GAME__.state.speed`);
+    w1 = await ev(`window.__HERO__.userData.wheels[0].rotation.x`);
+    if (sp1 > 5 && w1 > w0 + 1) break;
   }
+  await page.keyUp('KeyW');
   check('wheels-spin', loopLive && w1 > w0 + 1 && sp1 > 5,
     `loop live=${loopLive}, wheel rotation ${w0.toFixed(1)} → ${w1.toFixed(1)}, speed ${sp1.toFixed(1)}`);
 

@@ -49,7 +49,12 @@ try {
   for (const s of list) {
     const url = `http://localhost:${PORT}/game/index.html?shot=${s.shot}&seed=1`;
     await page.navigate(url);
-    await page.waitForReady(60000);
+    // 180 s, not 60: at 1920x1280 the first SwiftShader frame takes
+    // ~45 s under VM load (measured fix9), and the old 60 s timeout
+    // failed the capture twice on a page that loads fine — the
+    // playtest at 1280x720 passes in seconds. The page is not
+    // broken; the first frame is just slow at this resolution.
+    await page.waitForReady(180000);
     // one extra beat so the settle frames and the heli drift land
     await sleep(3000);
     const outFile = path.join(ROOT, 'out', 'screenshots', s.file);

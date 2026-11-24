@@ -101,11 +101,13 @@ export function stepWalk(person, dt, moving) {
 // almost black in a scene with no environment map, which is why the
 // old gun vanished against the sand. Round 8: the silver is hotter
 // (emissive 1.4) and the gun is scaled up at the player/officer, so
-// it reads even in a bright frame.
+// it reads even in a bright frame. Round 9: the silver is hotter
+// still (emissive 2.0) and the player's gun is BIGGER (3.4x) — and
+// it rides on the CAMERA side, so the shootout lens sees it.
 function pistol() {
   const g = new THREE.Group();
   const dark = new THREE.MeshStandardMaterial({ color: 0x1c1c22, roughness: 0.5, metalness: 0.4 });
-  const silver = new THREE.MeshStandardMaterial({ color: 0xe8ecf0, roughness: 0.25, metalness: 0.25, emissive: 0x55555c, emissiveIntensity: 1.4 });
+  const silver = new THREE.MeshStandardMaterial({ color: 0xe8ecf0, roughness: 0.25, metalness: 0.25, emissive: 0x77777a, emissiveIntensity: 2.0 });
   const grip = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.26, 0.14), dark);
   grip.position.set(0, 0, 0);
   grip.castShadow = true;
@@ -128,17 +130,19 @@ function pistol() {
 // even from behind her, where the shootout camera sits.
 export function makePlayer() {
   const g = makeWalker({ float: () => 0 }, 0xd21f1f, 0x1c1c22);
-  // the gun rides at her right hand, forward and high, bright metal
-  // — BIG (3.0x) so it reads at a glance from the shootout camera,
-  // pushed well out past her right shoulder (x 0.55) and angled
-  // hard across her body (rotation -0.55) so the long silver slide
-  // shows its SIDE to the behind-camera — a forward-pointing gun
-  // seen end-on is a speck, and in fix8 it hid behind her torso.
-  // The angled slide is what makes the weapon read as a pistol.
+  // the gun rides at her hand, forward and high, bright metal —
+  // BIG (3.4x) so it reads at a glance from the shootout camera,
+  // and on the CAMERA side (local x -0.72, not +0.55): fix8 put it
+  // on the far side, where the player's own torso hid it from the
+  // shootout lens — the line from the lens to the gun passed
+  // straight through her chest. Mirrored to the east side it clears
+  // the torso and the long silver slide shows its SIDE to the
+  // behind-camera, angled across her body (rotation +0.55) so the
+  // slide reads as a pistol, not a speck.
   const gun = pistol();
-  gun.scale.setScalar(3.0);
-  gun.position.set(0.55, 1.22, 0.6);
-  gun.rotation.y = -0.55;
+  gun.scale.setScalar(3.4);
+  gun.position.set(-0.72, 1.28, 0.7);
+  gun.rotation.y = 0.55;
   g.add(gun);
   // a lighter red chest panel so the jacket reads as a jacket, not a slab
   const chest = limb(0.4, 0.4, 0.04, 0xe83a3a, 0, 1.12, 0.16);

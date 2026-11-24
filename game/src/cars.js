@@ -32,6 +32,33 @@ function box(w, h, d, mat, x, y, z, rx = 0, ry = 0) {
   return m;
 }
 
+// A mesh grille texture: a dark honeycomb grid on near-black, so a
+// grille reads as a real intake with depth instead of a flat black
+// slot. Drawn once, used on the GT's grille and lower intake.
+function grilleTexture() {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 64;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#0a0a0e';
+  ctx.fillRect(0, 0, 256, 64);
+  ctx.fillStyle = '#23232e';
+  for (let x = 4; x < 256; x += 16) {
+    for (let y = 4; y < 64; y += 16) {
+      ctx.fillRect(x, y, 10, 10);
+    }
+  }
+  ctx.strokeStyle = '#3a3a48';
+  ctx.lineWidth = 1;
+  for (let x = 4; x < 256; x += 16) {
+    for (let y = 4; y < 64; y += 16) {
+      ctx.strokeRect(x + 0.5, y + 0.5, 10, 10);
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 // A canvas text decal: bold text on a flat plane (POLICE on a hood,
 // EMERGENCY DIAL 911 on a rear quarter). Transparent background, so
 // the paint shows through and only the letters read.
@@ -182,42 +209,80 @@ export function makeHeroCar() {
 
   // lower body: long, low, wide — the GT stance
   g.add(box(2.0, 0.5, 4.4, orange, 0, 0.55, 0));
-  // sloped hood, falling toward the nose, with a power bulge down
-  // the centre so the hood has shape instead of a flat slab.
-  // Round 8: the bulge is wider and taller, and fender bulges run
-  // down each hood edge — the flat slab hood is what made the car
-  // read as a wedge from the front. Sculpted fenders + a raised
-  // centre give the nose the GT-R's muscular shape.
+  // SCULPTED HOOD (fix9): the flat slab hood is what made the nose
+  // read as a wedge from the front-3/4. Now the hood is FACETED —
+  // a tall centre spine down the middle, two side panels angled
+  // down toward the fenders, and thin dark shut lines flanking the
+  // spine — so the hood catches the light in three planes and reads
+  // as a shaped GT-R bonnet, not one flat orange board.
   g.add(box(1.9, 0.08, 1.3, orange, 0, 0.84, 1.5, -0.1));
-  g.add(box(1.0, 0.1, 1.0, orange, 0, 0.92, 1.45, -0.1));
-  g.add(box(0.28, 0.09, 1.25, orangeDark, -0.82, 0.88, 1.5, -0.1));
-  g.add(box(0.28, 0.09, 1.25, orangeDark, 0.82, 0.88, 1.5, -0.1));
-  // nose / front bumper with a black lower splitter
+  g.add(box(0.5, 0.16, 1.35, orange, 0, 0.9, 1.5, -0.1)); // centre spine
+  const hoodL = box(0.62, 0.07, 1.25, orange, -0.62, 0.87, 1.5, -0.1);
+  hoodL.rotation.z = 0.1;
+  const hoodR = box(0.62, 0.07, 1.25, orange, 0.62, 0.87, 1.5, -0.1);
+  hoodR.rotation.z = -0.1;
+  g.add(hoodL, hoodR);
+  g.add(box(0.03, 0.03, 1.3, dark, -0.3, 0.95, 1.5, -0.1)); // shut line L
+  g.add(box(0.03, 0.03, 1.3, dark, 0.3, 0.95, 1.5, -0.1)); // shut line R
+  // fender ridges: a muscular shoulder line sloping from the
+  // windshield base down to the nose on each side — the front-3/4
+  // view catches these and the nose stops reading as a flat slab.
+  const frL = box(0.24, 0.1, 1.5, orangeDark, -0.88, 0.92, 1.35, -0.14);
+  frL.rotation.z = 0.06;
+  const frR = box(0.24, 0.1, 1.5, orangeDark, 0.88, 0.92, 1.35, -0.14);
+  frR.rotation.z = -0.06;
+  g.add(frL, frR);
+  // nose / front bumper: a sculpted fascia, not a flat box — the
+  // bumper face steps in below the grille, and the splitter juts
+  // forward under it, so the nose has depth from the front-3/4.
   g.add(box(2.05, 0.32, 0.4, orange, 0, 0.42, 2.25));
-  g.add(box(2.1, 0.1, 0.5, dark, 0, 0.22, 2.28));
+  g.add(box(2.0, 0.14, 0.3, orangeDark, 0, 0.3, 2.32)); // lower valance
+  g.add(box(2.1, 0.08, 0.62, dark, 0, 0.18, 2.34)); // splitter, jutting forward
   // splitter corner canards — small vertical fins at the bumper corners
   g.add(box(0.06, 0.22, 0.4, dark, -1.02, 0.32, 2.3));
   g.add(box(0.06, 0.22, 0.4, dark, 1.02, 0.32, 2.3));
-  // wide black grille + a lower intake, so the nose reads as a GT-R face
-  g.add(box(1.5, 0.2, 0.06, dark, 0, 0.58, 2.46));
-  g.add(box(1.7, 0.12, 0.06, dark, 0, 0.34, 2.46));
-  // angular swept headlights: wide, bright, angled back toward the
-  // fenders like the real GT-R's — not flat white rectangles. Each
-  // sits in a black bezel so the light reads as an inset lamp, not
-  // a white blob pasted on the nose.
-  g.add(box(0.78, 0.2, 0.04, dark, -0.66, 0.76, 2.44));
-  g.add(box(0.78, 0.2, 0.04, dark, 0.66, 0.76, 2.44));
-  const hlL = lamp(0.68, 0.14, 0.06, 0xfff2c0, -0.66, 0.76, 2.47);
-  hlL.rotation.y = 0.18;
-  const hlR = lamp(0.68, 0.14, 0.06, 0xfff2c0, 0.66, 0.76, 2.47);
-  hlR.rotation.y = -0.18;
-  g.add(hlL, hlR);
-  // LED daytime strips under the headlights
-  g.add(lamp(0.5, 0.05, 0.05, 0xffffff, -0.66, 0.64, 2.47));
-  g.add(lamp(0.5, 0.05, 0.05, 0xffffff, 0.66, 0.64, 2.47));
-  // black side air intakes on the front corners
-  g.add(box(0.16, 0.22, 0.3, dark, -0.98, 0.55, 2.2));
-  g.add(box(0.16, 0.22, 0.3, dark, 0.98, 0.55, 2.2));
+  // GT-R grille: a wide mesh panel with a bright lower lip, so the
+  // nose reads as a real GT-R face — a mesh intake, not a black slot.
+  const grilleTex = grilleTexture();
+  const grille = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.5, 0.2),
+    new THREE.MeshStandardMaterial({ map: grilleTex, roughness: 0.6, metalness: 0.3 }),
+  );
+  grille.position.set(0, 0.58, 2.47);
+  g.add(grille);
+  g.add(box(1.56, 0.26, 0.04, dark, 0, 0.58, 2.44)); // grille surround (behind mesh)
+  g.add(box(1.56, 0.04, 0.05, std(0xcfd8dc, 0.3, 0.7), 0, 0.43, 2.47)); // bright lip
+  const intake = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.7, 0.12),
+    new THREE.MeshStandardMaterial({ map: grilleTex, roughness: 0.6, metalness: 0.3 }),
+  );
+  intake.position.set(0, 0.32, 2.47);
+  g.add(intake);
+  // SWEPT headlight clusters (fix9): each lamp is a real housing —
+  // a black bezel swept back toward the fender at 0.32 rad, a bright
+  // lens inside it, a round projector dot, and an LED strip below.
+  // The sweep is what makes the face read as a GT-R from the
+  // front-3/4: flat rectangles pasted on the nose read as stickers.
+  for (const s of [-1, 1]) {
+    const bez = box(0.85, 0.22, 0.1, dark, s * 0.68, 0.78, 2.42);
+    bez.rotation.y = -s * 0.32;
+    g.add(bez);
+    const lens = lamp(0.72, 0.16, 0.06, 0xfff2c0, s * 0.68, 0.78, 2.47);
+    lens.rotation.y = -s * 0.32;
+    g.add(lens);
+    const proj = roundLamp(0.07, 0.05, 0xffffff, s * 0.68, 0.78, 2.51);
+    g.add(proj);
+    const led = lamp(0.55, 0.05, 0.05, 0xffffff, s * 0.68, 0.66, 2.47);
+    led.rotation.y = -s * 0.32;
+    g.add(led);
+  }
+  // recessed side air intakes on the front corners — angled back
+  // into the bumper so they read as scoops, not flat black patches
+  const siL = box(0.16, 0.24, 0.34, dark, -0.98, 0.55, 2.22);
+  siL.rotation.y = 0.28;
+  const siR = box(0.16, 0.24, 0.34, dark, 0.98, 0.55, 2.22);
+  siR.rotation.y = -0.28;
+  g.add(siL, siR);
   // flared front arches over the front wheels
   g.add(box(0.22, 0.28, 1.1, orangeDark, -1.0, 0.72, 1.55));
   g.add(box(0.22, 0.28, 1.1, orangeDark, 1.0, 0.72, 1.55));

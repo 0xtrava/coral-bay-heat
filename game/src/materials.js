@@ -297,19 +297,21 @@ export function skyTexture() {
   return canvasTexture(c);
 }
 
-// A flame sprite: a teardrop flame with a white-hot core, a yellow
-// body and a soft orange-red edge — drawn once, then billboarded as
+// A flame sprite: a teardrop flame with a warm orange core, a deep
+// orange body and a soft red edge — drawn once, then billboarded as
 // a sprite so it reads as real fire from any angle. A solid cone
 // reads as an orange triangle; a soft teardrop sprite reads as flame.
+// Fix9: the core is ORANGE, not white-hot — a white-hot core plus
+// additive blending blew the shootout's centre out to pure white.
 export function flameTexture() {
   const c = makeCanvas(128, 128);
   const g = c.getContext('2d');
   g.clearRect(0, 0, 128, 128);
-  // outer flame: a tall teardrop, orange-red, soft edge
+  // outer flame: a tall teardrop, deep orange, soft edge
   const grad = g.createRadialGradient(64, 78, 4, 64, 72, 58);
-  grad.addColorStop(0, 'rgba(255,244,180,1)');
-  grad.addColorStop(0.35, 'rgba(255,210,60,0.95)');
-  grad.addColorStop(0.65, 'rgba(255,110,20,0.75)');
+  grad.addColorStop(0, 'rgba(255,180,60,1)');
+  grad.addColorStop(0.35, 'rgba(255,140,30,0.95)');
+  grad.addColorStop(0.65, 'rgba(255,80,10,0.75)');
   grad.addColorStop(1, 'rgba(220,40,10,0)');
   g.fillStyle = grad;
   g.beginPath();
@@ -318,11 +320,12 @@ export function flameTexture() {
   g.bezierCurveTo(82, 120, 46, 120, 36, 102);
   g.bezierCurveTo(24, 78, 32, 44, 64, 6);
   g.fill();
-  // hot core: a smaller, brighter teardrop low in the flame
+  // hot core: a smaller, warmer teardrop low in the flame — orange,
+  // never white, so the flame reads as fire and not as a light bulb
   const core = g.createRadialGradient(64, 92, 2, 64, 88, 34);
-  core.addColorStop(0, 'rgba(255,255,240,1)');
-  core.addColorStop(0.5, 'rgba(255,225,120,0.9)');
-  core.addColorStop(1, 'rgba(255,160,40,0)');
+  core.addColorStop(0, 'rgba(255,200,90,1)');
+  core.addColorStop(0.5, 'rgba(255,150,50,0.9)');
+  core.addColorStop(1, 'rgba(255,90,20,0)');
   g.fillStyle = core;
   g.beginPath();
   g.moveTo(64, 52);

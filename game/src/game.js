@@ -217,21 +217,24 @@ export class Game {
     this.scene.add(this.tracer);
     this.tracerTimer = 0;
     // the burning Ranger: a BIG clear fire — billboarded flame
-    // sprites (a soft teardrop with a white-hot core), not solid
+    // sprites (a soft teardrop with a warm orange core), not solid
     // cones: a cone reads as an orange triangle, a sprite reads as
-    // flame. Three rings (a tall yellow core, an orange middle, a
-    // red outer ring) licking up from the engine and the cabin,
-    // plus soft grey smoke puffs rising above — round and
+    // flame. Three rings (a tall orange core, a red-orange middle,
+    // a deep red outer ring) licking up from the engine and the
+    // cabin, plus soft grey smoke puffs rising above — round and
     // translucent, never solid black pyramids. A wide warm glow on
     // the sand and an orange point light so the fire lights the
     // Ranger, the ground and the officers nearby. The fire is a
-    // named requirement: it must be GOOD and CLEAR.
+    // named requirement: it must be GOOD and CLEAR. Fix9: the
+    // flames are SMALLER and deeper orange-red, not white-hot —
+    // in fix8 the white-hot core + glow + beam pool + sun halo
+    // stacked into one white blown-out blob in the centre.
     this.flames = new THREE.Group();
     const flameTex = flameTexture();
     const flameSets = [
-      { n: 5, w: 1.5, h: 3.4, x: 0.55, z: 0.7, tint: 0xffb81a },
-      { n: 6, w: 1.8, h: 2.8, x: 0.85, z: 1.1, tint: 0xff7a1a },
-      { n: 5, w: 2.1, h: 2.3, x: 1.1, z: 1.4, tint: 0xe83a10 },
+      { n: 4, w: 1.3, h: 2.6, x: 0.55, z: 0.7, tint: 0xff8c1a },
+      { n: 5, w: 1.5, h: 2.2, x: 0.85, z: 1.1, tint: 0xff5a10 },
+      { n: 4, w: 1.7, h: 1.9, x: 1.1, z: 1.4, tint: 0xd42a08 },
     ];
     for (const set of flameSets) {
       for (let i = 0; i < set.n; i++) {
@@ -269,18 +272,19 @@ export class Game {
     const fireGlow = new THREE.Mesh(
       new THREE.PlaneGeometry(9, 9),
       new THREE.MeshBasicMaterial({
-        map: glowTexture('rgba(255,200,90,0.95)', 'rgba(255,110,20,0.4)'),
-        transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false,
+        map: glowTexture('rgba(255,140,40,0.85)', 'rgba(255,60,10,0.35)'),
+        transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false,
       }),
     );
     fireGlow.rotation.x = -Math.PI / 2;
     fireGlow.position.y = 0.4;
     this.flames.add(fireGlow);
     // an orange light that flickers with the fire and lights the Ranger.
-    // Intensity 45, not 80: at 80 the fire's light + glow + the beam
+    // Intensity 28, not 45: at 45 the fire's light + glow + the beam
     // pool + the bright sand stacked into a white washout in the
     // shootout — the fire should light the scene, not erase it.
-    const fireLight = new THREE.PointLight(0xff7a1a, 45, 22, 1.5);
+    // Fix9: 28, and a deeper orange-red so the light is warm, not white.
+    const fireLight = new THREE.PointLight(0xff5a10, 28, 22, 1.5);
     fireLight.position.set(0, 2.2, 0.4);
     this.flames.add(fireLight);
     this.flames.userData.fireLight = fireLight;

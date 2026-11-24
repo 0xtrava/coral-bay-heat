@@ -94,6 +94,13 @@ export class HUD {
         if (slot.innerHTML !== html) slot.innerHTML = html;
       }
     }
+    // crosshair + BIDIK button: on foot with a gun, the player is
+    // aiming — a centre crosshair and a big round BIDIK button (GTA
+    // mobile style). Hidden in the car, on the boat, and with fists,
+    // so the driving shots stay clean.
+    const aiming = s.vehicle === 'foot' && s.weapons[s.weaponIndex] && s.weapons[s.weaponIndex].name !== 'FISTS';
+    this.show('crosshair', aiming);
+    this.show('aim-btn', aiming);
     // speed + car + radio
     this.setText('speed', `${Math.round(Math.abs(s.speed) * 3.6)}`);
     this.setText('car-name', s.vehicle === 'boat' ? 'RED TIDE · BOAT' : s.vehicle === 'foot' ? 'ON FOOT' : 'CORAL GT · VELOCE');

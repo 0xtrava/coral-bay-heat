@@ -24,11 +24,13 @@ import * as THREE from 'three';
 const DUSK = '17:42';
 
 // The four lenses, solved once: each entry is [eye, look-at].
-// Cover: the lens sits on the hero's own axis, 10 m off the car —
-// close enough that the GT fills the frame, far enough that the
-// whole car stays in shot (at 6 m the bumper cropped out). The line
-// from the lens through the hero's centre runs on to the look point,
-// which is what keeps the car dead centre instead of drifting right.
+// Cover: the lens sits on the hero's own axis, 7 m off the car —
+// fix9 moves it in from 10 m so the GT fills the frame, and drops
+// it to 2.4 m so the sculpted nose reads front-on instead of from
+// above. At 6 m the bumper cropped out; at 7 m the whole car stays
+// in shot and reads ~40% wider than fix8's. The line from the lens
+// through the hero's centre runs on to the look point, which is
+// what keeps the car dead centre instead of drifting right.
 // Shootout: an over-the-shoulder foot cam, pulled close and low so
 // the player fills a third of the frame and the heli has clean sky
 // above him; the look point is raised so the heli's body sits in
@@ -38,7 +40,7 @@ const DUSK = '17:42';
 // once, the signs sit well inside the frame, and no palm trunk
 // crosses the hero.
 const LENSES = {
-  cover: [{ x: 11, y: 2.8, z: 28 }, { x: 13, y: 2.0, z: 8 }],
+  cover: [{ x: 11, y: 2.4, z: 25 }, { x: 12.8, y: 2.0, z: 10 }],
   shootout: [{ x: 117, y: 2.8, z: 10.5 }, { x: 114, y: 2.2, z: -8 }],
   title: [{ x: 96, y: 8, z: 55 }, { x: 86, y: 5, z: -10 }],
 };
@@ -57,17 +59,18 @@ function frameShot(game, lens, showHud, showTitle, showMap) {
 
 function stageCover(game) {
   // M4, the chase, step 0. The hero GT faces south, toward the
-  // camera, angled 0.35 rad (20°) east: straight-on, a car shows
-  // only its 2.18 m front; angled, it shows front + flank (3.76 m
-  // of projected width), so it reads ~70% wider and fills the frame
-  // the way Karimbu's hero does.
+  // camera, angled 0.5 rad (29°) east: straight-on, a car shows
+  // only its 2.18 m front; angled, it shows front + flank (3.87 m
+  // of projected width), so it reads wider and fills the frame the
+  // way Karimbu's hero does. Fix9 raises the angle from 0.35 so the
+  // sculpted nose + the flank both show and the car reads bigger.
   game.startPlay();
   game.setMission(3);
   game.setStep(0);
   game.setCash(18450);
   game.setClock(DUSK);
   game.setWanted(3);
-  game.teleportCar(12, 18, 0.35);
+  game.teleportCar(12, 18, 0.5);
   game.placeCoverTraffic();
   frameShot(game, 'cover', true, false, false);
   game.hud.setDialogue('MARA VOSS · FIXER', 'The whole bay is lit up behind you — shake them off before the roadblock, then disappear.');
