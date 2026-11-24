@@ -75,7 +75,7 @@ export function buildCity(scene, seed = 1) {
   // (80 m, faint outer falloff) keeps a hard edge even from 500 m
   // away. The clouds are bright white, soft and small, high up —
   // they break the gradient and make the sky read as a sunny day.
-  const SUN = { x: 60, y: 78, discR: 21, discColor: 0xffb347, haloSize: 120, haloFade: 0.4 };
+  const SUN = { x: 60, y: 78, discR: 21, discColor: 0xffb347, haloSize: 90, haloFade: 0.25 };
   const sky = new THREE.Mesh(
     new THREE.SphereGeometry(700, 24, 16),
     new THREE.MeshBasicMaterial({ map: skyTexture(), side: THREE.BackSide, fog: false }),

@@ -39,7 +39,7 @@ export function makeHeli() {
   const white = std(0xf8f8f4, 0.3, 0.25);
   const navy = std(0x1c3a6e, 0.4, 0.3);
   const dark = std(0x1a1a22, 0.5, 0.4);
-  const glassMat = new THREE.MeshStandardMaterial({ color: 0x0c141c, roughness: 0.05, metalness: 0.9 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x24344a, roughness: 0.08, metalness: 0.55 });
 
   // cabin: a white rounded egg — a sphere stretched long and squashed
   // flat, so it reads as a helicopter cabin, never a cylinder
@@ -77,8 +77,12 @@ export function makeHeli() {
   const stripeR = stripeL.clone();
   stripeR.position.x = 0.84;
   g.add(stripeL, stripeR);
-  // navy belly
-  const belly = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.18, 2.4), navy);
+  // navy belly — WHITE on the real Bell 206, so the aircraft reads
+  // white from below instead of a dark silhouette: the underside is
+  // what the cover and shootout cameras see, and a navy belly turns
+  // the whole heli into a black blob against the sky. The navy
+  // cheatline stripes on the sides keep the police two-tone.
+  const belly = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.18, 2.4), white);
   belly.position.set(0, -0.62, 0.35);
   g.add(belly);
   // tapered tail cone: the cabin narrows into the boom
@@ -173,24 +177,30 @@ export function makeHeli() {
   // The cone's apex is translated to the origin, so the beam pivots
   // at the searchlight ball under the nose and its wide base lands
   // on the beam target — it reads as a searchlight aimed at someone,
-  // not a faint cone hanging under the heli. Bright enough to see.
+  // not a faint cone hanging under the heli. Bright enough to see,
+  // dim enough not to white out the ground it lands on: at 0.16 the
+  // shaft + pool stacked into a white washout in the shootout.
   const beamGeo = new THREE.ConeGeometry(2.2, 26, 16, 1, true);
   beamGeo.translate(0, -13, 0);
   const beam = new THREE.Mesh(
     beamGeo,
     new THREE.MeshBasicMaterial({
-      color: 0xfff2b0, transparent: true, opacity: 0.16,
+      color: 0xfff2b0, transparent: true, opacity: 0.1,
       blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false,
     }),
   );
   beam.position.set(0, -0.72, 1.35);
   g.add(beam);
-  // light pool: a warm glow disc that sits on the ground under the beam
+  // light pool: a warm glow disc that sits on the ground under the beam.
+  // Smaller (12 m, not 16) and dimmer (0.55, not 1.0): at full opacity
+  // the pool stacked with the beam shaft and the bright sand into one
+  // white washout in the shootout — the pool should mark the target,
+  // not erase the ground under him.
   const pool = new THREE.Mesh(
-    new THREE.PlaneGeometry(16, 16),
+    new THREE.PlaneGeometry(12, 12),
     new THREE.MeshBasicMaterial({
       map: glowTexture('rgba(255,240,180,0.95)', 'rgba(255,200,90,0.4)'),
-      transparent: true, opacity: 1.0, blending: THREE.AdditiveBlending, depthWrite: false,
+      transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false,
     }),
   );
   pool.rotation.x = -Math.PI / 2;

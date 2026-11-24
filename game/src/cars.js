@@ -183,9 +183,15 @@ export function makeHeroCar() {
   // lower body: long, low, wide — the GT stance
   g.add(box(2.0, 0.5, 4.4, orange, 0, 0.55, 0));
   // sloped hood, falling toward the nose, with a power bulge down
-  // the centre so the hood has shape instead of a flat slab
+  // the centre so the hood has shape instead of a flat slab.
+  // Round 8: the bulge is wider and taller, and fender bulges run
+  // down each hood edge — the flat slab hood is what made the car
+  // read as a wedge from the front. Sculpted fenders + a raised
+  // centre give the nose the GT-R's muscular shape.
   g.add(box(1.9, 0.08, 1.3, orange, 0, 0.84, 1.5, -0.1));
-  g.add(box(0.85, 0.07, 1.0, orange, 0, 0.9, 1.45, -0.1));
+  g.add(box(1.0, 0.1, 1.0, orange, 0, 0.92, 1.45, -0.1));
+  g.add(box(0.28, 0.09, 1.25, orangeDark, -0.82, 0.88, 1.5, -0.1));
+  g.add(box(0.28, 0.09, 1.25, orangeDark, 0.82, 0.88, 1.5, -0.1));
   // nose / front bumper with a black lower splitter
   g.add(box(2.05, 0.32, 0.4, orange, 0, 0.42, 2.25));
   g.add(box(2.1, 0.1, 0.5, dark, 0, 0.22, 2.28));
@@ -196,10 +202,14 @@ export function makeHeroCar() {
   g.add(box(1.5, 0.2, 0.06, dark, 0, 0.58, 2.46));
   g.add(box(1.7, 0.12, 0.06, dark, 0, 0.34, 2.46));
   // angular swept headlights: wide, bright, angled back toward the
-  // fenders like the real GT-R's — not flat white rectangles
-  const hlL = lamp(0.68, 0.14, 0.06, 0xfff2c0, -0.66, 0.76, 2.46);
+  // fenders like the real GT-R's — not flat white rectangles. Each
+  // sits in a black bezel so the light reads as an inset lamp, not
+  // a white blob pasted on the nose.
+  g.add(box(0.78, 0.2, 0.04, dark, -0.66, 0.76, 2.44));
+  g.add(box(0.78, 0.2, 0.04, dark, 0.66, 0.76, 2.44));
+  const hlL = lamp(0.68, 0.14, 0.06, 0xfff2c0, -0.66, 0.76, 2.47);
   hlL.rotation.y = 0.18;
-  const hlR = lamp(0.68, 0.14, 0.06, 0xfff2c0, 0.66, 0.76, 2.46);
+  const hlR = lamp(0.68, 0.14, 0.06, 0xfff2c0, 0.66, 0.76, 2.47);
   hlR.rotation.y = -0.18;
   g.add(hlL, hlR);
   // LED daytime strips under the headlights
@@ -215,28 +225,40 @@ export function makeHeroCar() {
   g.add(box(0.24, 0.3, 1.2, orangeDark, -1.02, 0.72, -1.55));
   g.add(box(0.24, 0.3, 1.2, orangeDark, 1.02, 0.72, -1.55));
   // cabin: glasshouse set back, lower and sleeker than a box — a
-  // sloped windshield and rear glass so the roofline falls away
-  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.46, 2.0), glass);
-  cabin.position.set(0, 1.0, -0.3);
+  // sloped windshield and rear glass so the roofline falls away.
+  // Round 8: the cabin is lower (0.40, not 0.46) and the roof panel
+  // is BLACK, like the real GT-R in the reference photo — the tall
+  // orange slab roof is what made the car read as a wedge from the
+  // front. A black roof + lower glasshouse slims the whole car.
+  const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.4, 2.0), glass);
+  cabin.position.set(0, 0.98, -0.3);
   cabin.castShadow = true;
   g.add(cabin);
-  g.add(box(1.6, 0.06, 1.9, orange, 0, 1.26, -0.3)); // roof panel
-  g.add(box(1.62, 0.05, 0.9, glass, 0, 1.08, 0.78, -0.62)); // windshield
-  g.add(box(1.62, 0.05, 0.85, glass, 0, 1.08, -1.32, 0.5)); // rear glass
-  g.add(box(0.04, 0.36, 1.6, glass, -0.86, 1.0, -0.3)); // side glass L
-  g.add(box(0.04, 0.36, 1.6, glass, 0.86, 1.0, -0.3)); // side glass R
-  // BIG rear wing on two struts, with endplates — the GT-R signature
-  g.add(box(0.08, 0.38, 0.16, dark, -0.7, 0.98, -2.25));
-  g.add(box(0.08, 0.38, 0.16, dark, 0.7, 0.98, -2.25));
-  g.add(box(2.15, 0.07, 0.55, dark, 0, 1.18, -2.25));
-  g.add(box(0.06, 0.22, 0.55, dark, -1.08, 1.18, -2.25));
-  g.add(box(0.06, 0.22, 0.55, dark, 1.08, 1.18, -2.25));
+  g.add(box(1.6, 0.06, 1.9, dark, 0, 1.21, -0.3)); // black roof panel
+  g.add(box(1.62, 0.05, 0.9, glass, 0, 1.05, 0.78, -0.62)); // windshield
+  g.add(box(1.62, 0.05, 0.85, glass, 0, 1.05, -1.32, 0.5)); // rear glass
+  g.add(box(0.04, 0.32, 1.6, glass, -0.86, 0.98, -0.3)); // side glass L
+  g.add(box(0.04, 0.32, 1.6, glass, 0.86, 0.98, -0.3)); // side glass R
+  // BIG rear wing on two tall struts, with endplates and a gurney
+  // flap — the GT-R signature, and the reference photo's wing is
+  // tall and wide, standing clear above the decklid. Round 8: the
+  // struts are taller (0.52) and the wing wider (2.3 m) so it reads
+  // as a real GT wing from every angle, not a flat shelf.
+  g.add(box(0.08, 0.52, 0.16, dark, -0.7, 1.06, -2.25));
+  g.add(box(0.08, 0.52, 0.16, dark, 0.7, 1.06, -2.25));
+  g.add(box(2.3, 0.07, 0.55, dark, 0, 1.34, -2.25));
+  g.add(box(0.06, 0.28, 0.55, dark, -1.15, 1.34, -2.25));
+  g.add(box(0.06, 0.28, 0.55, dark, 1.15, 1.34, -2.25));
+  g.add(box(2.3, 0.12, 0.04, dark, 0, 1.4, -2.5)); // gurney flap
   // QUAD ROUND taillights — two on each side, like the real GT-R.
   // Big and bright red so they read even from far down the boulevard.
-  g.add(roundLamp(0.17, 0.07, 0xff2a2a, -0.62, 0.72, -2.42));
-  g.add(roundLamp(0.17, 0.07, 0xff2a2a, -0.94, 0.72, -2.42));
-  g.add(roundLamp(0.17, 0.07, 0xff2a2a, 0.62, 0.72, -2.42));
-  g.add(roundLamp(0.17, 0.07, 0xff2a2a, 0.94, 0.72, -2.42));
+  // Round 8: bigger (0.2) with a dark-red ring disc behind each lamp,
+  // like the reference photo's ringed lights — the ring is what makes
+  // them read as GT-R lights instead of plain red dots.
+  for (const tx of [-0.62, -0.94, 0.62, 0.94]) {
+    g.add(roundLamp(0.23, 0.03, 0x6e0a0a, tx, 0.72, -2.43));
+    g.add(roundLamp(0.2, 0.07, 0xff2a2a, tx, 0.72, -2.44));
+  }
   // rear diffuser with vertical fins + twin exhausts
   g.add(box(1.9, 0.26, 0.3, dark, 0, 0.35, -2.35));
   for (const fx of [-0.6, -0.2, 0.2, 0.6]) g.add(box(0.05, 0.22, 0.34, dark, fx, 0.3, -2.38));
@@ -256,11 +278,13 @@ export function makeHeroCar() {
   plate.rotation.y = Math.PI;
   g.add(plate);
   // big black wheels with bright hubs — large enough to fill the
-  // arches, so the car sits on its wheels instead of floating
+  // arches, so the car sits on its wheels instead of floating.
+  // Round 8: 0.48, not 0.46 — the bigger wheel fills the flared
+  // arches and drops the stance, like the reference photo.
   const wheels = [];
   for (const [wx, wz] of [[-0.96, 1.55], [0.96, 1.55], [-0.96, -1.55], [0.96, -1.55]]) {
-    const w = wheel(0.46, 0.32, wx > 0 ? 1 : -1, 0x14141a, 0xd8dde2);
-    w.position.set(wx, 0.46, wz);
+    const w = wheel(0.48, 0.32, wx > 0 ? 1 : -1, 0x14141a, 0xd8dde2);
+    w.position.set(wx, 0.48, wz);
     g.add(w);
     wheels.push(w);
   }

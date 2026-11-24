@@ -78,12 +78,18 @@ function stageShootout(game) {
   // centre, back to camera, gun out; the three officers, the fallen
   // officer and the blood pool, and the burning van are ahead of
   // him; the heli hangs in clean sky above with its beam down.
+  // Round 8: the exposure drops to 1.6 for this shot only (each
+  // capture is a fresh page, so the other shots keep 2.15). At 2.15
+  // the sand + beam pool + flames + sun halo stacked into one white
+  // blown-out blob in the centre — at 1.6 the sand, the flames, the
+  // beam pool and the characters read as distinct elements.
   game.startPlay();
   game.setMission(3);
   game.setStep(1);
   game.setCash(18450);
   game.setClock(DUSK);
   game.setWanted(3);
+  game.renderer.toneMappingExposure = 1.6;
   game.placeShootoutScene();
   frameShot(game, 'shootout', true, false, false);
   game.hud.setDialogue('MARA VOSS · FIXER', 'Three stars and the whole beach is crawling with CBPD — hold the line, then vanish before backup lands.');

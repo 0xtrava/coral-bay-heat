@@ -184,12 +184,15 @@ export class Game {
     // plus a target ring at the impact point. A THREE.Line is one
     // pixel wide and reads as nothing at 1920 px; a beam with a
     // visible width and a ring at the end reads as a shot fired.
+    // Round 8: the beam is thicker still (core 0.22, glow 0.55)
+    // and the flash is bigger (2.2 m) — in fix7 the frame was
+    // captured mid-washout and the shot read as nothing at all.
     // The cylinders are unit height along Y and get scaled and
     // aimed from the muzzle to the impact point each time shoot()
     // fires; the group keeps the same .visible / timer interface
     // the update loop and the playtest already rely on.
     this.flash = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.5, 1.5),
+      new THREE.PlaneGeometry(2.2, 2.2),
       new THREE.MeshBasicMaterial({
         map: glowTexture('rgba(255,250,200,1)', 'rgba(255,180,60,0.6)'),
         transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
@@ -201,10 +204,10 @@ export class Game {
       new THREE.CylinderGeometry(r, r, 1, 10),
       new THREE.MeshBasicMaterial({ color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false }),
     );
-    const beamCore = beamPart(0.14, 0xfff6c0, 0.98);
-    const beamGlow = beamPart(0.36, 0xffd34d, 0.5);
+    const beamCore = beamPart(0.22, 0xfff6c0, 0.98);
+    const beamGlow = beamPart(0.55, 0xffd34d, 0.55);
     const targetRing = new THREE.Mesh(
-      new THREE.RingGeometry(0.4, 0.58, 24),
+      new THREE.RingGeometry(0.55, 0.78, 24),
       new THREE.MeshBasicMaterial({ color: 0xff6a2a, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false }),
     );
     this.tracer = new THREE.Group();
@@ -226,7 +229,7 @@ export class Game {
     this.flames = new THREE.Group();
     const flameTex = flameTexture();
     const flameSets = [
-      { n: 5, w: 1.5, h: 3.4, x: 0.55, z: 0.7, tint: 0xffe14d },
+      { n: 5, w: 1.5, h: 3.4, x: 0.55, z: 0.7, tint: 0xffb81a },
       { n: 6, w: 1.8, h: 2.8, x: 0.85, z: 1.1, tint: 0xff7a1a },
       { n: 5, w: 2.1, h: 2.3, x: 1.1, z: 1.4, tint: 0xe83a10 },
     ];
@@ -267,14 +270,17 @@ export class Game {
       new THREE.PlaneGeometry(9, 9),
       new THREE.MeshBasicMaterial({
         map: glowTexture('rgba(255,200,90,0.95)', 'rgba(255,110,20,0.4)'),
-        transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+        transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false,
       }),
     );
     fireGlow.rotation.x = -Math.PI / 2;
     fireGlow.position.y = 0.4;
     this.flames.add(fireGlow);
-    // an orange light that flickers with the fire and lights the Ranger
-    const fireLight = new THREE.PointLight(0xff7a1a, 80, 22, 1.5);
+    // an orange light that flickers with the fire and lights the Ranger.
+    // Intensity 45, not 80: at 80 the fire's light + glow + the beam
+    // pool + the bright sand stacked into a white washout in the
+    // shootout — the fire should light the scene, not erase it.
+    const fireLight = new THREE.PointLight(0xff7a1a, 45, 22, 1.5);
     fireLight.position.set(0, 2.2, 0.4);
     this.flames.add(fireLight);
     this.flames.userData.fireLight = fireLight;
@@ -509,7 +515,12 @@ export class Game {
     }
     if (this.tracerTimer > 0) {
       this.tracerTimer -= dt;
-      if (this.tracerTimer <= 0) { this.tracer.visible = false; this.flash.visible = false; }
+      // holdTracer: the staged shootout shot freezes one shot in the
+      // air for the capture — the loop must NOT fade it, and
+      // _autoFight must NOT re-fire over it (see placeShootoutScene).
+      // Only the staged shot sets this flag; normal play and the
+      // playtest never touch it, so their tracer timing is unchanged.
+      if (this.tracerTimer <= 0 && !this.holdTracer) { this.tracer.visible = false; this.flash.visible = false; }
     }
     // state snapshot for the playtest
     const pos = this.vehicle === 'boat' ? this.boat : this.vehicle === 'foot' ? this.foot : this.car;
@@ -1069,6 +1080,12 @@ export class Game {
         this.damage(1, true);
       }
     }
+    // holdTracer: the staged shootout shot already froze one shot in
+    // the air for the capture — do NOT re-fire over it, or shoot()
+    // resets tracerTimer to 0.09 and the frozen shot fades before
+    // the frame is taken (that is why fix7's shootout showed no
+    // tracer, pistol or flash at all).
+    if (this.holdTracer) return;
     if (this.fightTimer <= 0) {
       this.fightTimer = 0.55;
       this.shoot(best);
@@ -1403,20 +1420,31 @@ export class Game {
       [[106, -14], [106, 6], [106, -2], [106, 16]],
       [[112, -16], [120, -14], [126, -12], [104, 20], [130, 20], [128, 2], [116, -20], [124, 20]],
     );
-    // freeze one shot in the air: aim at the nearest officer, fire, then
-    // hold the tracer + muzzle flash on for the capture — the loop would
-    // fade them in 0.09 s otherwise, and the frame would show no shot
+    // freeze one shot in the air: aim at the officer most directly
+    // AHEAD of the player (smallest |dx|, not the nearest) and fire,
+    // then hold the tracer + muzzle flash on for the capture — the
+    // loop would fade them in 0.09 s otherwise, and the frame would
+    // show no shot. The nearest officer is (123, 1), off to the
+    // player's right — aiming at him sent the tracer sideways across
+    // the frame to the edge, so fix8's shot read as a white bar, not
+    // a shot fired into the scene. The officer at (119, -7) is
+    // straight ahead, so the beam goes forward into the frame and
+    // the muzzle flash sits by the player's gun, both readable.
+    // holdTracer pins them on AND stops _autoFight re-firing over the
+    // frozen shot during the settle frames (each re-fire reset the
+    // timer to 0.09 s, so fix7's capture showed no shot at all).
     const alive = this.officers.filter((o) => !o.down && o.mesh.visible);
     if (alive.length) {
       let best = alive[0], bd = Infinity;
       for (const o of alive) {
-        const d = Math.hypot(o.x - this.foot.x, o.z - this.foot.z);
+        const d = Math.abs(o.x - this.foot.x);
         if (d < bd) { bd = d; best = o; }
       }
       this.foot.heading = Math.atan2(best.x - this.foot.x, best.z - this.foot.z);
       this.playerMesh.rotation.y = this.foot.heading;
       this.shoot(best);
       this.tracerTimer = 3600;
+      this.holdTracer = true;
     }
     // heli high over the officers, beam down among them — its whole
     // body in clean sky in the top of the frame, not tangled in palm

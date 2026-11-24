@@ -99,11 +99,13 @@ export function stepWalk(person, dt, moving) {
 // glance — this is the weapon Egi asked to see. The slide is bright
 // light-grey with LOW metalness: a high-metalness silver renders
 // almost black in a scene with no environment map, which is why the
-// old gun vanished against the sand.
+// old gun vanished against the sand. Round 8: the silver is hotter
+// (emissive 1.4) and the gun is scaled up at the player/officer, so
+// it reads even in a bright frame.
 function pistol() {
   const g = new THREE.Group();
   const dark = new THREE.MeshStandardMaterial({ color: 0x1c1c22, roughness: 0.5, metalness: 0.4 });
-  const silver = new THREE.MeshStandardMaterial({ color: 0xe8ecf0, roughness: 0.25, metalness: 0.25, emissive: 0x3a3a3e, emissiveIntensity: 0.9 });
+  const silver = new THREE.MeshStandardMaterial({ color: 0xe8ecf0, roughness: 0.25, metalness: 0.25, emissive: 0x55555c, emissiveIntensity: 1.4 });
   const grip = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.26, 0.14), dark);
   grip.position.set(0, 0, 0);
   grip.castShadow = true;
@@ -127,11 +129,16 @@ function pistol() {
 export function makePlayer() {
   const g = makeWalker({ float: () => 0 }, 0xd21f1f, 0x1c1c22);
   // the gun rides at her right hand, forward and high, bright metal
-  // — BIG (1.6x) so it reads at a glance from the shootout camera
+  // — BIG (3.0x) so it reads at a glance from the shootout camera,
+  // pushed well out past her right shoulder (x 0.55) and angled
+  // hard across her body (rotation -0.55) so the long silver slide
+  // shows its SIDE to the behind-camera — a forward-pointing gun
+  // seen end-on is a speck, and in fix8 it hid behind her torso.
+  // The angled slide is what makes the weapon read as a pistol.
   const gun = pistol();
-  gun.scale.setScalar(1.6);
-  gun.position.set(0.3, 1.16, 0.5);
-  gun.rotation.y = -0.12;
+  gun.scale.setScalar(3.0);
+  gun.position.set(0.55, 1.22, 0.6);
+  gun.rotation.y = -0.55;
   g.add(gun);
   // a lighter red chest panel so the jacket reads as a jacket, not a slab
   const chest = limb(0.4, 0.4, 0.04, 0xe83a3a, 0, 1.12, 0.16);
@@ -174,10 +181,10 @@ export function makeOfficer() {
   legL.geometry.translate(0, -0.3, 0);
   legR.geometry.translate(0, -0.3, 0);
   // the officer's pistol, held out at his right hand in the aim pose
-  // — BIG (1.4x) so the weapon reads, not a speck of grey
+  // — BIG (1.8x) so the weapon reads, not a speck of grey
   const gun = pistol();
-  gun.scale.setScalar(1.4);
-  gun.position.set(0.3, 1.16, 0.5);
+  gun.scale.setScalar(1.8);
+  gun.position.set(0.34, 1.18, 0.52);
   gun.rotation.y = -0.12;
   // red marker: a tall downward cone that bobs above the head
   const marker = new THREE.Mesh(
